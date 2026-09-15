@@ -74,9 +74,25 @@ export function storageKeyFor(
   return `${workspaceId}/${storageClass}/${id}${ext}`;
 }
 
-export function storageClassOf(key: string): StorageClass | null {
-  const part = key.split('/')[1];
+function asStorageClass(part: string | undefined): StorageClass | null {
   return part === 'source' || part === 'output' || part === 'preview' ? part : null;
+}
+
+/**
+ * Doc storage class tu khoa object.
+ *
+ * Phai nhan CA HAI dang khoa (Phase 1 / MCP-15):
+ *  - phang  (Phase 0): `<workspaceId>/<class>/<id><ext>`
+ *  - long   (Phase 1): `workspaces/<ws>/projects/<p>/assets/<a>/<class>/<fileId><ext>`
+ *
+ * Neu chi doc `split('/')[1]` nhu Phase 0 thi khoa long tra `null`, va
+ * assertWritableKey() se IM LANG mat tac dung -> mat lop bao ve I-1 o tang luu tru.
+ * Vi vay doc segment dung ngay truoc ten file truoc, roi moi fallback ve dang phang.
+ */
+export function storageClassOf(key: string): StorageClass | null {
+  const parts = key.split('/');
+  if (parts.length < 2) return null;
+  return asStorageClass(parts[parts.length - 2]) ?? asStorageClass(parts[1]);
 }
 
 /**

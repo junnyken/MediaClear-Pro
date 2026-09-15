@@ -28,10 +28,16 @@ describe('docs consistency', () => {
     }
   });
 
-  it('API.md khong ghi route la nghiep vu da chay khi code van tra 501', () => {
-    const planned = API_ROUTES.filter((r) => r.status === 'planned');
-    expect(planned.length).toBe(API_ROUTES.length - 1); // chi /healthz la implemented
-    expect(read('API.md')).toContain('501');
+  it('API.md ghi DUNG trang thai cua tung route (khong the noi da chay khi chua chay)', () => {
+    const api = read('API.md');
+    const missing: string[] = [];
+    for (const route of API_ROUTES) {
+      // Hang bang phai khop chinh xac ca trang thai: docs khong duoc "lac" khoi code.
+      const row = `| ${route.method} | \`${route.path}\` | ${route.status} |`;
+      if (!api.includes(row)) missing.push(row);
+    }
+    expect(missing, 'API.md lech trang thai so voi API_ROUTES').toEqual([]);
+    expect(api).toContain('501');
   });
 
   it('moi ma loi trong catalogue deu co trong bang mapping cua API.md', () => {

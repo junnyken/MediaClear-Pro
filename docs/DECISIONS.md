@@ -214,3 +214,69 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
 | D-009 blocked terminal | **D-005** (cập nhật sang `confirmed`) | quyết định này đã có sẵn từ Phase 0 |
 | D-010 Attestation 365 ngày | **D-006 + D-015** (cập nhật sang `confirmed`) | đã có sẵn |
 | D-011 Preview free + làm tròn phút | **D-008 + D-009** (cập nhật sang `confirmed`) | đã có sẵn |
+
+
+---
+
+# Quyết định Phase 1 (2026-09-15)
+
+## D-024 — Bảng route Phase 1 thay các path 'planned' của Phase 0
+
+- **Context**: Phase 0 khai 10 route `planned` (vd `POST /v1/jobs`), chưa route nào được hiện thực.
+  Prompt Phase 1 mục 8 yêu cầu bộ path lồng tài nguyên (`/v1/assets/:assetId/jobs`).
+- **Decision**: dùng bộ path của Phase 1 làm chính thức; các path Phase 0 bị thay được ghi ở bảng đối
+  chiếu trong `API.md` §1.1. Route nào Phase 1 chưa làm (`estimate`, `preview`, `receipt`) vẫn trả 501.
+- **Alternatives considered**: (a) giữ cả hai dạng path làm alias — bị loại vì tạo hai đường làm cùng
+  một việc, tài liệu và test phải nhân đôi; (b) giữ nguyên path Phase 0 — bị loại vì trái yêu cầu mới
+  của owner, mà path cũ chưa có client nào dùng.
+- **Consequences**: không phá vỡ gì đang chạy (chưa từng có route nào hoạt động). Test docs-consistency
+  nay so **từng dòng** bảng route giữa `API.md` và `API_ROUTES`.
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+## D-025 — Phase 1 chạy trên bộ nhớ, PostgreSQL dừng ở mức schema đã kiểm chứng
+
+- **Context**: Phase 1 cần chạy thật và test được ngay; môi trường build/test không có sẵn PostgreSQL.
+- **Decision**: runtime dùng `InMemoryPersistence` (tự khai `durability: 'ephemeral'`, lộ ở `/healthz`);
+  đồng thời viết `db/migrations/0001_phase1_init.sql` và **chạy thật trên một PostgreSQL 16 sạch** để
+  chứng minh schema dựng được và các ràng buộc chặn thật.
+- **Alternatives considered**: (a) viết adapter PostgreSQL luôn — bị loại vì test sẽ phụ thuộc DB ngoài
+  và scope Phase 1 phình ra; (b) không thiết kế schema — bị loại vì sẽ nợ thiết kế đúng chỗ khó nhất.
+- **Consequences**: dữ liệu mất khi restart — chấp nhận được cho Phase 1 và được nói rõ, không giấu.
+  Adapter PostgreSQL là việc đầu tiên của phase sau.
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+## D-026 — Upload qua ticket ký HMAC trỏ về chính API
+
+- **Context**: Chưa có R2/MinIO, nhưng contract `ObjectStorageAdapter` đã có `createUploadUrl`.
+- **Decision**: adapter local sinh URL có chữ ký HMAC, ràng buộc bucket/khoá/content-type/trần dung
+  lượng/hạn dùng, trỏ về `PUT /v1/storage/upload/:token`. Route này xác thực **bằng ticket**, không
+  bằng session — đúng hợp đồng của presigned URL.
+- **Alternatives considered**: (a) upload thẳng qua route có session — bị loại vì khi đổi sang R2 thì
+  luồng client phải viết lại; (b) multipart form — bị loại vì thêm phụ thuộc mà không giải quyết gì thêm.
+- **Consequences**: đổi sang R2/MinIO chỉ cần thay implementation của cùng port. Giới hạn đã biết:
+  upload nạp vào bộ nhớ, chưa resumable.
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+## D-027 — Job bị chặn vẫn được ghi lại, nhưng từ chối quyền thì không
+
+- **Context**: Prompt yêu cầu "job không tạo được nếu policy/media/permission fail", đồng thời yêu cầu
+  có sự kiện `processing_job_blocked` và "gỡ xong tạo job mới".
+- **Decision**: chặn vì **validation/attestation/provider** ⇒ ghi một `ProcessingJob` ở trạng thái
+  `blocked` (có lý do, **không** giữ mức dùng) và trả lỗi kèm `jobId`. Chặn vì **quyền** ⇒ không ghi
+  job nào.
+- **Alternatives considered**: (a) không ghi gì cả — bị loại vì mất dấu vết và sự kiện audit bắt buộc
+  sẽ không bao giờ xảy ra; (b) ghi cả khi từ chối quyền — bị loại vì cho phép người ngoài tạo rác
+  trong workspace của người khác.
+- **Consequences**: người dùng có màn hình "bị dừng" để tra cứu; job bị chặn là trạng thái cuối.
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+## D-028 — `/healthz` giữ dạng phẳng, không bọc envelope
+
+- **Context**: Mọi route `/v1/*` dùng `{ok, data}`. `/healthz` là probe hạ tầng.
+- **Decision**: giữ `/healthz` phẳng để công cụ giám sát đọc trực tiếp; client web có hàm riêng
+  `fetchHealth()`.
+- **Alternatives considered**: bọc envelope cho đồng nhất — bị loại vì probe hạ tầng thường được đọc
+  bởi công cụ ngoài, không nên bắt chúng hiểu envelope của ứng dụng.
+- **Consequences**: đã ghi rõ ngoại lệ này trong `API.md` §3. (Chính chỗ này từng làm giao diện kẹt ở
+  trạng thái "đang tải" — xem `TEST_LOG.md`.)
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro

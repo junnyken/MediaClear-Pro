@@ -1,47 +1,576 @@
 /**
- * MediaClear Pro - API skeleton (Phase 0).
+ * MediaClear Pro - API (Phase 1: SaaS Shell & Media Intake Foundation).
  *
- * TRANG THAI THAT: chi /healthz chay that. MOI route nghiep vu tra 501
- * MCP_NOT_IMPLEMENTED. Day la contract surface de Phase 1 hien thuc,
- * KHONG phai bang chung rang pipeline da hoat dong.
+ * SU THAT HIEN TAI:
+ *  - Auth/workspace/project/asset/upload/validate/attestation/job boundary CHAY THAT.
+ *  - KHONG co xu ly AI production: khong job nao dat 'completed', khong co output.
+ *  - Route chua hien thuc van tra 501 MCP_NOT_IMPLEMENTED, khong gia vo thanh cong.
  *
- * Client-agnostic: khong co route rieng cho web hay Chrome Extension (guardrail 12).
+ * Client-agnostic: khong co route rieng cho web hay Chrome Extension.
  */
-import Fastify from 'fastify';
+import { readFile } from 'node:fs/promises';
+import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import {
   API_ROUTES,
   ERROR_CODES,
-  PHASE,
+  MAX_FILE_SIZE_BYTES,
+  MEDIA_LIMITS,
   PRODUCTION_AI_PROCESSING_ENABLED,
+  RIGHTS_STATEMENT,
   apiError,
   httpStatusFor,
+  type ApiError,
 } from '@mediaclear/contracts';
+import { createAppContext, type AppContext } from './app-context.js';
+import { RequestLog } from './observability/request-log.js';
+import { resolveActor, resolveUser, type Actor } from './services/access.js';
+import { addMember, createWorkspace, listAuditEvents, listMembers, listWorkspacesForUser } from './services/workspaces.js';
+import { createProject, getProject, listProjects } from './services/projects.js';
+import {
+  completeUpload,
+  createAssetDownloadUrl,
+  createUploadIntent,
+  getAssetView,
+  listAssets,
+  validateAsset,
+} from './services/assets.js';
+import { createAttestation, getAttestation } from './services/attestations.js';
+import { cancelJob, createJob, getJob } from './services/jobs.js';
+import { getUsageSummary } from './services/usage.js';
+import type { ServiceResult } from './services/result.js';
 
-export function buildServer() {
-  const app = Fastify({ logger: false });
+const PHASE = 'phase-1-saas-shell' as const;
 
-  app.get('/healthz', async () => ({
-    ok: true,
-    phase: PHASE,
-    productionAiProcessingEnabled: PRODUCTION_AI_PROCESSING_ENABLED,
-    routes: API_ROUTES.length,
-  }));
+function bearerToken(request: FastifyRequest): string | null {
+  const header = request.headers.authorization;
+  if (typeof header !== 'string') return null;
+  const [scheme, value] = header.split(' ');
+  if (!value || scheme?.toLowerCase() !== 'bearer') return null;
+  return value.trim() || null;
+}
 
-  // Dang ky moi route nghiep vu o trang thai 'planned' -> 501, co ma loi ro rang.
-  for (const route of API_ROUTES) {
-    if (route.status !== 'planned') continue;
-    const path = route.path.replace(/:([A-Za-z]+)/g, ':$1');
-    // Status lay tu ERROR_CATALOGUE, khong hard-code so 501 o day.
-    const notImplementedStatus = httpStatusFor(ERROR_CODES.MCP_NOT_IMPLEMENTED);
-    const handler = async (_req: unknown, reply: { code: (n: number) => { send: (b: unknown) => unknown } }) =>
-      reply
-        .code(notImplementedStatus)
-        .send({ ok: false, error: apiError(ERROR_CODES.MCP_NOT_IMPLEMENTED, { route: route.path }) });
-    if (route.method === 'GET') app.get(path, handler);
-    else app.post(path, handler);
+function workspaceHeader(request: FastifyRequest): string | null {
+  const value = request.headers['x-workspace-id'];
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function param(request: FastifyRequest, name: string): string {
+  const params = request.params as Record<string, string | undefined>;
+  return params[name] ?? '';
+}
+
+function body(request: FastifyRequest): Record<string, unknown> {
+  return typeof request.body === 'object' && request.body !== null && !Buffer.isBuffer(request.body)
+    ? (request.body as Record<string, unknown>)
+    : {};
+}
+
+export interface BuildServerOptions {
+  context?: AppContext;
+}
+
+export function buildServer(options: BuildServerOptions = {}) {
+  const ctx = options.context ?? createAppContext();
+  const requestLog = new RequestLog(process.env.MEDIACLEAR_LOG === '1');
+
+  const app = Fastify({
+    logger: false,
+    // Tran body = tran file cua contract + cho header. Ticket con chan rieng tung lan upload.
+    bodyLimit: MAX_FILE_SIZE_BYTES + 64 * 1024,
+    /*
+     * Upload/download ticket nam trong path param va dai hon 100 ky tu (mac dinh cua
+     * Fastify) => neu khong nang gioi han nay thi moi upload deu tra 414 URI Too Long.
+     */
+    routerOptions: { maxParamLength: 4096 },
+  });
+
+  // Nhan byte tho cho upload (khong them phu thuoc multipart).
+  app.addContentTypeParser('*', { parseAs: 'buffer' }, (_req, payload, done) => done(null, payload));
+
+  /*
+   * Body JSON rong la HOP LE voi cac POST khong can tham so (vd validate, cancel).
+   * Parser mac dinh cua Fastify nem FST_ERR_CTP_EMPTY_JSON_BODY va tra loi THO ra ngoai.
+   */
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, payload, done) => {
+    const text = typeof payload === 'string' ? payload.trim() : '';
+    if (text.length === 0) return done(null, {});
+    try {
+      done(null, JSON.parse(text) as unknown);
+    } catch {
+      done(new SyntaxError('invalid_json'), undefined);
+    }
+  });
+
+  // CORS toi thieu: chi Bearer token, khong dung cookie => khong bat credentials.
+  app.addHook('onRequest', async (request, reply) => {
+    reply.header('access-control-allow-origin', ctx.config.corsAllowOrigin);
+    reply.header('access-control-allow-headers', 'authorization,content-type,x-workspace-id');
+    reply.header('access-control-allow-methods', 'GET,POST,PUT,OPTIONS');
+    reply.header('access-control-max-age', '600');
+    if (request.method === 'OPTIONS') {
+      await reply.code(204).send();
+    }
+  });
+
+  const started = new WeakMap<FastifyRequest, number>();
+  app.addHook('onRequest', async (request) => {
+    started.set(request, Date.now());
+  });
+
+  /** Ghi nhat ky: khong bao gio ghi token/URL ky/byte media. */
+  function log(request: FastifyRequest, reply: FastifyReply, meta: {
+    operation: string;
+    workspaceId?: string | null;
+    userId?: string | null;
+    subjectId?: string | null;
+    errorCode?: string | null;
+    usageOperation?: string | null;
+  }): void {
+    requestLog.append({
+      requestId: request.id,
+      method: request.method,
+      route: request.routeOptions?.url ?? request.url.split('?')[0] ?? '',
+      workspaceId: meta.workspaceId ?? null,
+      userId: meta.userId ?? null,
+      subjectId: meta.subjectId ?? null,
+      operation: meta.operation,
+      resultState: reply.statusCode >= 400 ? 'error' : 'ok',
+      httpStatus: reply.statusCode,
+      errorCode: meta.errorCode ?? null,
+      durationMs: Date.now() - (started.get(request) ?? Date.now()),
+      usageOperation: meta.usageOperation ?? null,
+    });
   }
 
-  return app;
+  function sendError(request: FastifyRequest, reply: FastifyReply, error: ApiError, operation: string, actor?: Actor) {
+    reply.code(httpStatusFor(error.code));
+    log(request, reply, {
+      operation,
+      workspaceId: actor?.workspace.id ?? null,
+      userId: actor?.user.id ?? null,
+      errorCode: error.code,
+    });
+    return reply.send({ ok: false, error });
+  }
+
+  function sendOk<T>(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    data: T,
+    operation: string,
+    meta: { actor?: Actor; subjectId?: string | null; usageOperation?: string | null } = {},
+  ) {
+    log(request, reply, {
+      operation,
+      workspaceId: meta.actor?.workspace.id ?? null,
+      userId: meta.actor?.user.id ?? null,
+      subjectId: meta.subjectId ?? null,
+      usageOperation: meta.usageOperation ?? null,
+    });
+    return reply.send({ ok: true, data });
+  }
+
+  /** Lay actor hoac tra loi. Dung cho moi route can workspace context. */
+  async function withActor(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    operation: string,
+    workspaceId: string | null,
+  ): Promise<Actor | null> {
+    const result = await resolveActor(ctx, bearerToken(request), workspaceId);
+    if (!result.ok) {
+      await sendError(request, reply, result.error, operation);
+      return null;
+    }
+    return result.data;
+  }
+
+  async function respond<T>(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    operation: string,
+    actor: Actor,
+    result: ServiceResult<T>,
+    subjectId?: string | null,
+  ) {
+    if (!result.ok) return sendError(request, reply, result.error, operation, actor);
+    return sendOk(request, reply, result.data, operation, { actor, subjectId: subjectId ?? null });
+  }
+
+  /*
+   * Bat MOI loi cua framework va bien thanh ApiError cua he thong.
+   * Neu khong co lop nay, Fastify tra thang { statusCode, code: 'FST_ERR_...', message }
+   * - do la loi NOI BO ro ri ra ngoai va khong co translation key cho nguoi dung.
+   */
+  app.setErrorHandler((error, request, reply) => {
+    const frameworkCode = typeof (error as { code?: string }).code === 'string' ? (error as { code: string }).code : '';
+    const mapped: ApiError =
+      frameworkCode === 'FST_ERR_CTP_BODY_TOO_LARGE'
+        ? apiError(ERROR_CODES.MCP_VAL_FILE_TOO_LARGE, { limitBytes: MAX_FILE_SIZE_BYTES })
+        : frameworkCode.startsWith('FST_ERR_CTP') || frameworkCode === 'FST_ERR_VALIDATION' || error instanceof SyntaxError
+          ? apiError(ERROR_CODES.MCP_VAL_REQUEST_INVALID, { reason: 'body' })
+          : frameworkCode === 'FST_ERR_MAX_PARAM_LENGTH'
+            ? apiError(ERROR_CODES.MCP_STORAGE_UPLOAD_TICKET_INVALID)
+            : apiError(ERROR_CODES.MCP_VAL_REQUEST_INVALID, { reason: 'unhandled' });
+    return sendError(request, reply, mapped, 'framework_error');
+  });
+
+  app.setNotFoundHandler((request, reply) =>
+    sendError(request, reply, apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'route' }), 'not_found'),
+  );
+
+  /* ------------------------------------------------------------- health --- */
+
+  app.get('/healthz', async (request, reply) => {
+    const data = {
+      ok: true,
+      phase: PHASE,
+      /** Khong bao gio bat trong Phase 1. */
+      productionAiProcessingEnabled: PRODUCTION_AI_PROCESSING_ENABLED,
+      routes: API_ROUTES.length,
+      implementedRoutes: API_ROUTES.filter((r) => r.status === 'implemented').length,
+      plannedRoutes: API_ROUTES.filter((r) => r.status === 'planned').length,
+      // Tu khai ha tang that su dang dung - khong giau la dang chay do tam.
+      identityProvider: { id: ctx.identity.id, production: ctx.identity.isProductionProvider },
+      persistence: { id: ctx.persistence.id, durability: ctx.persistence.durability },
+      storage: { id: ctx.storage.id, production: ctx.storage.isProductionAdapter },
+      mediaProbe: ctx.probe.id,
+      productionProviders: ctx.providers.listProduction().length,
+      uploadSecretProvided: ctx.config.uploadSecretProvided,
+      limits: {
+        maxFileBytes: MEDIA_LIMITS.maxFileBytesInclusive,
+        maxVideoDurationSeconds: MEDIA_LIMITS.video.maxDurationSecondsInclusive,
+        maxVideoWidthPx: MEDIA_LIMITS.video.maxWidthPxInclusive,
+        maxVideoHeightPx: MEDIA_LIMITS.video.maxHeightPxInclusive,
+        imageMimeTypes: MEDIA_LIMITS.image.allowedMimeTypes,
+        videoMimeTypes: MEDIA_LIMITS.video.allowedMimeTypes,
+        rightsAttestationValidityDays: RIGHTS_STATEMENT.validityDays,
+      },
+    };
+    log(request, reply, { operation: 'healthz' });
+    return reply.send(data);
+  });
+
+  /* --------------------------------------------------------------- auth --- */
+
+  app.post('/v1/auth/dev-session', async (request, reply) => {
+    if (!ctx.config.devAuthEnabled) {
+      return sendError(
+        request,
+        reply,
+        apiError(ERROR_CODES.MCP_NOT_IMPLEMENTED, { reason: 'dev_auth_disabled' }),
+        'auth.dev_session',
+      );
+    }
+    const payload = body(request);
+    const email = typeof payload.email === 'string' ? payload.email.trim() : '';
+    if (email.length === 0 || !email.includes('@')) {
+      return sendError(request, reply, apiError(ERROR_CODES.MCP_VAL_REQUEST_INVALID, { field: 'email' }), 'auth.dev_session');
+    }
+    const displayName = typeof payload.displayName === 'string' ? payload.displayName : undefined;
+    const { session, user } = await ctx.identity.signIn(
+      displayName === undefined ? { email } : { email, displayName },
+    );
+    return sendOk(
+      request,
+      reply,
+      {
+        token: session.token,
+        userId: user.id,
+        expiresAt: session.expiresAt,
+        productionAuthProvider: ctx.identity.isProductionProvider,
+      },
+      'auth.dev_session',
+      { subjectId: user.id },
+    );
+  });
+
+  app.get('/v1/me', async (request, reply) => {
+    const authed = await resolveUser(ctx, bearerToken(request));
+    if (!authed.ok) return sendError(request, reply, authed.error, 'me.read');
+    const memberships = await listWorkspacesForUser(ctx, authed.data.user.id);
+    return sendOk(
+      request,
+      reply,
+      {
+        user: {
+          id: authed.data.user.id,
+          email: authed.data.user.email,
+          displayName: authed.data.user.displayName,
+          defaultLocale: authed.data.user.defaultLocale,
+        },
+        workspaces: memberships.map((m) => ({ id: m.workspace.id, name: m.workspace.name, role: m.membership.role })),
+      },
+      'me.read',
+      { subjectId: authed.data.user.id },
+    );
+  });
+
+  /* --------------------------------------------------------- workspaces --- */
+
+  app.get('/v1/workspaces', async (request, reply) => {
+    const authed = await resolveUser(ctx, bearerToken(request));
+    if (!authed.ok) return sendError(request, reply, authed.error, 'workspace.list');
+    const rows = await listWorkspacesForUser(ctx, authed.data.user.id);
+    return sendOk(
+      request,
+      reply,
+      { items: rows.map((r) => ({ ...r.workspace, role: r.membership.role })), nextCursor: null },
+      'workspace.list',
+    );
+  });
+
+  app.post('/v1/workspaces', async (request, reply) => {
+    const authed = await resolveUser(ctx, bearerToken(request));
+    if (!authed.ok) return sendError(request, reply, authed.error, 'workspace.create');
+    const result = await createWorkspace(ctx, authed.data.user.id, body(request).name);
+    if (!result.ok) return sendError(request, reply, result.error, 'workspace.create');
+    return sendOk(
+      request,
+      reply,
+      { ...result.data.workspace, role: result.data.membership.role },
+      'workspace.create',
+      { subjectId: result.data.workspace.id },
+    );
+  });
+
+  app.get('/v1/workspaces/:workspaceId', async (request, reply) => {
+    const actor = await withActor(request, reply, 'workspace.read', param(request, 'workspaceId'));
+    if (!actor) return reply;
+    return sendOk(request, reply, { ...actor.workspace, role: actor.role }, 'workspace.read', {
+      actor,
+      subjectId: actor.workspace.id,
+    });
+  });
+
+  app.get('/v1/workspaces/:workspaceId/members', async (request, reply) => {
+    const actor = await withActor(request, reply, 'workspace.members.list', param(request, 'workspaceId'));
+    if (!actor) return reply;
+    return respond(request, reply, 'workspace.members.list', actor, await listMembers(ctx, actor));
+  });
+
+  app.post('/v1/workspaces/:workspaceId/members', async (request, reply) => {
+    const actor = await withActor(request, reply, 'workspace.members.add', param(request, 'workspaceId'));
+    if (!actor) return reply;
+    const payload = body(request);
+    const result = await addMember(ctx, actor, { email: payload.email, role: payload.role });
+    return respond(request, reply, 'workspace.members.add', actor, result, result.ok ? result.data.id : null);
+  });
+
+  app.get('/v1/workspaces/:workspaceId/audit-events', async (request, reply) => {
+    const actor = await withActor(request, reply, 'audit.list', param(request, 'workspaceId'));
+    if (!actor) return reply;
+    return respond(request, reply, 'audit.list', actor, await listAuditEvents(ctx, actor));
+  });
+
+  /* ------------------------------------------------------------ projects --- */
+
+  app.get('/v1/workspaces/:workspaceId/projects', async (request, reply) => {
+    const actor = await withActor(request, reply, 'project.list', param(request, 'workspaceId'));
+    if (!actor) return reply;
+    const query = request.query as Record<string, string | undefined>;
+    return respond(
+      request,
+      reply,
+      'project.list',
+      actor,
+      await listProjects(ctx, actor, { cursor: query.cursor ?? null, limit: Number(query.limit ?? 50) }),
+    );
+  });
+
+  app.post('/v1/workspaces/:workspaceId/projects', async (request, reply) => {
+    const actor = await withActor(request, reply, 'project.create', param(request, 'workspaceId'));
+    if (!actor) return reply;
+    const result = await createProject(ctx, actor, body(request).name);
+    return respond(request, reply, 'project.create', actor, result, result.ok ? result.data.id : null);
+  });
+
+  app.get('/v1/projects/:projectId', async (request, reply) => {
+    const actor = await withActor(request, reply, 'project.read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'project.read', actor, await getProject(ctx, actor, param(request, 'projectId')));
+  });
+
+  app.get('/v1/projects/:projectId/assets', async (request, reply) => {
+    const actor = await withActor(request, reply, 'asset.list', workspaceHeader(request));
+    if (!actor) return reply;
+    const query = request.query as Record<string, string | undefined>;
+    return respond(
+      request,
+      reply,
+      'asset.list',
+      actor,
+      await listAssets(ctx, actor, param(request, 'projectId'), {
+        cursor: query.cursor ?? null,
+        limit: Number(query.limit ?? 50),
+      }),
+    );
+  });
+
+  /* ------------------------------------------------- upload va storage --- */
+
+  app.post('/v1/projects/:projectId/assets/upload-intent', async (request, reply) => {
+    const actor = await withActor(request, reply, 'asset.upload_intent', workspaceHeader(request));
+    if (!actor) return reply;
+    const payload = body(request);
+    const result = await createUploadIntent(ctx, actor, param(request, 'projectId'), {
+      originalFilename: payload.originalFilename,
+      mimeType: payload.mimeType,
+      byteSize: payload.byteSize,
+      mediaType: payload.mediaType,
+    });
+    return respond(request, reply, 'asset.upload_intent', actor, result, result.ok ? result.data.assetId : null);
+  });
+
+  /**
+   * Nhan byte that. Xac thuc bang upload ticket (capability), khong bang session:
+   * dung hop dong cua presigned URL. Ticket rang buoc bucket/key/content-type/kich thuoc/han dung.
+   */
+  app.put('/v1/storage/upload/:uploadToken', async (request, reply) => {
+    const raw = request.body;
+    if (!Buffer.isBuffer(raw)) {
+      return sendError(request, reply, apiError(ERROR_CODES.MCP_VAL_EMPTY_FILE), 'storage.upload');
+    }
+    const result = await completeUpload(ctx, param(request, 'uploadToken'), raw);
+    if (!result.ok) return sendError(request, reply, result.error, 'storage.upload');
+    return sendOk(request, reply, result.data, 'storage.upload', { subjectId: result.data.assetId });
+  });
+
+  app.get('/v1/storage/download/:downloadToken', async (request, reply) => {
+    const ticket = ctx.storage.verifyTicket(param(request, 'downloadToken'), 'download', ctx.now().getTime());
+    if (!ticket.ok) return sendError(request, reply, ticket.error, 'storage.download');
+    const head = await ctx.storage.head({ bucket: ticket.payload.bucket, key: ticket.payload.key });
+    if (!head.exists) {
+      return sendError(request, reply, apiError(ERROR_CODES.MCP_STORAGE_OBJECT_NOT_FOUND), 'storage.download');
+    }
+    const path = await ctx.storage.objectPath({ bucket: ticket.payload.bucket, key: ticket.payload.key });
+    const contentType = (await ctx.storage.contentTypeOf({ bucket: ticket.payload.bucket, key: ticket.payload.key })) ?? 'application/octet-stream';
+    const bytes = await readFile(path);
+    log(request, reply, { operation: 'storage.download' });
+    return reply.header('content-type', contentType).send(bytes);
+  });
+
+  app.get('/v1/assets/:assetId/download-url', async (request, reply) => {
+    const actor = await withActor(request, reply, 'asset.download_url', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(
+      request,
+      reply,
+      'asset.download_url',
+      actor,
+      await createAssetDownloadUrl(ctx, actor, param(request, 'assetId')),
+    );
+  });
+
+  /* ------------------------------------------------------------- assets --- */
+
+  app.get('/v1/assets/:assetId', async (request, reply) => {
+    const actor = await withActor(request, reply, 'asset.read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'asset.read', actor, await getAssetView(ctx, actor, param(request, 'assetId')));
+  });
+
+  app.post('/v1/assets/:assetId/validate', async (request, reply) => {
+    const actor = await withActor(request, reply, 'asset.validate', workspaceHeader(request));
+    if (!actor) return reply;
+    const result = await validateAsset(ctx, actor, param(request, 'assetId'));
+    return respond(request, reply, 'asset.validate', actor, result, param(request, 'assetId'));
+  });
+
+  /* ------------------------------------------------- rights attestation --- */
+
+  app.post('/v1/assets/:assetId/rights-attestation', async (request, reply) => {
+    const actor = await withActor(request, reply, 'rights.attest', workspaceHeader(request));
+    if (!actor) return reply;
+    const payload = body(request);
+    const result = await createAttestation(ctx, actor, param(request, 'assetId'), {
+      statementId: payload.statementId,
+      statementVersion: payload.statementVersion,
+      localeShown: payload.localeShown,
+      accepted: payload.accepted,
+    });
+    return respond(request, reply, 'rights.attest', actor, result, result.ok ? result.data.id : null);
+  });
+
+  app.get('/v1/assets/:assetId/rights-attestation', async (request, reply) => {
+    const actor = await withActor(request, reply, 'rights.read', workspaceHeader(request));
+    if (!actor) return reply;
+    const result = await getAttestation(ctx, actor, param(request, 'assetId'));
+    if (!result.ok) return sendError(request, reply, result.error, 'rights.read', actor);
+    return sendOk(
+      request,
+      reply,
+      {
+        attestation: result.data,
+        statement: {
+          id: RIGHTS_STATEMENT.id,
+          version: RIGHTS_STATEMENT.version,
+          i18nKey: RIGHTS_STATEMENT.i18nKey,
+          validityDays: RIGHTS_STATEMENT.validityDays,
+        },
+      },
+      'rights.read',
+      { actor },
+    );
+  });
+
+  /* --------------------------------------------------------------- jobs --- */
+
+  app.post('/v1/assets/:assetId/jobs', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.create', workspaceHeader(request));
+    if (!actor) return reply;
+    const payload = body(request);
+    const result = await createJob(ctx, actor, param(request, 'assetId'), {
+      operations: payload.operations,
+      regions: payload.regions,
+      presetId: payload.presetId,
+      idempotencyKey: payload.idempotencyKey,
+    });
+    if (!result.ok) return sendError(request, reply, result.error, 'job.create', actor);
+    return sendOk(request, reply, result.data, 'job.create', {
+      actor,
+      subjectId: result.data.job.id,
+      usageOperation: result.data.usage.state === 'reserved' ? 'reserve' : null,
+    });
+  });
+
+  app.get('/v1/jobs/:jobId', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'job.read', actor, await getJob(ctx, actor, param(request, 'jobId')));
+  });
+
+  app.post('/v1/jobs/:jobId/cancel', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.cancel', workspaceHeader(request));
+    if (!actor) return reply;
+    const result = await cancelJob(ctx, actor, param(request, 'jobId'));
+    if (!result.ok) return sendError(request, reply, result.error, 'job.cancel', actor);
+    return sendOk(request, reply, result.data, 'job.cancel', {
+      actor,
+      subjectId: result.data.job.id,
+      usageOperation: result.data.usage.state === 'released' ? 'release' : null,
+    });
+  });
+
+  app.get('/v1/usage', async (request, reply) => {
+    const actor = await withActor(request, reply, 'usage.read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'usage.read', actor, await getUsageSummary(ctx, actor));
+  });
+
+  /* ------------------------------------- route chua hien thuc: van 501 --- */
+
+  for (const route of API_ROUTES) {
+    if (route.status !== 'planned') continue;
+    const handler = async (request: FastifyRequest, reply: FastifyReply) => {
+      const error = apiError(ERROR_CODES.MCP_NOT_IMPLEMENTED, { route: route.path });
+      return sendError(request, reply, error, 'not_implemented');
+    };
+    if (route.method === 'GET') app.get(route.path, handler);
+    else app.post(route.path, handler);
+  }
+
+  return Object.assign(app, { mediaclearContext: ctx, mediaclearRequestLog: requestLog });
 }
 
 const isEntrypoint = process.argv[1]?.endsWith('server.js') ?? false;
@@ -49,7 +578,7 @@ if (isEntrypoint) {
   const port = Number(process.env.PORT ?? 3001);
   buildServer()
     .listen({ port, host: '0.0.0.0' })
-    .then(() => console.log(`[mediaclear-api] phase0 skeleton on :${port}`))
+    .then(() => console.log(`[mediaclear-api] ${PHASE} on :${port}`))
     .catch((err) => {
       console.error(err);
       process.exit(1);

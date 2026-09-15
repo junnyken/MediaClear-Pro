@@ -1,46 +1,57 @@
 # FEATURES — MediaClear Pro
 
-- **Date**: 2026-09-15 · **Phase**: 0
+- **Date**: 2026-09-15 · **Phase**: 1 (SaaS Shell & Media Intake Foundation)
 
 Bảng dưới là **trạng thái thật trong repository này**, không phải kế hoạch bán hàng.
-`implemented` = có code chạy được và có test trong repo.
+`implemented` = có code chạy được, có test, và đã được gọi thật ít nhất một lần.
 
-## 1. Đã có trong repo (`implemented`)
+## 1. Đang chạy thật (`implemented`)
 
 | Capability | Nơi ở | Bằng chứng |
 |---|---|---|
-| Config tập trung mọi giới hạn (199 MB, 09:59, 3840×3840, 365 ngày) | `packages/contracts/src/config.ts` | kiểm qua 10 test media-limits + 12 test policy |
-| Stable vocabulary (media type, cleanup operation, job state, evidence status) | `src/vocabulary.ts` | 4 test |
-| Domain entity contracts (15 entity) | `src/entities.ts` | typecheck |
-| Media limits & validation, phân biệt format/size/duration/width/height | `src/media-limits.ts` | 10 test |
-| Job state machine + guard `completed` + `blocked` terminal | `src/job-state-machine.ts` | 9 test |
-| Rights Guard / policy gate (attestation missing/expired/stale/blocked) | `src/policy.ts` | 12 test |
-| Tenancy + ma trận quyền 4 role, chặn rò rỉ existence | `src/tenancy.ts` | 9 test |
-| Object storage abstraction S3-compatible + adapter in-memory | `src/storage.ts`, `src/storage-adapters/` | 7 test |
-| Provider abstraction + registry + deterministic fallback | `src/provider.ts` | 8 test |
-| Benchmark harness (10 kịch bản × 10 metric, chặn số bịa) | `src/benchmark.ts` | 5 test |
-| Preview contract (proxy, miễn phí, ngân sách provider job) | `src/preview.ts` | 4 test |
-| Metadata / provenance evaluation | `src/provenance.ts` | 8 test |
-| Usage ledger (reserve/commit/release, chống double charge & conflict) | `src/usage.ts` | 10 test |
-| Invariant registry 12 mục + regression test | `src/invariants.ts` | 13 test |
-| Error catalogue 39 mã kèm HTTP/retry/release | `src/errors.ts` | 7 test |
-| Design tokens (màu, spacing, a11y) | `packages/design-tokens/` | web build |
-| i18n vi (mặc định) + en, 127 key, parity test | `packages/i18n/` | 8 test |
-| Web skeleton 11 route (10 màn foundation) | `apps/web/` | `next build` xanh |
-| API skeleton: `/healthz` thật, 10 route nghiệp vụ trả 501 | `apps/api/` | 4 test HTTP thật |
+| Đăng nhập tạm + phiên làm việc (dev) | `apps/api/src/auth/identity.ts` | 401 khi thiếu/hỏng phiên; đã đăng nhập thật qua trình duyệt |
+| Workspace: tạo, chọn, danh sách, thành viên, vai trò | `services/workspaces.ts` | 11 test tenancy + click-through |
+| Ranh giới workspace (không lộ existence) | `tenancy.ts` + `services/access.ts` | 404 cho cả "của người khác" lẫn "không tồn tại" |
+| Ma trận quyền 4 role có hiệu lực ở HTTP | `tenancy.ts` | viewer bị chặn tạo job/project; member bị chặn quản trị |
+| Project: tạo, danh sách (có cursor), chi tiết | `services/projects.ts` | test HTTP thật |
+| Upload asset: intent → PUT byte thật → lưu đĩa | `services/assets.ts`, `storage/local-fs-adapter.ts` | SHA-256 khớp file gốc, tải về khớp lại |
+| Khoá object an toàn, chống traversal, chống ghi đè source | `storage/object-key.ts` | 4 test đơn vị + test I-1 |
+| Đo media thật từ byte (PNG/JPEG/WebP, MP4/MOV/WebM) | `media/header-probe.ts` | 12 test trên file thật, đối chứng `ffprobe` |
+| Kiểm tra media theo config tập trung | `media-limits.ts` + `services/assets.ts` | biên 199 MB / 599 s / 3840 px kiểm trên **file thật** |
+| Phát hiện khai sai định dạng | `services/assets.ts` | `MCP_VAL_MIME_MISMATCH` khi byte ≠ MIME khai báo |
+| Xác nhận quyền cấp asset, hiệu lực 365 ngày | `services/attestations.ts` | test biên 365/366, test "asset A không cứu asset B" |
+| Ranh giới tạo job 5 cổng | `services/jobs.ts` | 13 test job/usage + click-through |
+| `blocked` là trạng thái cuối | `job-state-machine.ts` | huỷ job blocked ⇒ `MCP_STATE_TERMINAL` |
+| Chống gửi trùng (idempotency) | `services/jobs.ts` | gửi 3 lần ⇒ 1 job, 1 bản ghi ledger |
+| Usage reserve/release, làm tròn lên theo phút | `services/usage.ts` | video 599 s ⇒ 10 phút; huỷ ⇒ hoàn lại |
+| Nhật ký request + audit có che thông tin nhạy cảm | `observability/`, `services/audit.ts` | 7 test; không token nào lọt vào log |
+| Lỗi luôn ra ApiError có translation key | `server.ts` (`setErrorHandler`) | không còn `FST_ERR_*` lọt ra ngoài |
+| Giao diện 16 màn theo workflow, vi mặc định | `apps/web/app/` | bấm tay hết luồng trên trình duyệt thật, 0 lỗi console |
+| i18n vi + en, 235 khoá, parity tuyệt đối | `packages/i18n/` | 8 test |
+| Schema PostgreSQL cho 10 entity | `db/migrations/0001_phase1_init.sql` | chạy thật trên DB sạch, 6 ràng buộc chặn đúng |
 
-## 2. Đã chốt contract, chưa code (`planned`)
+## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
-Upload thật + adapter R2/MinIO thật · Probe media thật (ffprobe/exif) · Queue + worker · Gọi provider AI
-thật · Preview render · Export · Brand overlay · Usage ledger persistence · Audit event
-persistence · Auth/tenant enforcement · Migrations.
+Adapter PostgreSQL thật (schema đã có) · Adapter R2/MinIO thật (port đã có) · Auth provider
+production · Queue/worker · Preview render · Ước tính chi phí · Biên nhận xử lý · Phân trang audit ·
+Soft-delete/retention · Resumable upload · OpenAPI.
 
 ## 3. Chưa có bằng chứng (`unknown`)
 
-Provider AI nào đủ chất lượng · Giá thật mỗi ảnh / mỗi phút video · Tỷ lệ fail/retry thực tế ·
-Khả năng đọc C2PA/AI provenance của thư viện nào · Queue runtime · Auth provider cụ thể.
+Provider AI nào đủ chất lượng · Giá thật mỗi ảnh/mỗi phút video · Tỷ lệ fail/retry thực tế · Thư viện
+đọc C2PA · Queue runtime (Q-02) · Auth provider cụ thể (Q-14) · Bộ media mẫu cho benchmark (Q-07).
 
-## 4. Cố ý không làm (`out_of_scope`)
+## 4. Chưa xác minh (`unconfirmed`)
 
-Không xoá, không vô hiệu hoá và không cam kết kiểm soát watermark vô hình (gồm SynthID) ·
-Tự động thu thập media từ website bên thứ ba · Chrome Extension · Python media service.
+Bảo toàn metadata/provenance khi xử lý thật (chưa xử lý lần nào) · Hành vi ở tải cao · Khả năng phục
+hồi khi mất kết nối giữa chừng upload · Đọc màn hình (screen reader) trên toàn bộ giao diện.
+
+## 5. Cố ý không làm (`out_of_scope` trong Phase 1)
+
+Xử lý AI production (ảnh và video) · Trình sửa khung hình · Bám chuyển động · Chọn provider
+production · Thanh toán thật · Google Drive · Chrome Extension · API công khai cho khách · Quyền
+nâng cao ngoài 4 role · Gỡ dấu vết nguồn gốc · Tự động thu thập media từ website bên thứ ba.
+
+> Về các dấu ẩn không nhìn thấy được trong tệp (gồm SynthID): hệ thống **không** phát hiện,
+> **không** gỡ và **không** cam kết kiểm soát chúng. Đây là giới hạn được nêu rõ với người dùng ngay
+> trong hộp thoại xác nhận quyền.

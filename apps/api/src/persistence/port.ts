@@ -1,0 +1,93 @@
+/**
+ * PersistencePort - ranh gioi giua domain va noi luu tru.
+ *
+ * MOI method doc/ghi tai nguyen thuoc workspace deu BAT BUOC nhan workspaceId.
+ * Khong ton tai `findById(id)` tran => khong the vo tinh doc cheo tenant.
+ * Media binary KHONG bao gio di qua day (guardrail 10 Phase 1).
+ */
+import type {
+  Asset,
+  AuditEvent,
+  Page,
+  PageQuery,
+  ProcessingJob,
+  Project,
+  RightsAttestation,
+  SourceFileRecord,
+  UsageLedgerEntry,
+  User,
+  ValidationRecord,
+  Workspace,
+  WorkspaceMembership,
+} from './types.js';
+
+export interface PersistencePort {
+  readonly id: string;
+  /** 'ephemeral' = mat khi restart. Lo ra /healthz, khong giau. */
+  readonly durability: 'ephemeral' | 'durable';
+
+  users: {
+    findById(id: string): Promise<User | null>;
+    findByEmail(email: string): Promise<User | null>;
+    create(user: User): Promise<User>;
+  };
+
+  workspaces: {
+    create(workspace: Workspace): Promise<Workspace>;
+    findById(id: string): Promise<Workspace | null>;
+    listForUser(userId: string): Promise<Array<{ workspace: Workspace; membership: WorkspaceMembership }>>;
+  };
+
+  memberships: {
+    create(membership: WorkspaceMembership): Promise<WorkspaceMembership>;
+    find(workspaceId: string, userId: string): Promise<WorkspaceMembership | null>;
+    listByWorkspace(workspaceId: string): Promise<WorkspaceMembership[]>;
+  };
+
+  projects: {
+    create(project: Project): Promise<Project>;
+    findById(workspaceId: string, id: string): Promise<Project | null>;
+    listByWorkspace(workspaceId: string, query?: PageQuery): Promise<Page<Project>>;
+  };
+
+  assets: {
+    create(asset: Asset): Promise<Asset>;
+    findById(workspaceId: string, id: string): Promise<Asset | null>;
+    listByProject(workspaceId: string, projectId: string, query?: PageQuery): Promise<Page<Asset>>;
+  };
+
+  sourceFiles: {
+    create(record: SourceFileRecord): Promise<SourceFileRecord>;
+    findById(workspaceId: string, id: string): Promise<SourceFileRecord | null>;
+    /** Chi duoc goi MOT lan cho moi file: lan hai bi tu choi (bat bien I-1). */
+    markStored(workspaceId: string, id: string, patch: Pick<SourceFileRecord, 'measured' | 'uploadedAt'>): Promise<SourceFileRecord>;
+  };
+
+  validations: {
+    save(record: ValidationRecord): Promise<ValidationRecord>;
+    findLatest(workspaceId: string, assetId: string): Promise<ValidationRecord | null>;
+  };
+
+  attestations: {
+    /** Append-only: moi lan ky tao ban ghi moi, giu nguyen lich su. */
+    create(attestation: RightsAttestation): Promise<RightsAttestation>;
+    findLatest(workspaceId: string, assetId: string): Promise<RightsAttestation | null>;
+  };
+
+  jobs: {
+    create(job: ProcessingJob): Promise<ProcessingJob>;
+    findById(workspaceId: string, id: string): Promise<ProcessingJob | null>;
+    findByIdempotencyKey(workspaceId: string, key: string): Promise<ProcessingJob | null>;
+    update(job: ProcessingJob): Promise<ProcessingJob>;
+  };
+
+  usage: {
+    append(entry: UsageLedgerEntry): Promise<UsageLedgerEntry>;
+    listByWorkspace(workspaceId: string): Promise<UsageLedgerEntry[]>;
+  };
+
+  audit: {
+    append(event: AuditEvent): Promise<AuditEvent>;
+    listByWorkspace(workspaceId: string, limit?: number): Promise<AuditEvent[]>;
+  };
+}

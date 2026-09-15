@@ -1,14 +1,24 @@
-import { ScreenPlaceholder } from '../_components/ScreenPlaceholder';
+'use client';
 
-export default function Page() {
+import { translate } from '../_lib/api';
+import { Card, PageTitle, LinkButton } from '../_components/Ui';
+
+/** Diem vao theo workflow: chon du an -> tai tep -> kiem tra -> xac nhan quyen -> tao luot. */
+export default function NewCleanupPage() {
   return (
-    <ScreenPlaceholder
-      titleKey="screen.new_cleanup.title"
-      contractKeys={[
-        'screen.new_cleanup.contract.1',
-        'screen.new_cleanup.contract.2',
-        'screen.new_cleanup.contract.3',
-      ]}
-    />
+    <>
+      <PageTitle>{translate('screen.new_cleanup.title')}</PageTitle>
+      <Card>
+        <ol style={{ lineHeight: 2 }}>
+          <li>{translate('screen.project_list.create_cta')}</li>
+          <li>{translate('screen.project_detail.upload_cta')}</li>
+          <li>{translate('screen.upload_validation.title')}</li>
+          <li>{translate('rights.attestation.v1.title')}</li>
+          <li>{translate('screen.job_review.submit')}</li>
+        </ol>
+        <LinkButton href="/projects">{translate('common.continue')}</LinkButton>
+        <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('screen.asset_upload.original_kept')}</p>
+      </Card>
+    </>
   );
 }

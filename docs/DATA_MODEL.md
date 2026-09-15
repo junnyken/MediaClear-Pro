@@ -92,3 +92,48 @@ PostgreSQL.
 |---|---|
 | Migration thuộc Phase 0 | **Không có** (contract-only, theo yêu cầu owner ở Q-01) |
 | Migration để Phase 1 | Toàn bộ 15 entity + ràng buộc unique của usage ledger + index theo `workspaceId` |
+
+---
+
+# Phase 1 — schema thật (2026-09-15)
+
+## 8. Migration
+
+`db/migrations/0001_phase1_init.sql` — **đã chạy thật trên một PostgreSQL 16 sạch** (container
+`postgres:16-alpine`), tạo 12 bảng. Migration chỉ TẠO mới, không sửa/xoá gì (không destructive).
+
+| Bảng | Vai trò |
+|---|---|
+| `users`, `workspaces`, `workspace_members` | danh tính và tenancy |
+| `projects`, `assets`, `source_files` | thư viện nội dung |
+| `validation_results` | kết quả kiểm tra media của từng asset |
+| `rights_attestations` | lời khai quyền, append-only |
+| `processing_jobs` | vòng đời job |
+| `usage_ledger_entries` | reserve / commit / release |
+| `audit_events` | dấu vết thao tác |
+| `schema_migrations` | phiên bản đã áp dụng |
+
+## 9. Ràng buộc bảo vệ invariant ở tầng dữ liệu
+
+Không chỉ dựa vào code ứng dụng — các ràng buộc sau **đã được kiểm chứng là chặn thật** trên DB sạch:
+
+| Ràng buộc | Chặn điều gì |
+|---|---|
+| `FOREIGN KEY (project_id, workspace_id)` (và tương tự cho asset/job) | asset/job trỏ sang tài nguyên của workspace khác |
+| `processing_jobs_completed_requires_output` | `completed` khi chưa có output (I-2) |
+| `processing_jobs_blocked_requires_reason` | `blocked` mà không có lý do |
+| `UNIQUE (job_id, entry_type)` + `UNIQUE (idempotency_key)` | double-charge / reserve trùng (I-8) |
+| `source_files_stored_has_measurements` | đánh dấu đã lưu trong khi chưa có số đo thật |
+| `CHECK (preserve_original_metadata)` | tắt bảo toàn metadata (I-9) |
+
+## 10. Chỉ mục và lưu giữ
+
+Chỉ mục theo `workspace_id` + thời gian cho project/asset/job/usage/audit (mọi truy vấn đều lọc theo
+tenant trước). **Chưa có**: soft-delete, retention policy, xoá theo yêu cầu người dùng — `planned`,
+cần owner quyết thời hạn lưu.
+
+## 11. Chênh lệch có chủ đích giữa runtime và schema
+
+Runtime Phase 1 dùng `InMemoryPersistence` (`ephemeral`), **không** phải PostgreSQL. Schema được
+thiết kế và chạy thử để không nợ thiết kế, nhưng adapter PostgreSQL là việc của phase sau
+(`planned`). `/healthz` khai đúng điều này, không giả vờ đã có DB.

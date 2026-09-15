@@ -1,14 +1,58 @@
-import { ScreenPlaceholder } from '../../_components/ScreenPlaceholder';
+'use client';
 
-export default function Page() {
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { apiFetch, translate } from '../../_lib/api';
+import { useResource } from '../../_lib/use-resource';
+import { Card, Empty, ErrorNotice, Loading, PageTitle, LinkButton } from '../../_components/Ui';
+
+interface AssetRow {
+  id: string;
+  mediaType: string;
+  createdAt: string;
+}
+
+export default function ProjectDetailPage() {
+  const params = useParams<{ projectId: string }>();
+  const projectId = params.projectId;
+  const project = useResource(() => apiFetch<{ id: string; name: string }>(`/v1/projects/${projectId}`), [projectId]);
+  const assets = useResource(() => apiFetch<{ items: AssetRow[] }>(`/v1/projects/${projectId}/assets`), [projectId]);
+
   return (
-    <ScreenPlaceholder
-      titleKey="screen.project_detail.title"
-      contractKeys={[
-        'screen.project_detail.contract.1',
-        'screen.project_detail.contract.2',
-        'screen.project_detail.contract.3',
-      ]}
-    />
+    <>
+      <PageTitle
+        action={
+          <LinkButton href={`/projects/${projectId}/upload`}>{translate('screen.project_detail.upload_cta')}</LinkButton>
+        }
+      >
+        {project.status === 'ready' && project.data ? project.data.name : translate('screen.project_detail.title')}
+      </PageTitle>
+
+      {project.status === 'loading' ? <Loading /> : null}
+      {project.status === 'error' && project.error ? <ErrorNotice error={project.error} onRetry={project.reload} /> : null}
+
+      <Card title={translate('screen.project_detail.assets_title')}>
+        {assets.status === 'loading' ? <Loading /> : null}
+        {assets.status === 'error' && assets.error ? <ErrorNotice error={assets.error} onRetry={assets.reload} /> : null}
+        {assets.status === 'ready' && assets.data ? (
+          assets.data.items.length === 0 ? (
+            <Empty message={translate('screen.project_detail.empty_assets')} />
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {assets.data.items.map((asset) => (
+                <li key={asset.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                  <Link href={`/assets/${asset.id}`} style={{ color: 'var(--mcp-primary)' }}>
+                    {asset.id}
+                  </Link>
+                  <span style={{ color: 'var(--mcp-text-secondary)', marginLeft: 'var(--mcp-space-3)' }}>
+                    {asset.mediaType === 'image' ? translate('usage.image_unit') : translate('usage.video_minute_unit')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : null}
+      </Card>
+    </>
   );
 }

@@ -99,3 +99,60 @@ ghi đè lên object class `source` (invariant I-1).
 | `pnpm build:web` | `next build` |
 
 `pnpm check` chạy typecheck + lint + test.
+
+---
+
+# Phase 1 — SaaS Shell & Media Intake (2026-09-15)
+
+## 6. Những gì Phase 1 đã dựng thật
+
+```
+apps/web (Next.js)                    apps/api (Fastify)
+  màn hình theo workflow        HTTP    server.ts  ── composition root (app-context.ts)
+  gọi API bằng Bearer token  ───────►     ├── services/access.ts   (session → workspace → authorize)
+  không giữ logic nghiệp vụ              ├── services/{workspaces,projects,assets,attestations,jobs,usage}
+                                         ├── media/header-probe.ts (đọc số đo THẬT từ byte)
+                                         ├── storage/local-fs-adapter.ts (ObjectStorageAdapter)
+                                         └── persistence/in-memory.ts  (PersistencePort)
+```
+
+Bốn cổng thay thế được (port/adapter), mỗi cổng tự khai mình có phải production không và `/healthz`
+phơi ra hết:
+
+| Cổng | Bản Phase 1 | Tự khai | Thay bằng gì ở phase sau |
+|---|---|---|---|
+| `IdentityProvider` | `DevIdentityProvider` (in-memory) | `production: false` | IdP thật khi owner chốt Q-14 |
+| `PersistencePort` | `InMemoryPersistence` | `durability: 'ephemeral'` | adapter PostgreSQL (schema đã có) |
+| `ObjectStorageAdapter` | `LocalFsStorageAdapter` | `isProductionAdapter: false` | Cloudflare R2 / MinIO (Q-01) |
+| `MediaProbeAdapter` | `HeaderMediaProbe` (thuần TS) | — | giữ nguyên, hoặc bổ sung probe sâu hơn |
+
+## 7. Ranh giới auth và tenancy
+
+`session → workspace context → authorize()`. `authorize()` là **của Phase 0**, Phase 1 không viết
+engine quyền thứ hai. Thứ tự kiểm là một phần contract: **workspace trước, role sau** — nếu kiểm role
+trước thì thông báo lỗi đã đủ để suy ra tài nguyên có tồn tại hay không (I-10).
+
+Mọi method của `PersistencePort` đụng tới tài nguyên đều **bắt buộc** nhận `workspaceId`; không tồn
+tại `findById(id)` trần, nên không có đường vô tình đọc chéo tenant.
+
+## 8. Ranh giới lưu trữ
+
+- Khoá object: `workspaces/<ws>/projects/<prj>/assets/<ast>/source/<sourceFileId><ext>` — **không**
+  lấy từ tên file người dùng (tên gốc chỉ là `originalFilename` để hiển thị).
+- `storageClassOf()` đọc segment ngay trước tên file, nên `assertWritableKey()` vẫn chặn ghi đè
+  `source` với **cả hai** dạng khoá (phẳng của Phase 0 và lồng của Phase 1).
+- Upload đi qua **ticket ký HMAC** (bucket + khoá + content-type + trần dung lượng + hạn dùng), mô
+  phỏng đúng hợp đồng presigned URL của S3.
+- Media binary **không bao giờ** vào PostgreSQL; DB chỉ giữ `storage_key`.
+
+## 9. Ranh giới tạo job
+
+Năm cổng theo thứ tự cố định: quyền → validation → attestation/policy → provider capability →
+usage reserve. Không có provider production nào được đăng ký, nên job hợp lệ dừng ở `queued` và API
+tự khai `productionProcessingEnabled: false`.
+
+## 10. Quan sát và nhật ký
+
+Mỗi request ghi: `requestId`, workspace, user, subject, operation, kết quả, mã lỗi, thời gian,
+thao tác usage. **Không** ghi: byte media, API key, session token, mật khẩu, URL có chữ ký.
+`redactAuditDetail()` chặn theo **tên trường** và có test riêng.

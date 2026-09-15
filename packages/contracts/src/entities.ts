@@ -208,7 +208,22 @@ export interface AuditEvent {
   actorUserId: Id | null;
   /** vd: rights.attested, policy.blocked, job.state_changed, usage.committed */
   eventType: string;
-  subjectType: 'asset' | 'job' | 'output' | 'attestation' | 'usage' | 'provider_run';
+  /**
+   * Phase 1 bo sung 'workspace' | 'project' | 'membership': cac su kien
+   * workspace_created / workspace_member_added / project_created can subject that,
+   * khong duoc ep vao 'asset' cho du field.
+   */
+  subjectType:
+    | 'workspace'
+    | 'project'
+    | 'membership'
+    | 'asset'
+    | 'job'
+    | 'output'
+    | 'attestation'
+    | 'usage'
+    | 'audit'
+    | 'provider_run';
   subjectId: Id;
   /** CHI metadata phi nhay cam. Cam log media bytes, API key, PII (guardrail 15). */
   detail: Record<string, string | number | boolean | null>;

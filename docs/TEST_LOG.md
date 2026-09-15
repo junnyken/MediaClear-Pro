@@ -160,3 +160,90 @@ pipeline nào để chứng minh.
 
 `vitest.config.ts` nay alias `@mediaclear/*` về `src/`, để test **luôn** chạy trên source thay vì
 `dist/` cũ. Trước đó test của `apps/api` sẽ import bản build cũ và có thể xanh giả.
+
+---
+
+## 2026-09-15 (lần 3) — Phase 1: SaaS Shell & Media Intake
+
+### 1. Lệnh chạy riêng từng cái
+
+| Lệnh | Kết quả | Ghi chú |
+|---|---|---|
+| `pnpm typecheck` | exit 0 | `tsc -b` cho contracts + design-tokens + i18n + api |
+| `pnpm lint` | exit 0 | eslint toàn repo, 0 cảnh báo |
+| `pnpm test` | exit 0 — **214/214 pass**, 25 tệp, 0 skip | Phase 0 có 136 ⇒ Phase 1 thêm **78** |
+| `pnpm build:web` | exit 0 | 20 route Next.js |
+| Migration trên PostgreSQL sạch | exit 0 | `postgres:16-alpine` mới, tạo 12 bảng |
+| Kiểm chứng ràng buộc DB | exit 0 | 6/6 ràng buộc **chặn thật** |
+
+### 2. Test theo nhóm
+
+| Nhóm | Số test | Nội dung |
+|---|---|---|
+| Đọc media thật | 12 | PNG/JPEG/WebP (lossy + lossless), MP4 có/không tiếng, MOV, WebM, file rỗng, file hỏng; đối chứng với `ffprobe` |
+| Auth + tenancy | 11 | 401, workspace của người khác, header giả mạo, ma trận quyền, audit khi bị từ chối |
+| Nhập liệu + lưu trữ | 14 | upload byte thật, checksum, chống ghi đè, ticket giả mạo, biên 199 MB/599 s/3840 px, khai sai MIME |
+| Ranh giới job + usage | 13 | 5 cổng, idempotency, `blocked` terminal, huỷ, làm tròn phút |
+| Hồi quy R-1…R-12 | 11 | 12 invariant mới của Phase 1 |
+| Quan sát + audit | 7 | trường bắt buộc, che thông tin nhạy cảm |
+| Khoá object | 4 | dạng khoá, traversal, tương thích khoá Phase 0 |
+| Cấu trúc UI | 4 | chặn tái diễn lỗi tìm được khi bấm tay |
+| Bảng route ↔ server | 6 | route khai `implemented` phải có handler và **không** trả 501 |
+
+### 3. Live verification — API chạy từ bản đã build (`node apps/api/dist/server.js`)
+
+| Bước | Kết quả thật |
+|---|---|
+| `GET /healthz` | 200 · `phase-1-saas-shell` · `productionAiProcessingEnabled: false` · `productionProviders: 0` |
+| Đăng nhập + tạo workspace + project | 200, vai trò `owner` |
+| `upload-intent` + `PUT` video 599 giây (9.861 byte) | 200 · SHA-256 `107d60cc…c435` **khớp tuyệt đối** file gốc |
+| `validate` | 200 · `valid: true` (đo được 599 s từ chính byte) |
+| Tạo job khi **chưa** xác nhận quyền | 403 `MCP_POLICY_RIGHTS_ATTESTATION_MISSING`, job `blocked`, ledger rỗng |
+| Xác nhận quyền rồi tạo lại | 200 · job `queued` · `usage: video_minute_unit × 10 (reserved)` |
+| Gửi lại cùng `idempotencyKey` | cùng `jobId`, ledger vẫn 1 bản ghi |
+| Người khác đọc asset | 404 |
+| `POST /v1/jobs/:id/preview` | 501 `MCP_NOT_IMPLEMENTED` |
+| Tải lại file gốc qua download URL | SHA-256 khớp lại `107d60cc…c435` |
+| Audit | 9 sự kiện đúng thứ tự nghiệp vụ |
+| Nhật ký máy chủ | **0** lần xuất hiện token/`Bearer` |
+
+### 4. Live verification — giao diện, bấm tay trên Chrome thật
+
+Đăng nhập → tạo workspace → tạo dự án → chọn tệp → tải lên → kiểm tra → xác nhận quyền → tạo lượt
+xử lý → xem trạng thái → huỷ. **0 lỗi console** trên toàn luồng.
+
+Điểm đáng ghi:
+- Màn kiểm tra hiện **số đo đọc từ byte**: video 320×240, 2 giây, 20.830 byte (khớp `ffprobe`).
+- Với ảnh, ô "giây" hiện **"Chưa xác định"**, không hiện `0`.
+- Trang trạng thái hiện đủ: "đã được tiếp nhận" · "chưa bật xử lý AI production" · "không hiển thị
+  kết quả giả". Không nơi nào có chữ "thành công".
+- Huỷ lượt ⇒ trạng thái "Đã huỷ", mức dùng "Đã hoàn lại".
+
+### 5. Bug THẬT tìm được và đã sửa
+
+| # | Bug | Tìm ra bằng | Nguyên nhân gốc | Cách sửa | Chốt chặn tái diễn |
+|---|---|---|---|---|---|
+| 1 | Mọi upload trả **414 URI Too Long** | test tích hợp | `maxParamLength` mặc định của Fastify là 100 ký tự, ngắn hơn upload ticket | `routerOptions: { maxParamLength: 4096 }` | 14 test nhập liệu |
+| 2 | Server live chạy **mã cũ** | live verification | test chạy trên `src` (alias vitest), còn server chạy `dist`; `dist` chưa build lại | luôn `pnpm typecheck` (có emit) trước khi chạy live | ghi vào quy trình ở mục 7 |
+| 3 | Giao diện hiện **khoá dịch thô** thay vì tiếng Việt | bấm tay | `build:web` không build gói workspace trước ⇒ Next đóng gói bản `dist` i18n cũ (127 khoá thay vì 235) | `build:web = build:packages && next build` | build lại là thấy ngay; ghi ở `package.json` |
+| 4 | Thẻ "Giới hạn tệp" **kẹt ở "Đang tải…" vĩnh viễn** | bấm tay | `/healthz` trả đối tượng phẳng, client lại đọc theo bao `{ok,data}` ⇒ `data` là `undefined` | thêm `fetchHealth()` đọc đúng dạng; ghi ngoại lệ vào `API.md` §3 (D-028) | — |
+| 5 | API trả **lỗi nội bộ thô** `FST_ERR_CTP_EMPTY_JSON_BODY` | bấm tay | POST không body nhưng khai `application/json`; parser mặc định ném lỗi và Fastify trả nguyên dạng lỗi framework | `setErrorHandler` + parser chấp nhận body rỗng + `setNotFoundHandler`; client chỉ khai content-type khi có body | R-12 mở rộng: body rỗng, JSON hỏng, route lạ — đều phải ra `ApiError` |
+| 6 | Có nút bấm **không đi đâu cả** | bấm tay | `<Button>` lồng trong `<Link>` — lồng hai phần tử tương tác là HTML không hợp lệ | thêm `LinkButton` (thẻ `a` tạo dáng nút), thay 9 chỗ | test cấu trúc UI, **đã kiểm đối chứng âm**: dựng lại lỗi ⇒ test đỏ, gỡ ⇒ xanh |
+| 7 | Thanh bên vẫn hiện "Đăng nhập" sau khi đã đăng nhập | bấm tay | `Shell` chỉ đọc `/v1/me` một lần lúc mount | đọc lại theo mỗi lần đổi trang | — |
+| 8 | Ảnh mẫu 64×48 bị từ chối | test | **không phải lỗi code**: `MIN_IMAGE_DIMENSION_PX = 64` nên cạnh 48 px là không hợp lệ — fixture sai, bộ kiểm tra đúng | đổi fixture thành 200×120 | — |
+
+### 6. Giới hạn của lần kiểm tra này
+
+- Chạy migration **lần hai** trên cùng database sẽ **lỗi** (`relation "users" already exists`) vì chưa
+  có trình chạy migration đọc `schema_migrations`. Trên database sạch thì đúng.
+- Chưa test tải cao, chưa test upload đứt giữa chừng, chưa test đọc màn hình (screen reader).
+- Giao diện chỉ có test **cấu trúc tĩnh**; phần hành vi được bảo chứng bằng bấm tay, chưa có test
+  trình duyệt tự động.
+- Chưa chạy benchmark provider nào (Q-06/Q-07) — mọi ô vẫn `unknown`.
+
+### 7. Quy tắc rút ra (áp dụng từ nay)
+
+1. Test chạy trên `src`, người dùng chạy trên `dist`/bundle. **Verify live phải chạy trên bản đã build**.
+2. Gói workspace phải được build **trước** khi bundler đóng gói; nếu không, bản dịch/contract cũ lọt
+   vào mà không ai báo lỗi.
+3. Bấm tay tìm ra 5/8 bug trong lượt này, trong đó có một lỗi rò rỉ lỗi nội bộ mà 200+ test không bắt.

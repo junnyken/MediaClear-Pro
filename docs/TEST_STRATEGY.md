@@ -83,3 +83,32 @@ registry đủ 12 mục và mỗi mục đều có mô tả.
 | Storage adapter thật (R2/MinIO) | chưa deploy; hiện chỉ có adapter in-memory cho contract test |
 | E2E click-through 10 màn bằng trình duyệt | Phase 0 chỉ có skeleton; mới kiểm ở mức HTTP + nội dung HTML |
 | Kiểm tra contrast/a11y tự động | chưa có component library |
+
+
+---
+
+## 6. Hồi quy Phase 1 (R-1 … R-12)
+
+Ngoài 12 invariant của Phase 0, Phase 1 bổ sung 12 chốt hồi quy, mỗi chốt một test gọi đúng tên
+trong `apps/api/tests/phase1-regression.test.ts`:
+
+| ID | Nội dung |
+|---|---|
+| R-1 | Người ngoài workspace không đọc được project |
+| R-2 | Người ngoài workspace không đọc được asset |
+| R-3 | Viewer không tạo được job |
+| R-4 | Member không quản lý billing hay quyền sở hữu workspace |
+| R-5 | Asset không hợp lệ không tạo được job |
+| R-6 | Xác nhận quyền không hợp lệ không tạo được job |
+| R-7 | Job bị chặn không quay lại `processing` bằng bất kỳ route nào |
+| R-8 | Provider no-op không sinh output "đã kiểm chứng" giả |
+| R-9 | Byte của file gốc không bao giờ bị ghi đè |
+| R-10 | Gửi lại upload/job không tạo reservation trùng |
+| R-11 | Preview chưa hiện thực nên không thể tính tiền |
+| R-12 | Phản hồi lỗi không lộ secret, đường dẫn hệ thống, hay lỗi nội bộ của framework |
+
+## 7. Chốt chặn cho giao diện
+
+`apps/web/tests/ui-structure.test.ts` chặn hai lớp lỗi tìm được khi bấm tay: lồng `<Button>` trong
+`<Link>`, và gõ thẳng chuỗi tiếng Việt vào JSX thay vì đi qua translation key. Cả hai chốt đã được
+**kiểm đối chứng âm** (dựng lại lỗi thì test đỏ).

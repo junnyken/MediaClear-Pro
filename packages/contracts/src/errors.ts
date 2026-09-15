@@ -57,13 +57,29 @@ export const ERROR_CODES = {
   MCP_USAGE_RESERVATION_CONFLICT: 'MCP_USAGE_RESERVATION_CONFLICT',
   MCP_USAGE_QUANTITY_UNKNOWN: 'MCP_USAGE_QUANTITY_UNKNOWN',
 
-  // --- Storage (MCP-10) ---
+  // --- Storage (MCP-10 Phase 0 / MCP-15 Phase 1) ---
   MCP_STORAGE_OBJECT_NOT_FOUND: 'MCP_STORAGE_OBJECT_NOT_FOUND',
   MCP_STORAGE_WRITE_DENIED: 'MCP_STORAGE_WRITE_DENIED',
   MCP_STORAGE_UPLOAD_FAILED: 'MCP_STORAGE_UPLOAD_FAILED',
+  /** Phase 1: upload ticket sai chu ky, het han, hoac khong khop object/content-type. */
+  MCP_STORAGE_UPLOAD_TICKET_INVALID: 'MCP_STORAGE_UPLOAD_TICKET_INVALID',
 
   // --- Chung ---
   MCP_NOT_IMPLEMENTED: 'MCP_NOT_IMPLEMENTED',
+  /** Phase 1: chua dang nhap / session het han. KHAC voi thieu quyen (403). */
+  MCP_AUTHZ_SESSION_REQUIRED: 'MCP_AUTHZ_SESSION_REQUIRED',
+  /**
+   * Phase 1: tai nguyen khong ton tai TRONG workspace cua actor.
+   * Cross-workspace dung MCP_AUTHZ_WORKSPACE_ACCESS_DENIED - ca hai deu 404 nen
+   * nguoi goi khong phan biet duoc tu ben ngoai (I-10).
+   */
+  MCP_RESOURCE_NOT_FOUND: 'MCP_RESOURCE_NOT_FOUND',
+  /** Phase 1: body/tham so request khong hop le. Khong bao gio tra loi noi bo tho. */
+  MCP_VAL_REQUEST_INVALID: 'MCP_VAL_REQUEST_INVALID',
+  /** Phase 1: asset chua qua buoc validate media => chua duoc tao job. */
+  MCP_VAL_NOT_VALIDATED: 'MCP_VAL_NOT_VALIDATED',
+  /** Phase 1: idempotencyKey da dung cho mot request khac noi dung. */
+  MCP_JOB_IDEMPOTENCY_CONFLICT: 'MCP_JOB_IDEMPOTENCY_CONFLICT',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -145,8 +161,17 @@ export const ERROR_CATALOGUE: Readonly<Record<ErrorCode, ErrorDefinition>> = {
   [C.MCP_STORAGE_OBJECT_NOT_FOUND]: def(C.MCP_STORAGE_OBJECT_NOT_FOUND, 'storage', 404, false, true),
   [C.MCP_STORAGE_WRITE_DENIED]: def(C.MCP_STORAGE_WRITE_DENIED, 'storage', 409, false, true),
   [C.MCP_STORAGE_UPLOAD_FAILED]: def(C.MCP_STORAGE_UPLOAD_FAILED, 'storage', 502, true, true),
+  [C.MCP_STORAGE_UPLOAD_TICKET_INVALID]: def(C.MCP_STORAGE_UPLOAD_TICKET_INVALID, 'storage', 403, false, true),
 
   [C.MCP_NOT_IMPLEMENTED]: def(C.MCP_NOT_IMPLEMENTED, 'generic', 501, false, false),
+  // 401: chua co danh tinh. Khong phai 403 (da biet la ai nhung thieu quyen).
+  [C.MCP_AUTHZ_SESSION_REQUIRED]: def(C.MCP_AUTHZ_SESSION_REQUIRED, 'authz', 401, false, true),
+  // 404 giong het cross-workspace: nhin tu ngoai khong phan biet duoc (I-10).
+  [C.MCP_RESOURCE_NOT_FOUND]: def(C.MCP_RESOURCE_NOT_FOUND, 'generic', 404, false, true),
+  [C.MCP_VAL_REQUEST_INVALID]: def(C.MCP_VAL_REQUEST_INVALID, 'validation', 400, false, true),
+  // retry duoc: chay validate xong roi tao job lai la hop le.
+  [C.MCP_VAL_NOT_VALIDATED]: def(C.MCP_VAL_NOT_VALIDATED, 'validation', 409, true, true),
+  [C.MCP_JOB_IDEMPOTENCY_CONFLICT]: def(C.MCP_JOB_IDEMPOTENCY_CONFLICT, 'state', 409, false, false),
 };
 
 export const ALL_ERROR_CODES: readonly ErrorCode[] = Object.values(ERROR_CODES);

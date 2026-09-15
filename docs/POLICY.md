@@ -125,3 +125,43 @@ trình đầy đủ (ai review, thời hạn, khiếu nại) vẫn `unknown` —
 Không thiết kế thông điệp hay flow khuyến khích xoá logo bản quyền của bên thứ ba. Không dùng sản
 phẩm để làm giả nguồn gốc / chứng nhận / quyền sở hữu / lịch sử nội dung. UI chỉ được mô tả năng
 lực là xử lý phần **nhìn thấy được**.
+
+---
+
+# Phase 1 — policy đã chạy thật (2026-09-15)
+
+## 11. Cổng đã có hiệu lực (không còn là contract trên giấy)
+
+| Cổng | Nơi thi hành | Bằng chứng |
+|---|---|---|
+| Chưa đăng nhập | `resolveUser()` | HTTP 401 `MCP_AUTHZ_SESSION_REQUIRED` |
+| Ngoài workspace | `authorize()` | HTTP 404, không lộ existence |
+| Thiếu quyền theo role | `authorize()` | HTTP 403 `MCP_AUTHZ_INSUFFICIENT_ROLE` |
+| Tệp chưa kiểm tra | `JobService` cổng 2 | job `blocked`, `validation_block` |
+| Tệp không đạt | `validateMedia()` | job `blocked` kèm đúng mã lỗi validation |
+| Chưa/hết hạn xác nhận quyền | `evaluateProcessingPolicy()` | job `blocked`, `policy_block` |
+| Provider không làm được | `JobService` cổng 4 | job `blocked`, `provider_block` |
+
+## 12. Xác nhận quyền trong Phase 1
+
+- Lưu **append-only**: mỗi lần ký là một bản ghi mới, giữ nguyên ai ký, ký bản nào, lúc nào.
+- Bản đang hiệu lực = bản mới nhất khớp `(assetId, sourceFileId)` và `status='active'`.
+- Ký sai phiên bản câu chữ ⇒ `MCP_POLICY_RIGHTS_ATTESTATION_STALE`, phải ký lại bản hiện hành.
+- Xác nhận của asset khác **không** dùng lại được (đã có test HTTP thật).
+- Giao diện hiển thị đủ bốn điều: phạm vi sở hữu · đây là tuyên bố của người dùng · chỉ xử lý phần
+  nhìn thấy được · giới hạn về các dấu ẩn không nhìn thấy được. Nút xác nhận **khoá** cho tới khi
+  người dùng tick ô đồng ý.
+
+> Ghi chú câu chữ: bản tiếng Việt tránh thuật ngữ kỹ thuật theo guardrail đã có từ Phase 0
+> (có test chặn). Vì vậy câu "chỉ xử lý logo/watermark hiển thị" được diễn đạt thành "logo, nhãn
+> hiệu và dấu hiệu nhận diện nhìn thấy được". Ý nghĩa giữ nguyên; **BA là người chốt câu chữ** —
+> xem Q-11.
+
+## 13. Job bị chặn
+
+Job bị chặn **vẫn được ghi lại** (trạng thái `blocked`, có `reasonCode` + `blockReasonKind`) nhưng
+**không** giữ mức dùng. Đây là trạng thái cuối: không route nào đưa nó về `processing`, kể cả huỷ
+(trả `MCP_STATE_TERMINAL`). Khắc phục xong thì tạo **job mới**, job cũ giữ nguyên để tra cứu.
+
+Ngoại lệ: khi **quyền** bị từ chối thì **không** ghi job nào — người không có quyền không được tạo
+dấu vết trong workspace của người khác.

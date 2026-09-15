@@ -83,3 +83,19 @@ từ bảng giá công bố nếu lần chạy đó không trả số. API key �
 
 `ProviderRun.actualCostUsd` là chi phí nội bộ để benchmark. Khi provider lỗi, mức dùng của khách
 được **release** (không tính tiền) nhưng chi phí nội bộ vẫn được ghi lại.
+
+---
+
+## 9. Trạng thái sau Phase 1 (2026-09-15)
+
+Không thay đổi: **chưa chạy benchmark nào**, toàn bộ ma trận vẫn `unknown`, và Phase 1 **không đăng
+ký provider production nào** (`/healthz` khai `productionProviders: 0`).
+
+Phase 1 có thêm hai thứ phục vụ benchmark về sau:
+
+- **Bộ media thật đầu tiên trong repo**: `apps/api/tests/fixtures/media/` gồm ảnh PNG/JPEG/WebP
+  (cả lossy và lossless) và video MP4/MOV/WebM, trong đó có video đúng biên 599 giây, 600 giây,
+  3840 px và 3842 px. Đây là media **tổng hợp** do ffmpeg/PIL sinh, dùng để kiểm tra khâu nhập liệu —
+  **không** phải bộ mẫu cho benchmark chất lượng xử lý (Q-07 vẫn mở).
+- **Cách phân biệt hai loại "không có bằng chứng"**: chưa đăng ký provider production nào ⇒ capability
+  `unknown` và job vẫn được nhận; có provider nhưng không hỗ trợ operation ⇒ `provider_block`.

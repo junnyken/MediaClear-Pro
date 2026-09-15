@@ -1,6 +1,6 @@
 # OPEN_QUESTIONS — MediaClear Pro
 
-Cập nhật: **2026-09-15** (sau khi owner chốt Q-01, Q-03, Q-04, Q-06, Q-08, Q-09, Q-10).
+Cập nhật: **2026-09-15** (sau Phase 1 — SaaS Shell & Media Intake).
 
 Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã chốt chuyển xuống mục "Đã giải quyết" và
 **không** còn xuất hiện ở bảng đang mở.
@@ -17,6 +17,10 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 | Q-13 | Giới hạn 199 MB / 599 giây / 3840 px đang hiểu là **inclusive** (đúng 199 MB vẫn được nhận). Owner xác nhận cách hiểu này chứ? | MCP-03 | `unconfirmed` | không chặn — contract đã chạy theo cách hiểu inclusive, đổi thì sửa 1 dòng config |
 | Q-14 | Auth provider/IdP cụ thể (session, JWT, OAuth, vendor nào)? | API, tenancy | `unknown` | Phase 1 — owner đã cho phép để ngỏ ở mức implementation decision |
 | Q-15 | "Static mask" đang được map vào `blur`/`brand_overlay` trên một vùng cố định thay vì tạo enum mới. Owner xác nhận cách map này chứ? | vocabulary, provider | `unconfirmed` | không chặn |
+| Q-16 | Phase 0 đã dùng ID `MCP-10` cho Object Storage Abstraction, prompt Phase 1 lại gán `MCP-10` cho Auth & Workspace Boundary. Đánh số tiếp thế nào cho các phase sau? | mini-specs | `unconfirmed` | không chặn — Phase 1 để bộ mới ở `docs/mini-specs/phase-1/`, không sửa tài liệu Phase 0 |
+| Q-17 | Job hợp lệ đang giữ mức dùng (`reserve`) nhưng chưa có worker nào chạy, nên khoản giữ đó tồn tại vô thời hạn. Có cần hạn tự hoàn lại không, và bao lâu? | usage ledger | `unknown` | Phase 2 (khi có queue) |
+| Q-18 | Thời hạn lưu giữ (retention) và quy trình xoá theo yêu cầu người dùng cho asset/file gốc? | DATA_MODEL §10 | `unknown` | go-live |
+| Q-19 | Câu chữ tiếng Việt tránh thuật ngữ kỹ thuật theo guardrail Phase 0, nên "logo/watermark hiển thị" được diễn đạt thành "logo, nhãn hiệu và dấu hiệu nhận diện nhìn thấy được". BA duyệt cách diễn đạt này chứ? | POLICY §12 | `unconfirmed` | không chặn — đổi một khoá i18n là xong |
 
 > Q-13 và Q-15 là **cách hiểu** của agent khi áp dụng owner decisions, đã ghi rõ trong `DECISIONS.md`
 > (D-018, D-020) thay vì tự đoán im lặng. Cả hai đều sửa được bằng một thay đổi nhỏ nếu owner muốn khác.

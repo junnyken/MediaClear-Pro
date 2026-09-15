@@ -73,21 +73,110 @@ export interface UsageSummaryResponse {
   entries: UsageLedgerEntry[];
 }
 
-/** Bang route cua Phase 0. status='planned' => chua hien thuc. */
+/**
+ * Bang route.
+ *  - 'implemented' = handler that, co test HTTP that.
+ *  - 'planned'     = van tra 501 MCP_NOT_IMPLEMENTED.
+ *  - 'dev_only'    = chi bat trong moi truong dev (auth provider production chua chot, Q-14).
+ *
+ * Phase 1 thay mot so path 'planned' cua Phase 0 bang path long tai nguyen theo owner prompt
+ * Phase 1 muc 8. Cac path cu chua tung duoc hien thuc; bang doi chieu o docs/API.md (D-024).
+ */
 export const API_ROUTES = [
-  { method: 'POST', path: '/v1/uploads', status: 'planned', mcp: 'MCP-03' },
-  { method: 'POST', path: '/v1/assets/:assetId/validate', status: 'planned', mcp: 'MCP-03' },
-  { method: 'POST', path: '/v1/assets/:assetId/attestations', status: 'planned', mcp: 'MCP-02' },
-  { method: 'POST', path: '/v1/jobs', status: 'planned', mcp: 'MCP-02' },
-  { method: 'GET', path: '/v1/jobs/:jobId', status: 'planned', mcp: 'MCP-03' },
+  { method: 'GET', path: '/healthz', status: 'implemented', mcp: 'MCP-00' },
+
+  // --- MCP-10 Auth & workspace boundary ---
+  { method: 'POST', path: '/v1/auth/dev-session', status: 'dev_only', mcp: 'MCP-10-P1' },
+  { method: 'GET', path: '/v1/me', status: 'implemented', mcp: 'MCP-10-P1' },
+  { method: 'GET', path: '/v1/workspaces', status: 'implemented', mcp: 'MCP-10-P1' },
+  { method: 'POST', path: '/v1/workspaces', status: 'implemented', mcp: 'MCP-10-P1' },
+  { method: 'GET', path: '/v1/workspaces/:workspaceId', status: 'implemented', mcp: 'MCP-10-P1' },
+  { method: 'GET', path: '/v1/workspaces/:workspaceId/members', status: 'implemented', mcp: 'MCP-10-P1' },
+  { method: 'POST', path: '/v1/workspaces/:workspaceId/members', status: 'implemented', mcp: 'MCP-10-P1' },
+  { method: 'GET', path: '/v1/workspaces/:workspaceId/audit-events', status: 'implemented', mcp: 'MCP-10-P1' },
+
+  // --- MCP-11 Project & asset library ---
+  { method: 'GET', path: '/v1/workspaces/:workspaceId/projects', status: 'implemented', mcp: 'MCP-11-P1' },
+  { method: 'POST', path: '/v1/workspaces/:workspaceId/projects', status: 'implemented', mcp: 'MCP-11-P1' },
+  { method: 'GET', path: '/v1/projects/:projectId', status: 'implemented', mcp: 'MCP-11-P1' },
+  { method: 'GET', path: '/v1/projects/:projectId/assets', status: 'implemented', mcp: 'MCP-11-P1' },
+  { method: 'GET', path: '/v1/assets/:assetId', status: 'implemented', mcp: 'MCP-11-P1' },
+
+  // --- MCP-15 Upload storage adapter ---
+  { method: 'POST', path: '/v1/projects/:projectId/assets/upload-intent', status: 'implemented', mcp: 'MCP-15-P1' },
+  { method: 'PUT', path: '/v1/storage/upload/:uploadToken', status: 'implemented', mcp: 'MCP-15-P1' },
+  { method: 'GET', path: '/v1/assets/:assetId/download-url', status: 'implemented', mcp: 'MCP-15-P1' },
+  { method: 'GET', path: '/v1/storage/download/:downloadToken', status: 'implemented', mcp: 'MCP-15-P1' },
+
+  // --- MCP-12 Media intake validation ---
+  { method: 'POST', path: '/v1/assets/:assetId/validate', status: 'implemented', mcp: 'MCP-12-P1' },
+
+  // --- MCP-13 Rights attestation gate ---
+  { method: 'POST', path: '/v1/assets/:assetId/rights-attestation', status: 'implemented', mcp: 'MCP-13-P1' },
+  { method: 'GET', path: '/v1/assets/:assetId/rights-attestation', status: 'implemented', mcp: 'MCP-13-P1' },
+
+  // --- MCP-14 Processing job boundary + usage ---
+  { method: 'POST', path: '/v1/assets/:assetId/jobs', status: 'implemented', mcp: 'MCP-14-P1' },
+  { method: 'GET', path: '/v1/jobs/:jobId', status: 'implemented', mcp: 'MCP-14-P1' },
+  { method: 'POST', path: '/v1/jobs/:jobId/cancel', status: 'implemented', mcp: 'MCP-14-P1' },
+  { method: 'GET', path: '/v1/usage', status: 'implemented', mcp: 'MCP-14-P1' },
+
+  // --- Van chua hien thuc: khong co xu ly media production trong Phase 1 ---
   { method: 'POST', path: '/v1/jobs/:jobId/estimate', status: 'planned', mcp: 'MCP-07' },
   { method: 'POST', path: '/v1/jobs/:jobId/preview', status: 'planned', mcp: 'MCP-07' },
   { method: 'GET', path: '/v1/jobs/:jobId/receipt', status: 'planned', mcp: 'MCP-05' },
-  { method: 'GET', path: '/v1/workspaces/:workspaceId/usage', status: 'planned', mcp: 'MCP-07' },
-  { method: 'GET', path: '/v1/workspaces/:workspaceId/audit-events', status: 'planned', mcp: 'MCP-02' },
-  { method: 'GET', path: '/healthz', status: 'implemented', mcp: 'MCP-00' },
 ] as const;
 
 export type ApiRoute = (typeof API_ROUTES)[number];
+export type ApiRouteStatus = ApiRoute['status'];
+
+/** Phase 1: request/response contract cho cac route moi. */
+export interface DevSessionRequest {
+  email: string;
+  displayName?: string;
+}
+export interface DevSessionResponse {
+  token: string;
+  userId: string;
+  expiresAt: string;
+  /** Luon false trong Phase 1: day KHONG phai IdP production (Q-14 con mo). */
+  productionAuthProvider: false;
+}
+
+export interface MeResponse {
+  user: { id: string; email: string; displayName: string; defaultLocale: string };
+  workspaces: Array<{ id: string; name: string; role: string }>;
+}
+
+export interface CreateWorkspaceRequest {
+  name: string;
+}
+export interface AddMemberRequest {
+  email: string;
+  role: string;
+}
+export interface CreateProjectRequest {
+  name: string;
+}
+
+export interface UploadIntentRequest {
+  originalFilename: string;
+  mimeType: string;
+  byteSize: number;
+  mediaType: MediaType;
+}
+export interface UploadIntentResponse {
+  assetId: string;
+  sourceFileId: string;
+  uploadUrl: string;
+  expiresAt: string;
+  maxByteSize: number;
+}
+
+export interface CursorPage<T> {
+  items: T[];
+  /** null = het du lieu. */
+  nextCursor: string | null;
+}
 
 export type { Asset, ProcessingJob, ProcessingReceipt, ProvenanceRecord, UsageLedgerEntry };

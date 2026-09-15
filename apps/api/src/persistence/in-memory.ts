@@ -1,0 +1,236 @@
+/**
+ * InMemoryPersistence - luu tru tam cho Phase 1.
+ *
+ * TU KHAI `durability = 'ephemeral'`: mat sach khi restart tien trinh.
+ * KHONG phai adapter production. Schema PostgreSQL tuong ung nam o
+ * db/migrations/0001_phase1_init.sql (da chay thu tren database sach).
+ */
+import { ERROR_CODES } from '@mediaclear/contracts';
+import type { PersistencePort } from './port.js';
+import type {
+  Asset,
+  AuditEvent,
+  Page,
+  PageQuery,
+  ProcessingJob,
+  Project,
+  RightsAttestation,
+  SourceFileRecord,
+  UsageLedgerEntry,
+  User,
+  ValidationRecord,
+  Workspace,
+  WorkspaceMembership,
+} from './types.js';
+
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+
+/** Cursor = "<createdAt>|<id>": on dinh, khong lo tong so ban ghi. */
+function encodeCursor(createdAt: string, id: string): string {
+  return Buffer.from(`${createdAt}|${id}`, 'utf8').toString('base64url');
+}
+
+function decodeCursor(cursor: string | null | undefined): { createdAt: string; id: string } | null {
+  if (!cursor) return null;
+  try {
+    const raw = Buffer.from(cursor, 'base64url').toString('utf8');
+    const sep = raw.lastIndexOf('|');
+    if (sep <= 0) return null;
+    return { createdAt: raw.slice(0, sep), id: raw.slice(sep + 1) };
+  } catch {
+    return null;
+  }
+}
+
+function paginate<T extends { id: string; createdAt: string }>(rows: T[], query?: PageQuery): Page<T> {
+  const limit = Math.min(Math.max(query?.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
+  const sorted = [...rows].sort((a, b) =>
+    a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
+  );
+  const after = decodeCursor(query?.cursor);
+  const start = after
+    ? sorted.findIndex((r) => r.createdAt > after.createdAt || (r.createdAt === after.createdAt && r.id > after.id))
+    : 0;
+  const from = start < 0 ? sorted.length : start;
+  const items = sorted.slice(from, from + limit);
+  const last = items[items.length - 1];
+  const hasMore = from + limit < sorted.length;
+  return { items, nextCursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null };
+}
+
+export class InMemoryPersistence implements PersistencePort {
+  readonly id = 'in-memory-phase1';
+  readonly durability = 'ephemeral' as const;
+
+  private readonly userRows = new Map<string, User>();
+  private readonly workspaceRows = new Map<string, Workspace>();
+  private readonly membershipRows: WorkspaceMembership[] = [];
+  private readonly projectRows: Project[] = [];
+  private readonly assetRows: Asset[] = [];
+  private readonly sourceFileRows = new Map<string, SourceFileRecord>();
+  private readonly validationRows: ValidationRecord[] = [];
+  private readonly attestationRows: RightsAttestation[] = [];
+  private readonly jobRows: ProcessingJob[] = [];
+  private readonly usageRows: UsageLedgerEntry[] = [];
+  private readonly auditRows: AuditEvent[] = [];
+
+  readonly users = {
+    findById: async (id: string): Promise<User | null> => this.userRows.get(id) ?? null,
+    findByEmail: async (email: string): Promise<User | null> =>
+      [...this.userRows.values()].find((u) => u.email.toLowerCase() === email.toLowerCase()) ?? null,
+    create: async (user: User): Promise<User> => {
+      this.userRows.set(user.id, user);
+      return user;
+    },
+  };
+
+  readonly workspaces = {
+    create: async (workspace: Workspace): Promise<Workspace> => {
+      this.workspaceRows.set(workspace.id, workspace);
+      return workspace;
+    },
+    findById: async (id: string): Promise<Workspace | null> => this.workspaceRows.get(id) ?? null,
+    listForUser: async (userId: string) => {
+      const out: Array<{ workspace: Workspace; membership: WorkspaceMembership }> = [];
+      for (const membership of this.membershipRows) {
+        if (membership.userId !== userId) continue;
+        const workspace = this.workspaceRows.get(membership.workspaceId);
+        if (workspace) out.push({ workspace, membership });
+      }
+      return out.sort((a, b) => a.workspace.createdAt.localeCompare(b.workspace.createdAt));
+    },
+  };
+
+  readonly memberships = {
+    create: async (membership: WorkspaceMembership): Promise<WorkspaceMembership> => {
+      this.membershipRows.push(membership);
+      return membership;
+    },
+    find: async (workspaceId: string, userId: string): Promise<WorkspaceMembership | null> =>
+      this.membershipRows.find((m) => m.workspaceId === workspaceId && m.userId === userId) ?? null,
+    listByWorkspace: async (workspaceId: string): Promise<WorkspaceMembership[]> =>
+      this.membershipRows.filter((m) => m.workspaceId === workspaceId),
+  };
+
+  readonly projects = {
+    create: async (project: Project): Promise<Project> => {
+      this.projectRows.push(project);
+      return project;
+    },
+    findById: async (workspaceId: string, id: string): Promise<Project | null> =>
+      this.projectRows.find((p) => p.id === id && p.workspaceId === workspaceId) ?? null,
+    listByWorkspace: async (workspaceId: string, query?: PageQuery): Promise<Page<Project>> =>
+      paginate(this.projectRows.filter((p) => p.workspaceId === workspaceId), query),
+  };
+
+  readonly assets = {
+    create: async (asset: Asset): Promise<Asset> => {
+      this.assetRows.push(asset);
+      return asset;
+    },
+    findById: async (workspaceId: string, id: string): Promise<Asset | null> =>
+      this.assetRows.find((a) => a.id === id && a.workspaceId === workspaceId) ?? null,
+    listByProject: async (workspaceId: string, projectId: string, query?: PageQuery): Promise<Page<Asset>> =>
+      paginate(
+        this.assetRows.filter((a) => a.workspaceId === workspaceId && a.projectId === projectId),
+        query,
+      ),
+  };
+
+  readonly sourceFiles = {
+    create: async (record: SourceFileRecord): Promise<SourceFileRecord> => {
+      this.sourceFileRows.set(record.id, record);
+      return record;
+    },
+    findById: async (workspaceId: string, id: string): Promise<SourceFileRecord | null> => {
+      const row = this.sourceFileRows.get(id);
+      return row && row.workspaceId === workspaceId ? row : null;
+    },
+    markStored: async (
+      workspaceId: string,
+      id: string,
+      patch: Pick<SourceFileRecord, 'measured' | 'uploadedAt'>,
+    ): Promise<SourceFileRecord> => {
+      const row = this.sourceFileRows.get(id);
+      if (!row || row.workspaceId !== workspaceId) {
+        throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      }
+      // I-1 o tang du lieu: khong ghi de file goc da co byte.
+      if (row.uploadState === 'stored') {
+        throw new Error(ERROR_CODES.MCP_STORAGE_WRITE_DENIED);
+      }
+      const next: SourceFileRecord = { ...row, ...patch, uploadState: 'stored' };
+      this.sourceFileRows.set(id, next);
+      return next;
+    },
+  };
+
+  readonly validations = {
+    save: async (record: ValidationRecord): Promise<ValidationRecord> => {
+      this.validationRows.push(record);
+      return record;
+    },
+    findLatest: async (workspaceId: string, assetId: string): Promise<ValidationRecord | null> => {
+      const rows = this.validationRows
+        .filter((r) => r.workspaceId === workspaceId && r.assetId === assetId)
+        .sort((a, b) => a.validatedAt.localeCompare(b.validatedAt));
+      return rows[rows.length - 1] ?? null;
+    },
+  };
+
+  readonly attestations = {
+    create: async (attestation: RightsAttestation): Promise<RightsAttestation> => {
+      this.attestationRows.push(attestation);
+      return attestation;
+    },
+    findLatest: async (workspaceId: string, assetId: string): Promise<RightsAttestation | null> => {
+      const rows = this.attestationRows
+        .filter((a) => a.workspaceId === workspaceId && a.assetId === assetId)
+        .sort((a, b) => a.attestedAt.localeCompare(b.attestedAt));
+      return rows[rows.length - 1] ?? null;
+    },
+  };
+
+  readonly jobs = {
+    create: async (job: ProcessingJob): Promise<ProcessingJob> => {
+      this.jobRows.push(job);
+      return job;
+    },
+    findById: async (workspaceId: string, id: string): Promise<ProcessingJob | null> =>
+      this.jobRows.find((j) => j.id === id && j.workspaceId === workspaceId) ?? null,
+    findByIdempotencyKey: async (workspaceId: string, key: string): Promise<ProcessingJob | null> =>
+      this.jobRows.find((j) => j.workspaceId === workspaceId && j.idempotencyKey === key) ?? null,
+    update: async (job: ProcessingJob): Promise<ProcessingJob> => {
+      const index = this.jobRows.findIndex((j) => j.id === job.id && j.workspaceId === job.workspaceId);
+      if (index < 0) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      this.jobRows[index] = job;
+      return job;
+    },
+  };
+
+  readonly usage = {
+    append: async (entry: UsageLedgerEntry): Promise<UsageLedgerEntry> => {
+      // Idempotency key la duy nhat trong ledger (khop unique constraint cua schema SQL).
+      if (this.usageRows.some((e) => e.idempotencyKey === entry.idempotencyKey)) {
+        throw new Error(ERROR_CODES.MCP_USAGE_RESERVATION_CONFLICT);
+      }
+      this.usageRows.push(entry);
+      return entry;
+    },
+    listByWorkspace: async (workspaceId: string): Promise<UsageLedgerEntry[]> =>
+      this.usageRows.filter((e) => e.workspaceId === workspaceId),
+  };
+
+  readonly audit = {
+    append: async (event: AuditEvent): Promise<AuditEvent> => {
+      this.auditRows.push(event);
+      return event;
+    },
+    listByWorkspace: async (workspaceId: string, limit = 100): Promise<AuditEvent[]> =>
+      this.auditRows
+        .filter((e) => e.workspaceId === workspaceId)
+        .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+        .slice(0, limit),
+  };
+}
