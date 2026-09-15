@@ -87,3 +87,76 @@ minh.
 - Không có bằng chứng về bảo toàn metadata thật: chưa đọc file thật lần nào.
 - Web skeleton mới được kiểm ở mức server-render (HTTP + nội dung HTML), **chưa** click-through
   bằng trình duyệt thật.
+
+---
+
+## 2026-09-15 (lần 2) — Owner decisions & gate closure run
+
+Sau khi áp dụng 7 owner decision (Q-01, Q-03, Q-04, Q-06, Q-08, Q-09, Q-10). Mỗi lệnh chạy **riêng**
+và ghi mã thoát riêng.
+
+| # | Kiểm tra | Lệnh | Kết quả |
+|---|---|---|---|
+| 1 | Typecheck | `pnpm typecheck` | **PASS** — exit 0 |
+| 2 | Lint | `pnpm lint` | **PASS** — exit 0 |
+| 3 | Test suite | `pnpm test` | **PASS** — **136/136**, 17 file, 0 fail, 0 skip |
+| 4 | Build frontend | `pnpm build:web` | **PASS** — exit 0, 11 route |
+| 5 | Live — API | `node apps/api/dist/server.js` + curl | **PASS** — xem §2.2 |
+| 6 | Live — Web | `next start` + curl 10 màn | **PASS** — 10/10 HTTP 200, `lang="vi"` |
+| 7 | Schema / migration validation | — | **KHÔNG CHẠY** — Phase 0 cố ý không tạo migration nào (owner decision Q-01) |
+| 8 | Integration với PostgreSQL thật | — | **KHÔNG CHẠY** — chưa có schema |
+| 9 | Storage adapter thật (R2/MinIO) | — | **KHÔNG CHẠY** — mới có adapter in-memory cho contract test |
+| 10 | Benchmark provider (10 kịch bản) | — | **KHÔNG CHẠY** — chưa chọn provider (Q-06) và chưa có media mẫu (Q-07); mọi ô vẫn `unknown` |
+
+### 2.1. Phân bố 136 test
+
+| File | Test |
+|---|---|
+| `invariants.test.ts` (regression, 12 invariant) | 13 |
+| `policy.test.ts` | 12 |
+| `media-limits.test.ts` | 10 |
+| `usage.test.ts` | 10 |
+| `docs-consistency.test.ts` | 10 |
+| `job-state-machine.test.ts` | 9 |
+| `tenancy.test.ts` | 9 |
+| `provider.test.ts` | 8 |
+| `provenance.test.ts` | 8 |
+| `i18n.test.ts` | 8 |
+| `integration-pipeline.test.ts` | 8 |
+| `storage.test.ts` | 7 |
+| `error-catalogue.test.ts` | 7 |
+| `benchmark.test.ts` | 5 |
+| `preview.test.ts` | 4 |
+| `vocabulary.test.ts` | 4 |
+| `apps/api/tests/api-contract.test.ts` (HTTP thật) | 4 |
+
+### 2.2. Live verification — API
+
+```
+GET  /healthz                 → 200  {"ok":true,...,"productionAiProcessingEnabled":false,"routes":11}
+POST /v1/jobs                 → 501  MCP_NOT_IMPLEMENTED  (route "/v1/jobs")
+POST /v1/jobs/j1/preview      → 501  MCP_NOT_IMPLEMENTED  (route "/v1/jobs/:jobId/preview")
+```
+
+Route mới `preview` cũng trả 501 như thiết kế — **không** đổi 501 thành fake success.
+
+### 2.3. Live verification — Web
+
+10/10 màn trả HTTP 200 với tiêu đề tiếng Việt đúng (Tổng quan, Tạo yêu cầu mới, Kiểm tra tệp tải
+lên, Xác nhận quyền sử dụng, Thông tin gốc của tệp, Mức dùng và hạn mức, Nhật ký hoạt động, Bàn làm
+việc ảnh, Bàn làm việc video, Chi tiết dự án); `<html lang="vi">` có mặt.
+
+### 2.4. Bug thật tìm được ở lần 2
+
+| # | Bug | Do đâu phát hiện | Cách sửa |
+|---|---|---|---|
+| B-04 | Một câu trong `TEST_STRATEGY.md` mô tả chính cơ chế kiểm tra lại rơi vào diện bị cấm: câu tự nó nhắc tới dấu ẩn mà không mang phủ định | test `docs-consistency` | Viết lại câu để mang phủ định tường minh |
+
+Không có bug contract nào ở lần chạy này; các contract mới (tenancy, storage, benchmark, preview)
+xanh ngay lần chạy đầu. Điều đó **không** chứng minh pipeline xử lý media đúng — vẫn chưa có
+pipeline nào để chứng minh.
+
+### 2.5. Thay đổi cách chạy test
+
+`vitest.config.ts` nay alias `@mediaclear/*` về `src/`, để test **luôn** chạy trên source thay vì
+`dist/` cũ. Trước đó test của `apps/api` sẽ import bản build cũ và có thể xanh giả.

@@ -59,3 +59,23 @@ Attestation ở scope `asset` (D-006) và hết hiệu lực sau 365 ngày hoặ
 ## Remaining Limits
 - Chưa thi hành runtime (route còn 501).
 - Quy trình report/abuse: `unknown` (Q-05). Câu chữ pháp lý chưa được duyệt (Q-11).
+
+---
+
+## Amendment 2026-09-15 — Owner decisions (Q-04, Q-08, Q-09)
+
+**Thứ tự gate đổi**: nay kiểm tra **tenancy + role trước** (`authorize()` của MCP-09), rồi mới tới
+attestation → media. Viewer và user ngoài workspace bị chặn trước khi hệ thống đọc attestation.
+
+**Attestation** (Q-09): gắn với **cả** `assetId` và `sourceFileId` (source file mới ⇒ xác nhận lại);
+thêm `status: 'active' | 'blocked'` cho trường hợp asset bị report; tách `EXPIRED` (quá 365 ngày)
+khỏi `STALE` (đổi `statementVersion`).
+
+**Block reason kind** (Q-08): mọi quyết định block nay trả `blockReasonKind` suy từ category của mã
+lỗi — `policy_block` / `validation_block` / `provider_block`.
+
+**Chống rò rỉ existence** (Q-04): `PolicyDecision.revealsResourceExistence`; khi từ chối
+cross-workspace thì `auditDetail.assetId = null` và HTTP là **404**.
+
+**Test**: `policy.test.ts` 13 test (thêm biên 365/366 ngày, attestation blocked, viewer, cross-tenant
+không lộ existence); invariant I-5 khẳng định **không role nào** được miễn attestation.

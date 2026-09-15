@@ -2,7 +2,7 @@
 
 - **Date**: 2026-09-15 · **MINI-SPEC**: MCP-01 / MCP-05 · **Trạng thái**: contract `implemented`, schema DB `planned`
 
-> Phase 0 **không** tạo migration. Đây là contract TypeScript tại
+> Phase 0 **không** tạo migration nào (owner decision Q-01). Đây là contract TypeScript tại
 > `packages/contracts/src/entities.ts`; DB schema sẽ sinh ở Phase 1.
 
 ## 1. Entity
@@ -11,13 +11,14 @@
 |---|---|---|
 | `User` | tài khoản | `defaultLocale` mặc định `vi` |
 | `Workspace` | ranh giới đa tenant | mọi truy vấn phải filter theo `workspaceId` |
+| `WorkspaceMembership` | user ↔ workspace + role | **mới 2026-09-15**; nguồn duy nhất của role, không suy diễn |
 | `Project` | nhóm công việc | |
 | `Asset` | đơn vị nội dung logic | trỏ tới đúng một `SourceFile` |
 | `SourceFile` | binary gốc | **immutable**, có cờ `readonly immutable: true` |
-| `ProcessingJob` | một lần xử lý | `state`, `idempotencyKey`, `attemptCount` |
+| `ProcessingJob` | một lần xử lý | `state`, `idempotencyKey`, `attemptCount`, `blockReasonKind` |
 | `OutputAsset` | kết quả | `sourceAssetId` **bắt buộc**, `validated: boolean` |
 | `BrandKit` | logo/nhãn của khách | dùng ở phase sau |
-| `RightsAttestation` | lời khai quyền | `attestationType: 'user_self_declared'` |
+| `RightsAttestation` | lời khai quyền | `attestationType: 'user_self_declared'`; gắn **cả** `assetId` và `sourceFileId`; `status: 'active' \| 'blocked'` |
 | `ProvenanceRecord` | thông tin gốc trước/sau | ba giá trị `present/absent/unknown` |
 | `ProcessingReceipt` | biên bản xử lý | nối job ↔ source ↔ output ↔ provider run |
 | `AuditEvent` | vết kiểm toán | `detail` chỉ metadata phi nhạy cảm |
@@ -38,6 +39,9 @@ biết". UI hiển thị `null` bằng "Chưa xác định", không hiển thị
 - `JobState`: `uploaded` · `validating` · `queued` · `processing` · `review_required` ·
   `completed` · `failed` · `blocked` · `cancelled`
 - `EvidenceStatus`: `verified` · `partially_verified` · `unknown` · `unconfirmed` · `blocked`
+- `WorkspaceRole`: `owner` · `admin` · `member` · `viewer` (owner decision Q-04)
+- `BlockReasonKind`: `policy_block` · `validation_block` · `provider_block` (owner decision Q-08)
+- `StorageClass`: `source` · `output` · `preview`
 
 > **Bẫy đã ghi nhận (D-004)**: `blocked` xuất hiện ở cả `JobState` và `EvidenceStatus` với hai nghĩa
 > khác nhau. `JobState.blocked` = policy từ chối; `EvidenceStatus.blocked` = không thu thập được
@@ -56,6 +60,8 @@ uploaded ──► validating ──► queued ──► processing ──► re
 
 * completed CHỈ hợp lệ khi outputAssetId != null VÀ outputValidated === true.
 Terminal: completed · failed · blocked · cancelled (không có transition ra).
+Owner decision Q-08: gỡ block KHÔNG phải transition — phải tạo `ProcessingJob` mới với
+`job_id` mới; job cũ giữ nguyên `blocked` và toàn bộ audit history.
 ```
 
 ## 5. Quan hệ source ↔ output
@@ -67,4 +73,22 @@ regression test (invariant I-1).
 ## 6. Usage ledger
 
 `UsageLedgerEntry(jobId, entryType, unitType, quantity, idempotencyKey, reasonCode)`.
-Ràng buộc dự kiến ở DB (Phase 1): unique `(jobId, entryType='commit')`.
+
+Vòng đời (owner decision Q-10): `accepted job submission → reserve → provider processing →
+verified output → commit`; provider failure hoặc validation failure do người dùng → `release` theo
+`releasesUsageReservation` của mã lỗi.
+
+Ràng buộc dự kiến ở DB (Phase 1): unique `(jobId, entryType='reserve')` và unique
+`(jobId, entryType='commit')`. Ở tầng contract, `canReserveUsage()` và `canCommitUsage()` đã thi
+hành cả hai.
+
+## 7. Storage và migrations
+
+Khoá lưu trữ: `<workspaceId>/<source|output|preview>/<id><ext>`. Object class `source` là bất biến —
+`assertWritableKey()` chặn mọi lần ghi đè (invariant I-1). Media binary **không bao giờ** nằm trong
+PostgreSQL.
+
+| | |
+|---|---|
+| Migration thuộc Phase 0 | **Không có** (contract-only, theo yêu cầu owner ở Q-01) |
+| Migration để Phase 1 | Toàn bộ 15 entity + ràng buộc unique của usage ledger + index theo `workspaceId` |

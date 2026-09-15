@@ -111,6 +111,44 @@ export function resolveProviderCredential(
   return value && value.length > 0 ? value : null;
 }
 
+/**
+ * Owner decision Q-06 (2026-09-15): crop, blur va static-mask la DETERMINISTIC FALLBACK
+ * capabilities - chay duoc ma khong can AI provider nao.
+ *
+ * "Static mask" khong phai enum rieng: no la blur (hoac brand_overlay) ap len mot
+ * NormalizedRegion co dinh, khong tracking theo thoi gian. Khong tao enum trung nghia
+ * (guardrail 14) - xem DECISIONS.md D-020.
+ */
+export const DETERMINISTIC_FALLBACK_OPERATIONS: readonly CleanupOperation[] = [
+  'crop',
+  'blur',
+  'brand_overlay',
+];
+
+export function isDeterministicFallback(operation: CleanupOperation): boolean {
+  return DETERMINISTIC_FALLBACK_OPERATIONS.includes(operation);
+}
+
+/** true = thao tac nay bat buoc phai goi provider AI ben ngoai. */
+export function requiresProvider(operation: CleanupOperation): boolean {
+  return !isDeterministicFallback(operation);
+}
+
+/**
+ * Evidence status cua mot capability. Provider khong khai bao => 'unknown',
+ * KHONG bao gio mac dinh la 'verified' (guardrail 10).
+ */
+export function capabilityEvidence(
+  provider: MediaProcessingProvider,
+  operation: CleanupOperation,
+  mediaType: MediaType,
+): EvidenceStatus {
+  const found = provider
+    .capabilities()
+    .find((c) => c.operation === operation && c.mediaType === mediaType);
+  return found ? found.support : 'unknown';
+}
+
 /** Registry don gian: doi provider khong can sua domain workflow. */
 export class ProviderRegistry {
   private readonly providers = new Map<string, MediaProcessingProvider>();

@@ -9,8 +9,11 @@ worker.
 
 ```
 Tool MediaClear Pro/
-├─ packages/contracts/       # implemented — domain types, enum, state machine, policy,
-│                            #   provider interface, usage ledger, invariants, error catalogue
+├─ packages/contracts/       # implemented — domain types, enum, state machine, policy gate,
+│                            #   tenancy/roles, storage abstraction, provider interface +
+│                            #   benchmark harness, preview contract, usage ledger,
+│                            #   12 invariants, 39 error code (kèm HTTP/retry/release),
+│                            #   config.ts = nguồn duy nhất của mọi giới hạn
 ├─ packages/design-tokens/   # implemented — token màu/spacing/a11y + tokens.css
 ├─ packages/i18n/            # implemented — vi (mặc định) + en, format locale-aware
 ├─ apps/web/                 # implemented (skeleton) — Next.js App Router, 10 màn foundation
@@ -57,16 +60,33 @@ Web (hoặc Extension sau này)
       block → AuditEvent + ProcessingJob.state = 'blocked' (terminal)
 ```
 
-## 4. Hạ tầng chưa chốt
+## 4. Hạ tầng
+
+> Cập nhật 2026-09-15 theo owner decision Q-01 (D-017).
 
 | Thành phần | Trạng thái |
 |---|---|
-| Database | `planned` — dự kiến PostgreSQL, **chưa** có migration nào trong repo |
-| Object storage | `unknown` — xem OPEN_QUESTIONS Q-01 |
+| Database | **PostgreSQL** — đã chốt cho domain state (users, workspaces, projects, assets, jobs, usage, audit). Trong repo hiện có: **contract only**, `0 migration` |
+| Object storage | **S3-compatible abstraction** (`ObjectStorageAdapter`) — đã chốt; mục tiêu production ban đầu **Cloudflare R2**, `deploymentReviewStatus: 'pending'` |
+| Adapter dev/test | `InMemoryStorageAdapter` (`isProductionAdapter = false`); MinIO/local là lựa chọn hợp lệ cho dev |
+| Media binary trong DB | **Không bao giờ** (`MEDIA_BINARY_IN_DATABASE = false`) |
 | Queue | `unknown` — Q-02 |
-| Auth | `unknown` — Q-04 |
+| Auth provider cụ thể | `unknown` — Q-14 (owner cho phép để ngỏ); **domain permission contract đã chốt** (D-019) |
 | CI/CD | `not found` — chưa có pipeline nào trong repo |
 | Deployment | `not found` |
+
+### 4.1. Migration: cái gì thuộc Phase 0, cái gì để Phase 1
+
+| | |
+|---|---|
+| Migration thuộc Phase 0 | **Không có.** Phase 0 chỉ cần contract nên không tạo schema placeholder nào — tránh migration production không cần thiết (yêu cầu của owner ở Q-01) |
+| Migration để Phase 1 | Toàn bộ: 15 entity trong `DATA_MODEL.md`, ràng buộc unique `(jobId, entryType='commit')` cho usage ledger, index theo `workspaceId`, và bảng `WorkspaceMembership` |
+
+### 4.2. Ranh giới storage
+
+Domain **không** import SDK của vendor nào. Mọi truy cập đi qua `ObjectStorageAdapter`; khoá có
+cấu trúc `<workspaceId>/<source|output|preview>/<id><ext>`; `assertWritableKey()` chặn mọi thao tác
+ghi đè lên object class `source` (invariant I-1).
 
 ## 5. Lệnh build/test thật
 

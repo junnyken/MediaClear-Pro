@@ -8,6 +8,14 @@ import { describe, expect, it } from 'vitest';
 import { API_ROUTES } from '../src/api.js';
 import { INVARIANTS } from '../src/invariants.js';
 import { JOB_STATES } from '../src/vocabulary.js';
+import { ALL_ERROR_CODES } from '../src/errors.js';
+import { WORKSPACE_ROLES } from '../src/tenancy.js';
+import {
+  MAX_VIDEO_DURATION_SECONDS,
+  MAX_VIDEO_HEIGHT,
+  MAX_VIDEO_WIDTH,
+  RIGHTS_ATTESTATION_VALIDITY_DAYS,
+} from '../src/config.js';
 
 const DOCS = join(import.meta.dirname, '../../../docs');
 const read = (name: string) => readFileSync(join(DOCS, name), 'utf8');
@@ -26,6 +34,13 @@ describe('docs consistency', () => {
     expect(read('API.md')).toContain('501');
   });
 
+  it('moi ma loi trong catalogue deu co trong bang mapping cua API.md', () => {
+    const api = read('API.md');
+    for (const code of ALL_ERROR_CODES) {
+      expect(api, `API.md thieu mapping cho ${code}`).toContain(code);
+    }
+  });
+
   it('moi invariant deu duoc liet ke trong TEST_STRATEGY.md', () => {
     const strategy = read('TEST_STRATEGY.md');
     for (const id of Object.keys(INVARIANTS)) {
@@ -37,6 +52,40 @@ describe('docs consistency', () => {
     const model = read('DATA_MODEL.md');
     for (const state of JOB_STATES) {
       expect(model, `DATA_MODEL.md thieu state ${state}`).toContain(state);
+    }
+  });
+
+  it('moi role deu duoc mo ta trong POLICY.md', () => {
+    const policy = read('POLICY.md');
+    for (const role of WORKSPACE_ROLES) {
+      expect(policy, `POLICY.md thieu role ${role}`).toContain(role);
+    }
+  });
+
+  it('cac gioi han trong docs khop voi config tap trung', () => {
+    const scope = read('PRODUCT_SCOPE.md');
+    expect(scope).toContain('199 MB');
+    expect(scope).toContain('09:59');
+    expect(scope).toContain(String(MAX_VIDEO_DURATION_SECONDS));
+    expect(scope).toContain(String(MAX_VIDEO_WIDTH));
+    expect(scope).toContain(String(MAX_VIDEO_HEIGHT));
+    expect(scope).toContain(String(RIGHTS_ATTESTATION_VALIDITY_DAYS));
+  });
+
+  it('khong con cau hoi nao vua "da chot" vua "dang mo" trong OPEN_QUESTIONS.md', () => {
+    const doc = read('OPEN_QUESTIONS.md');
+    const openSection = doc.slice(doc.indexOf('## 1. Đang mở'), doc.indexOf('## 2. Đã giải quyết'));
+    const resolvedSection = doc.slice(doc.indexOf('## 2. Đã giải quyết'));
+    const idsIn = (text: string) =>
+      new Set([...text.matchAll(/^\| (Q-\d+) \|/gm)].map((m) => m[1] as string));
+    const open = idsIn(openSection);
+    const resolved = idsIn(resolvedSection);
+    const both = [...open].filter((id) => resolved.has(id));
+    expect(both, `cau hoi ton tai o ca hai trang thai: ${both.join(', ')}`).toEqual([]);
+    // 7 cau hoi owner da chot phai nam o muc da giai quyet.
+    for (const id of ['Q-01', 'Q-03', 'Q-04', 'Q-06', 'Q-08', 'Q-09', 'Q-10']) {
+      expect(resolved.has(id), `${id} chua duoc danh dau resolved`).toBe(true);
+      expect(open.has(id), `${id} van con o muc dang mo`).toBe(false);
     }
   });
 

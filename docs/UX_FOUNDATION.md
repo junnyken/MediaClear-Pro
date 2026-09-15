@@ -65,10 +65,23 @@ Mỗi màn hiện danh sách "hợp đồng thiết kế" của chính nó (3 d�
 
 ## 4. i18n
 
-- Locale mặc định: `vi`. Locale sẵn sàng: `en`. 107 key, **parity được test tự động**.
+- Locale mặc định: `vi`. Locale sẵn sàng: `en`. 127 key, **parity được test tự động**.
 - Không hard-code chuỗi hiển thị trong component — mọi text đi qua `t(locale, key)`.
 - Định dạng locale-aware: `formatDuration`, `formatBytes`, `formatDateTime`, `formatUsage`.
 - Giá trị `null` hiển thị "Chưa xác định" / "Unknown", không phải `0`.
+
+## 4b. Vai trò và thông điệp mới (cập nhật 2026-09-15)
+
+- Nhãn vai trò: `role.owner` (Chủ sở hữu) · `role.admin` (Quản trị) · `role.member` (Thành viên) ·
+  `role.viewer` (Người xem). UI phải ẩn/chặn nút "Tạo yêu cầu" với `viewer` thay vì để bấm rồi báo lỗi.
+- Lý do bị chặn hiển thị theo `block_reason.*` (quyền / tệp chưa hợp lệ / dịch vụ xử lý gặp sự cố),
+  không hiện mã lỗi thô cho người dùng.
+- Màn xem thử hiển thị `preview.proxy_notice`: "Bản xem thử được tạo từ bản nhẹ, tệp gốc của bạn
+  không bị đụng tới".
+- Thông điệp từ chối vì tài nguyên thuộc không gian làm việc khác dùng
+  `errors.mcp_authz_workspace_access_denied` — câu chữ **không** xác nhận nội dung đó có tồn tại.
+- Giới hạn hiển thị cho người dùng (199 MB, 09:59, 3840×3840) lấy từ `config.ts`, không gõ tay vào
+  component.
 
 ## 5. Giới hạn còn lại
 

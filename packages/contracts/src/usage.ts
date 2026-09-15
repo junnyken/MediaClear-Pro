@@ -7,7 +7,8 @@
  *   image_unit        = 1 image processing job duoc CHAP NHAN (output verified)
  *   video_minute_unit = bucket phut duoc lam tron LEN cua video duoc chap nhan
  */
-import { ERROR_CODES, apiError, type ApiError } from './errors.js';
+import { ERROR_CODES, apiError, errorDefinition, type ApiError, type ErrorCode } from './errors.js';
+import { VIDEO_USAGE_ROUNDING } from './config.js';
 import type { MediaType } from './vocabulary.js';
 
 export type UnitType = 'image_unit' | 'video_minute_unit';
@@ -22,8 +23,12 @@ export const RELEASE_REASONS = [
 ] as const;
 export type ReleaseReason = (typeof RELEASE_REASONS)[number];
 
-/** Preview KHONG tinh phi (prompt muc J + UX principle "preview truoc export"). */
-export const PREVIEW_IS_BILLABLE = false;
+/**
+ * Preview KHONG tinh phi - hang so goc nam o config.ts (PREVIEW_IS_BILLABLE),
+ * khong dinh nghia lai o day de tranh hai nguon su that.
+ * Owner decision Q-10: "Preview is free" + "Preview khong tinh vao video-minute usage".
+ */
+export const VIDEO_ROUNDING_MODE = VIDEO_USAGE_ROUNDING;
 
 export interface UsageQuantityInput {
   mediaType: MediaType;
@@ -98,6 +103,33 @@ export function usageOutcomeForJobState(
     return { entryType: 'commit', reasonCode: null };
   }
   return { entryType: 'release', reasonCode: reason ?? (state === 'blocked' ? 'blocked' : 'cancelled') };
+}
+
+/**
+ * Owner decision Q-10: mot job chi duoc reserve MOT lan.
+ * Reserve lan hai (vd do retry gui trung request) => MCP_USAGE_RESERVATION_CONFLICT.
+ */
+export function canReserveUsage(
+  jobId: string,
+  existingEntries: readonly LedgerEntryLike[],
+): { allowed: boolean; error: ApiError | null } {
+  const forJob = existingEntries.filter((e) => e.jobId === jobId);
+  if (forJob.some((e) => e.entryType === 'reserve')) {
+    return { allowed: false, error: apiError(ERROR_CODES.MCP_USAGE_RESERVATION_CONFLICT, { jobId }) };
+  }
+  return { allowed: true, error: null };
+}
+
+/**
+ * "Release reservation according to error policy" (owner decision Q-10):
+ * hanh vi usage cua tung ma loi doc tu ERROR_CATALOGUE, khong hard-code rai rac.
+ */
+export function usageEffectOfError(code: ErrorCode): {
+  releasesReservation: boolean;
+  retryAllowed: boolean;
+} {
+  const def = errorDefinition(code);
+  return { releasesReservation: def.releasesUsageReservation, retryAllowed: def.retryAllowed };
 }
 
 /**

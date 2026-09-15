@@ -59,3 +59,34 @@ giả vờ thành công; 10 màn hiển thị tiếng Việt và tự khai là k
 - Bộ kiểm tra hiện chỉ chứng minh **contract** đúng, chưa chứng minh **pipeline** đúng — vì chưa có
   pipeline.
 - Không có integration/DB/E2E/live-media test (lý do ghi trong `TEST_STRATEGY.md` §5).
+
+---
+
+## Amendment 2026-09-15 — Re-run gate sau owner decisions
+
+**Bối cảnh**: Phase 0 đóng ở `READY_WITH_BLOCKERS` với 7 câu hỏi chặn. Owner đã quyết cả 7
+(Q-01, Q-03, Q-04, Q-06, Q-08, Q-09, Q-10). MINI-SPEC này chạy lại để xác minh gate.
+
+**Invariant mở rộng 8 → 12** theo danh sách owner: thêm I-4 (`blocked` không quay lại
+`processing`), I-5 (attestation không suy diễn từ membership), I-6 (viewer không tạo job), I-10
+(không lộ existence ngoài workspace), I-11 (hai namespace `blocked`), I-12 (preview không tính phí).
+Invariant cũ "attestation chỉ là lời khai, không phải bằng chứng sở hữu" **không bị bỏ**: nó nằm
+trong test của I-5 (khẳng định contract không có field kiểu `ownershipVerified` và không role nào
+được miễn attestation) và trong `POLICY.md` §4.
+
+**Docs consistency mở rộng**: thêm 4 kiểm tra — mọi mã lỗi phải có trong bảng mapping của `API.md`;
+mọi role phải có trong `POLICY.md`; các con số giới hạn trong `PRODUCT_SCOPE.md` phải khớp
+`config.ts`; và **không câu hỏi nào vừa "đang mở" vừa "đã giải quyết"** trong `OPEN_QUESTIONS.md`.
+
+**Kết quả chạy lại** (chi tiết trong `TEST_LOG.md` §lần 2): typecheck 0 · lint 0 · test **136/136** ·
+build 0 · live API + web đạt · không có secret nào trong repo (đã quét).
+
+**Success Criteria — đánh giá lại**
+1. Bốn lệnh kiểm tra đều exit 0 — **đạt**.
+2. Mọi invariant có test tương ứng (12/12) — **đạt**.
+3. Tài liệu không mâu thuẫn với code (10 kiểm tra tự động) — **đạt**.
+4. Mọi mục thiếu bằng chứng nằm trong `OPEN_QUESTIONS.md`, không trùng trạng thái — **đạt**.
+5. Phase gate nêu rõ quyết định — **đạt**, xem `PHASE_0_GATE_CLOSURE_REPORT.md`.
+
+**Remaining Limits**: bộ kiểm tra vẫn chỉ chứng minh **contract** đúng, chưa chứng minh **pipeline**
+đúng — vì Phase 0 cố ý chưa có pipeline, chưa có DB, chưa có provider thật.

@@ -34,3 +34,23 @@ Nhật ký quyết định theo trình tự thời gian của Phase 0 (2026-09-1
 4. Không tạo API key thật, không billing thật, không engine AI.
 5. Mọi quyết định do agent tự chọn mà spec không nói rõ đều được đánh dấu `provisional` kèm câu hỏi
    cho owner — không im lặng cho qua.
+
+---
+
+## Phụ lục — Gate closure 2026-09-15 (owner decisions)
+
+| # | Thời điểm | Quyết định | Người quyết | Căn cứ | Trạng thái |
+|---|---|---|---|---|---|
+| 21 | 2026-09-15 | PostgreSQL + object storage S3-compatible abstraction, mục tiêu đầu là Cloudflare R2 (chờ deployment review) | **Owner** | Q-01 | `confirmed` (D-017) |
+| 22 | 2026-09-15 | Media limits 199 MB / 09:59 / video ≤ 3840×3840, giữ allowlist định dạng | **Owner** | Q-03 | `confirmed` (D-018) |
+| 23 | 2026-09-15 | Tenancy User → Workspace → Project → Asset; role owner/admin/member/viewer | **Owner** | Q-04 | `confirmed` (D-019) |
+| 24 | 2026-09-15 | Chưa chọn provider AI production; chuẩn bị benchmark harness trước | **Owner** | Q-06 | `confirmed` (D-020) |
+| 25 | 2026-09-15 | `blocked` là terminal cho job hiện tại; gỡ block = job mới | **Owner** | Q-08 | `confirmed` (D-005 chuyển từ provisional) |
+| 26 | 2026-09-15 | Attestation asset-level, hiệu lực 365 ngày | **Owner** | Q-09 | `confirmed` (D-006, D-015) |
+| 27 | 2026-09-15 | Preview miễn phí; video làm tròn lên theo phút xử lý | **Owner** | Q-10 | `confirmed` (D-008, D-009, D-023) |
+| 28 | Khi áp dụng Q-03 | Hiểu "maximum" là **inclusive** (đúng 199 MB / 599 giây vẫn hợp lệ) | Agent | không có trong prompt; ghi rõ thay vì đoán ngầm | `unconfirmed` → Q-13 |
+| 29 | Khi áp dụng Q-06 | "Static mask" map vào `blur`/`brand_overlay` trên vùng cố định, không tạo enum mới | Agent | guardrail 14 (không tạo vocabulary trùng nghĩa) | `unconfirmed` → Q-15 |
+| 30 | Khi áp dụng Q-04 | Thay `MCP_POLICY_WORKSPACE_MISMATCH` bằng `MCP_AUTHZ_WORKSPACE_ACCESS_DENIED` (404) | Agent | tránh hai mã trùng nghĩa; chặn rò rỉ existence | `confirmed` (D-021) |
+| 31 | Khi chạy lại kiểm tra | Test alias `@mediaclear/*` về `src/` để không xanh giả vì `dist/` cũ | Agent | rủi ro phát hiện khi thêm test cho `apps/api` | thực hiện |
+| 32 | Kết thúc gate closure | Phase gate = **READY_FOR_PHASE_1** | Agent | 7 blocker đã đóng, 4 lệnh kiểm tra xanh, docs consistency xanh, không có secret | chốt |
+| 33 | Kết thúc gate closure | **Không** bắt đầu Phase 1 | Agent | yêu cầu của prompt | tuân thủ |

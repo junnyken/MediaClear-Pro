@@ -4,6 +4,11 @@
 - **Author**: Nguyễn Thiên Triều (trieunt@matbao.com) · **Date**: 2026-09-15
 - **Repository**: `/home/coder/workspace/projects/Tool MediaClear Pro`
 
+> **Cập nhật 2026-09-15 (gate closure)**: owner đã quyết cả 7 câu hỏi chặn; phase gate chuyển từ
+> `READY_WITH_BLOCKERS` sang **`READY_FOR_PHASE_1`**. Báo cáo này giữ nguyên nội dung của lượt Phase 0
+> đầu tiên để không mất lịch sử; những gì thay đổi sau đó nằm ở §10 và trong
+> `PHASE_0_GATE_CLOSURE_REPORT.md`.
+
 ---
 
 ## 1. Summary
@@ -222,24 +227,44 @@ Q-01 (DB/storage) · Q-03 (giới hạn định dạng/pixel) · Q-04 (auth) · 
 
 ---
 
-## 9. Phase Gate Decision
+## 9. Phase Gate Decision (lượt đầu, 2026-09-15 sáng)
 
-## **READY_WITH_BLOCKERS**
+## **READY_WITH_BLOCKERS** — *đã được thay thế, xem §10*
 
 **Vì sao không phải `NOT_READY`**: mọi tiêu chí Definition of Done về foundation đã đạt — có audit
 trước build, scope và vocabulary đã chốt, có policy/rights guard contract, có media validation
-contract cho giới hạn dưới 10 phút và dưới 200 MB, có provider abstraction + benchmark plan, có
-metadata/provenance contract, có UX token/navigation, có usage ledger contract, có test strategy +
-8 invariant test, docs đầy đủ, và build/lint/typecheck/test đều chạy thật và xanh. Không có claim
-nào về SynthID hay watermark vô hình.
+contract, có provider abstraction + benchmark plan, có metadata/provenance contract, có UX
+token/navigation, có usage ledger contract, có test strategy + invariant test, docs đầy đủ, và
+build/lint/typecheck/test đều chạy thật và xanh.
 
-**Vì sao không phải `READY_FOR_PHASE_1`**: còn **7 blocker** cần owner quyết (Q-01, Q-03, Q-04,
-Q-06, Q-08, Q-09, Q-10) và **5 quyết định tạm** (`provisional`) đang chống đỡ các contract quan
-trọng. Nếu owner đổi ý ở Q-08 hoặc Q-09, state machine và policy gate phải sửa — tốt hơn là sửa bây
-giờ khi chưa có dữ liệu thật, thay vì sau khi Phase 1 đã dựng pipeline lên trên.
+**Vì sao không phải `READY_FOR_PHASE_1` lúc đó**: còn 7 blocker cần owner quyết (Q-01, Q-03, Q-04,
+Q-06, Q-08, Q-09, Q-10) và 5 quyết định tạm đang chống đỡ các contract quan trọng.
 
-**Phase 1 có thể bắt đầu ngay ở phần không bị chặn**: component library + responsive/a11y cho UX
-foundation, và OpenAPI/error-handling cho API skeleton. Phần pipeline (upload → probe → provider →
-output) phải chờ Q-01/Q-04/Q-06.
+---
 
-**Agent không tự động bắt đầu Phase 1.**
+## 10. Gate closure (2026-09-15, sau owner decisions)
+
+Owner đã quyết cả 7 câu hỏi chặn. Các quyết định được áp dụng vào contract/config/docs/test, chạy
+lại toàn bộ kiểm tra, và gate được đánh giá lại.
+
+| | Lượt đầu | Sau gate closure |
+|---|---|---|
+| Câu hỏi chặn | 7 | **0** |
+| Quyết định `provisional` | 5 | **0** |
+| Error code | 27 | **39** (kèm HTTP/retry/release) |
+| Entity | 14 | **15** |
+| Invariant | 8 | **12** |
+| Test | 72 | **136** (17 file, 0 fail, 0 skip) |
+| i18n key | 107 | **127** |
+| Route API | 10 | **11** (10 route nghiệp vụ vẫn trả 501) |
+| MINI-SPEC | MCP-00…08 | + **MCP-09** (tenancy), **MCP-10** (storage) |
+| Giới hạn media | < 200 MB, < 10:00, không giới hạn pixel video | **≤ 199 MB, ≤ 09:59, ≤ 3840×3840** |
+
+### Phase Gate Decision hiện hành
+
+## **READY_FOR_PHASE_1**
+
+Chi tiết căn cứ từng điều kiện, danh sách file thay đổi, kết quả test và giới hạn còn lại:
+**`PHASE_0_GATE_CLOSURE_REPORT.md`**.
+
+**Agent không bắt đầu Phase 1.**

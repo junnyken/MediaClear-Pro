@@ -56,3 +56,28 @@ cần file thật. State machine đặt guard cứng tại `→ completed` (bắ
 - Chưa có giới hạn pixel cho video (`unknown`, Q-03).
 - Chưa kiểm tra codec bên trong container (mp4 có thể chứa codec lạ) — `planned`.
 - Chưa có probe thật; `MediaProbe` hiện do caller cung cấp.
+
+---
+
+## Amendment 2026-09-15 — Owner decision Q-03 (giới hạn mới)
+
+**Giới hạn đổi và chuyển vào `config.ts`** (nguồn duy nhất, không hard-code nơi khác):
+
+| | Phase 0 (cũ) | Owner decision (nay) |
+|---|---|---|
+| Dung lượng | < 200 MB (strict) | **≤ 199 MB** (inclusive) |
+| Thời lượng video | < 600 s (strict) | **≤ 599 s** (09:59, inclusive) |
+| Kích thước video | không giới hạn | **≤ 3840 × 3840** |
+
+**Ngữ nghĩa biên**: "maximum" hiểu là **inclusive** — đúng 199 MB và đúng 599 giây vẫn hợp lệ;
+600 giây (10:00) bị từ chối. Cách hiểu này ghi trong D-018 và chờ owner xác nhận ở Q-13.
+
+**Phân biệt lỗi** (yêu cầu của owner): thêm `MCP_VAL_VIDEO_WIDTH_EXCEEDED` và
+`MCP_VAL_VIDEO_HEIGHT_EXCEEDED` để tách chiều ngang/chiều cao; format, size, duration, width,
+height nay là 5 nhóm lỗi riêng biệt.
+
+**Preview** (Q-03): `planPreview()` luôn chạy trên **bản proxy**, `writesToSourceFile: false` —
+xem MCP-07 amendment và D-022.
+
+**Test**: `media-limits.test.ts` 10 test, gồm biên dưới/đúng/trên cho 199 MB, 599 vs 600 giây,
+3840 vs 3841 cho cả width và height, và một test khẳng định giới hạn 200 MB cũ **không còn hiệu lực**.

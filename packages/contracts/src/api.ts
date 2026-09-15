@@ -17,6 +17,12 @@ import type { NormalizedRegion } from './provider.js';
 
 export type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
+/**
+ * Mapping ma loi -> HTTP status nam trong ERROR_CATALOGUE (errors.ts), khong lap lai o day.
+ * Dung httpStatusFor(code) khi tra loi qua HTTP.
+ */
+export { httpStatusFor, errorDefinition } from './errors.js';
+
 export interface CreateUploadRequest {
   projectId: string;
   mediaType: MediaType;
@@ -75,6 +81,7 @@ export const API_ROUTES = [
   { method: 'POST', path: '/v1/jobs', status: 'planned', mcp: 'MCP-02' },
   { method: 'GET', path: '/v1/jobs/:jobId', status: 'planned', mcp: 'MCP-03' },
   { method: 'POST', path: '/v1/jobs/:jobId/estimate', status: 'planned', mcp: 'MCP-07' },
+  { method: 'POST', path: '/v1/jobs/:jobId/preview', status: 'planned', mcp: 'MCP-07' },
   { method: 'GET', path: '/v1/jobs/:jobId/receipt', status: 'planned', mcp: 'MCP-05' },
   { method: 'GET', path: '/v1/workspaces/:workspaceId/usage', status: 'planned', mcp: 'MCP-07' },
   { method: 'GET', path: '/v1/workspaces/:workspaceId/audit-events', status: 'planned', mcp: 'MCP-02' },

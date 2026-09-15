@@ -19,6 +19,8 @@ import type {
   Presence,
   PreservationResult,
 } from './vocabulary.js';
+import type { WorkspaceRole } from './tenancy.js';
+import type { BlockReasonKind } from './policy.js';
 
 export type Id = string;
 /** ISO-8601 UTC, vd 2026-09-15T07:00:00.000Z */
@@ -37,6 +39,18 @@ export interface Workspace {
   name: string;
   ownerUserId: Id;
   /** Multi-tenant boundary. Moi truy van doc/ghi phai filter theo field nay. */
+  createdAt: IsoTimestamp;
+}
+
+/**
+ * Quan he user <-> workspace kem role (owner decision Q-04).
+ * Role KHONG duoc suy dien tu bat ky field nao khac; day la nguon duy nhat.
+ */
+export interface WorkspaceMembership {
+  id: Id;
+  workspaceId: Id;
+  userId: Id;
+  role: WorkspaceRole;
   createdAt: IsoTimestamp;
 }
 
@@ -100,6 +114,8 @@ export interface ProcessingJob {
   outputAssetId: Id | null;
   /** Ly do khi state='blocked' hoac 'failed'. Ma loi trong error-catalogue. */
   reasonCode: string | null;
+  /** Phan loai ly do bi chan: policy_block | validation_block | provider_block. */
+  blockReasonKind: BlockReasonKind | null;
   /** Khoa chong double-charge va chong submit trung provider (MCP-07). */
   idempotencyKey: string;
   attemptCount: number;
@@ -139,9 +155,13 @@ export interface BrandKit {
 export interface RightsAttestation {
   id: Id;
   workspaceId: Id;
-  /** Scope MVP: chi 'asset'. Xem DECISIONS.md D-006. */
+  /** Scope MVP: chi 'asset' (owner decision Q-09). */
   scope: 'asset';
   assetId: Id;
+  /** Source file moi tren cung asset => phai xac nhan lai (owner decision Q-09). */
+  sourceFileId: Id;
+  /** 'blocked' khi asset bi report va dang cho review. */
+  status: 'active' | 'blocked';
   attestedByUserId: Id;
   /** Version cua cau xac nhan da hien thi, de audit ve sau. */
   statementId: string;

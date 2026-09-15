@@ -60,3 +60,24 @@ chọn, thay vì trông chờ người viết service nhớ kiểm tra.
 ## Remaining Limits
 - Chưa có adapter thật nào. Chưa có bộ media benchmark (Q-07).
 - Chưa có chính sách retry/timeout cho provider — `planned`.
+
+---
+
+## Amendment 2026-09-15 — Owner decision Q-06
+
+**Chốt**: không khoá provider AI production trong Phase 0; chuẩn bị **benchmark harness trước** khi
+chọn provider.
+
+**Harness đã thêm** (`src/benchmark.ts`): 10 kịch bản (S10 = video gần giới hạn **09:59**) × 10
+metric, khởi tạo toàn bộ `value: null` / `evidence: 'unknown'` / `providerRunId: null`;
+`isFabricatedCell()` coi ô có số mà thiếu `providerRunId` hoặc evidence `unknown` là **số bịa**;
+`evaluateReadiness()` chỉ cho phép chọn provider khi không còn ô `unknown`.
+
+**Deterministic fallback**: `crop`, `blur`, `brand_overlay` không cần provider AI
+(`requiresProvider()` trả `false`). "Static mask" map vào nhóm này thay vì tạo enum mới (D-020).
+
+**Capability evidence**: `capabilityEvidence()` trả `unknown` khi provider không khai báo — không
+bao giờ mặc định `verified`.
+
+**Test**: `benchmark.test.ts` (5) + `provider.test.ts` (8, thêm deterministic fallback và capability
+evidence).

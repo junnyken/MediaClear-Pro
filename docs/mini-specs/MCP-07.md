@@ -61,3 +61,26 @@ dùng lại `jobId` nên tự động không sinh lần tính phí thứ hai. Đ
 - Chưa có bảng giá (Q-10) → `estimatedCostUsd` luôn `null` hôm nay.
 - Chưa có ràng buộc unique ở DB (chưa có DB).
 - Chưa quyết: job `review_required` mà người dùng bỏ giữa chừng thì tính hay không — `unknown`.
+
+---
+
+## Amendment 2026-09-15 — Owner decision Q-10
+
+**Vòng đời chốt**: `accepted job submission → reserve usage → provider processing → verified output
+→ commit usage`. Thất bại (provider hoặc validation do người dùng) → `release` theo error policy.
+
+**Thêm**:
+- `canReserveUsage()` — mỗi `jobId` chỉ được reserve **một lần**; lần hai trả
+  `MCP_USAGE_RESERVATION_CONFLICT`.
+- `usageEffectOfError(code)` — lấy `releasesReservation` / `retryAllowed` từ `ERROR_CATALOGUE`,
+  không hard-code rải rác (D-021).
+- `PREVIEW_IS_BILLABLE` chuyển về `config.ts` để chỉ có một nguồn sự thật.
+
+**Preview** (D-022): `planPreview()` trả `billable: false` và **ngân sách provider job**: 0 cho thao
+tác deterministic, tối đa 1 cho thao tác cần AI — chặn kịch bản preview đốt nhiều provider job.
+
+**Đã có sẵn, không đổi**: `ceil(duration/60)` cho video, một `commit` mỗi `jobId`, job fail trước
+provider thì không có reserve nên không commit được.
+
+**Test**: `usage.test.ts` (10), `preview.test.ts` (4), và luồng đầy đủ trong
+`integration-pipeline.test.ts`.

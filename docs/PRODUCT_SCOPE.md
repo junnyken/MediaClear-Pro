@@ -58,14 +58,34 @@ Full Chrome Extension implementation · Python media service.
 
 ## 3. Giới hạn kỹ thuật đã chốt
 
-| Giới hạn | Giá trị | Nguồn |
+> Cập nhật 2026-09-15 theo owner decision Q-03 (D-018). Nguồn duy nhất:
+> `packages/contracts/src/config.ts`. Các giới hạn là **inclusive** — giá trị ghi trong bảng vẫn
+> được chấp nhận, vượt qua mới bị từ chối.
+
+| Giới hạn | Giá trị | Hằng số |
 |---|---|---|
-| Thời lượng video | **< 600 giây** (strict) | prompt Phase 0 |
-| Dung lượng file | **< 209.715.200 bytes (200 MB)** (strict) | prompt Phase 0 |
-| Định dạng ảnh | `image/jpeg`, `image/png`, `image/webp` | quyết định D-007 |
-| Định dạng video | `video/mp4`, `video/quicktime`, `video/webm` | quyết định D-007 |
-| Kích thước ảnh | 64 px ≤ cạnh ≤ 8000 px | quyết định D-007 |
-| Kích thước video (pixel) | `unknown` — chưa có bằng chứng để chốt | OPEN_QUESTIONS Q-03 |
+| Dung lượng file | **199 MB** (208.666.624 bytes) | `MAX_FILE_SIZE_BYTES` |
+| Thời lượng video | **09:59** (599 giây) | `MAX_VIDEO_DURATION_SECONDS` |
+| Kích thước video | **3840 × 3840 px** | `MAX_VIDEO_WIDTH`, `MAX_VIDEO_HEIGHT` |
+| Định dạng ảnh | JPEG, PNG, WebP | `SUPPORTED_IMAGE_FORMATS` |
+| Định dạng video | MP4, MOV, WebM | `SUPPORTED_VIDEO_FORMATS` |
+| Kích thước ảnh | 64 px ≤ cạnh ≤ 8000 px | `MAX_IMAGE_DIMENSION_PX`, `MIN_IMAGE_DIMENSION_PX` |
+| Hiệu lực xác nhận quyền | 365 ngày | `RIGHTS_ATTESTATION_VALIDITY_DAYS` |
+
+Giá trị cũ của Phase 0 (200 MB, 10:00, không giới hạn pixel video) **không còn hiệu lực ở runtime**;
+có test khẳng định điều đó.
+
+## 3b. Tenancy và vai trò
+
+Chuỗi sở hữu: **User → Workspace → Project → Asset**. Role MVP: `owner`, `admin`, `member`,
+`viewer` (D-019). Viewer không tạo được job; member không quản lý billing hay quyền sở hữu
+workspace. Từ chối cross-workspace không tiết lộ tài nguyên có tồn tại hay không.
+
+## 3c. Hạ tầng lưu trữ
+
+PostgreSQL cho domain state; object storage qua abstraction S3-compatible, mục tiêu production ban
+đầu là Cloudflare R2 (chờ deployment review). Media binary không bao giờ nằm trong PostgreSQL
+(D-017).
 
 ## 4. Thị trường
 

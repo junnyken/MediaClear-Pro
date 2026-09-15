@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { ProviderRegistry, resolveProviderCredential } from '../src/provider.js';
+import {
+  DETERMINISTIC_FALLBACK_OPERATIONS,
+  ProviderRegistry,
+  capabilityEvidence,
+  isDeterministicFallback,
+  requiresProvider,
+  resolveProviderCredential,
+} from '../src/provider.js';
 import { NoopContractProvider } from '../src/providers/noop-provider.js';
+import { CLEANUP_OPERATIONS } from '../src/vocabulary.js';
 
-describe('MCP-04 provider abstraction', () => {
+describe('MCP-04 provider abstraction (owner decision Q-06)', () => {
   it('noop provider duoc danh dau KHONG phai production', () => {
     expect(new NoopContractProvider().isProductionProvider).toBe(false);
   });
@@ -15,6 +23,23 @@ describe('MCP-04 provider abstraction', () => {
     expect(reg.findCapable('visible_logo_cleanup', 'image')).toEqual([]);
   });
 
+  it('chua chon provider production nao trong Phase 0', () => {
+    expect(new ProviderRegistry().listProduction()).toEqual([]);
+  });
+
+  it('crop/blur/brand_overlay la deterministic fallback, khong can provider AI', () => {
+    expect([...DETERMINISTIC_FALLBACK_OPERATIONS].sort()).toEqual(['blur', 'brand_overlay', 'crop']);
+    for (const op of DETERMINISTIC_FALLBACK_OPERATIONS) {
+      expect(isDeterministicFallback(op)).toBe(true);
+      expect(requiresProvider(op)).toBe(false);
+    }
+    for (const op of CLEANUP_OPERATIONS) {
+      if (!DETERMINISTIC_FALLBACK_OPERATIONS.includes(op)) {
+        expect(requiresProvider(op)).toBe(true);
+      }
+    }
+  });
+
   it('thieu evidence => cost null + evidence unknown, khong bia so', () => {
     const est = new NoopContractProvider().estimate();
     expect(est.costUsd).toBeNull();
@@ -22,8 +47,11 @@ describe('MCP-04 provider abstraction', () => {
     expect(est.etaSeconds).toBeNull();
   });
 
-  it('capability chua benchmark => support khac verified', () => {
-    for (const cap of new NoopContractProvider().capabilities()) {
+  it('capability khong khai bao => unknown, khong mac dinh verified', () => {
+    const p = new NoopContractProvider();
+    expect(capabilityEvidence(p, 'tracked_inpaint', 'video')).toBe('unknown');
+    expect(capabilityEvidence(p, 'visible_logo_cleanup', 'image')).toBe('unknown');
+    for (const cap of p.capabilities()) {
       expect(cap.support).not.toBe('verified');
     }
   });
@@ -37,8 +65,7 @@ describe('MCP-04 provider abstraction', () => {
   });
 
   it('getResult that bai tra outputUrl null + errorCode, khong bao thanh cong rong', async () => {
-    const p = new NoopContractProvider();
-    const result = await p.getResult();
+    const result = await new NoopContractProvider().getResult();
     expect(result.outputUrl).toBeNull();
     expect(result.errorCode).toBe('MCP_PROVIDER_NOT_PRODUCTION');
   });

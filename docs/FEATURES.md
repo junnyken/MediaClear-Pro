@@ -9,31 +9,36 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 
 | Capability | Nơi ở | Bằng chứng |
 |---|---|---|
-| Stable vocabulary (media type, cleanup operation, job state, evidence status) | `packages/contracts/src/vocabulary.ts` | 4 test |
-| Domain entity contracts (14 entity) | `packages/contracts/src/entities.ts` | typecheck |
-| Media limits & validation (10 phút / 200 MB / format / kích thước) | `packages/contracts/src/media-limits.ts` | 7 test |
-| Job state machine + guard `completed` | `packages/contracts/src/job-state-machine.ts` | 7 test |
-| Rights Guard / policy gate | `packages/contracts/src/policy.ts` | 9 test |
-| Provider abstraction + registry + no-op contract provider | `packages/contracts/src/provider.ts` | 6 test |
-| Metadata / provenance evaluation | `packages/contracts/src/provenance.ts` | 8 test |
-| Usage ledger contract (reserve/commit/release, chống double charge) | `packages/contracts/src/usage.ts` | 8 test |
-| Invariant registry + regression test | `packages/contracts/src/invariants.ts` | 9 test |
-| Error code catalogue (27 mã) | `packages/contracts/src/errors.ts` | test i18n |
+| Config tập trung mọi giới hạn (199 MB, 09:59, 3840×3840, 365 ngày) | `packages/contracts/src/config.ts` | kiểm qua 10 test media-limits + 12 test policy |
+| Stable vocabulary (media type, cleanup operation, job state, evidence status) | `src/vocabulary.ts` | 4 test |
+| Domain entity contracts (15 entity) | `src/entities.ts` | typecheck |
+| Media limits & validation, phân biệt format/size/duration/width/height | `src/media-limits.ts` | 10 test |
+| Job state machine + guard `completed` + `blocked` terminal | `src/job-state-machine.ts` | 9 test |
+| Rights Guard / policy gate (attestation missing/expired/stale/blocked) | `src/policy.ts` | 12 test |
+| Tenancy + ma trận quyền 4 role, chặn rò rỉ existence | `src/tenancy.ts` | 9 test |
+| Object storage abstraction S3-compatible + adapter in-memory | `src/storage.ts`, `src/storage-adapters/` | 7 test |
+| Provider abstraction + registry + deterministic fallback | `src/provider.ts` | 8 test |
+| Benchmark harness (10 kịch bản × 10 metric, chặn số bịa) | `src/benchmark.ts` | 5 test |
+| Preview contract (proxy, miễn phí, ngân sách provider job) | `src/preview.ts` | 4 test |
+| Metadata / provenance evaluation | `src/provenance.ts` | 8 test |
+| Usage ledger (reserve/commit/release, chống double charge & conflict) | `src/usage.ts` | 10 test |
+| Invariant registry 12 mục + regression test | `src/invariants.ts` | 13 test |
+| Error catalogue 39 mã kèm HTTP/retry/release | `src/errors.ts` | 7 test |
 | Design tokens (màu, spacing, a11y) | `packages/design-tokens/` | web build |
-| i18n vi (mặc định) + en, 107 key, parity test | `packages/i18n/` | 8 test |
+| i18n vi (mặc định) + en, 127 key, parity test | `packages/i18n/` | 8 test |
 | Web skeleton 11 route (10 màn foundation) | `apps/web/` | `next build` xanh |
-| API skeleton: `/healthz` thật, 9 route nghiệp vụ trả 501 | `apps/api/` | chạy thật, xem TEST_LOG |
+| API skeleton: `/healthz` thật, 10 route nghiệp vụ trả 501 | `apps/api/` | 4 test HTTP thật |
 
 ## 2. Đã chốt contract, chưa code (`planned`)
 
-Upload thật + object storage · Probe media thật (ffprobe/exif) · Queue + worker · Gọi provider AI
+Upload thật + adapter R2/MinIO thật · Probe media thật (ffprobe/exif) · Queue + worker · Gọi provider AI
 thật · Preview render · Export · Brand overlay · Usage ledger persistence · Audit event
 persistence · Auth/tenant enforcement · Migrations.
 
 ## 3. Chưa có bằng chứng (`unknown`)
 
 Provider AI nào đủ chất lượng · Giá thật mỗi ảnh / mỗi phút video · Tỷ lệ fail/retry thực tế ·
-Khả năng đọc C2PA/AI provenance của thư viện nào · Giới hạn pixel cho video.
+Khả năng đọc C2PA/AI provenance của thư viện nào · Queue runtime · Auth provider cụ thể.
 
 ## 4. Cố ý không làm (`out_of_scope`)
 

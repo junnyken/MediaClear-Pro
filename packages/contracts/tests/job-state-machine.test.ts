@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { ALLOWED_TRANSITIONS, canSubmitProviderJob, canTransition } from '../src/job-state-machine.js';
+import {
+  ALLOWED_TRANSITIONS,
+  assertCanSubmitProviderJob,
+  canSubmitProviderJob,
+  canTransition,
+  resolveBlockedJob,
+} from '../src/job-state-machine.js';
 import { JOB_STATES } from '../src/vocabulary.js';
 
 describe('MCP-03 job state machine', () => {
@@ -36,14 +42,31 @@ describe('MCP-03 job state machine', () => {
     ).toBe(true);
   });
 
-  it('blocked la terminal: go block phai tao job moi (D-005)', () => {
-    expect(canTransition('blocked', 'validating').allowed).toBe(false);
-    expect(canTransition('blocked', 'queued').allowed).toBe(false);
+  it('owner decision Q-08: blocked la terminal, khong co duong tat nao quay lai', () => {
+    for (const target of JOB_STATES) {
+      expect(canTransition('blocked', target).allowed, `blocked -> ${target}`).toBe(false);
+    }
+    expect(canTransition('blocked', 'processing').error?.code).toBe('MCP_STATE_TERMINAL');
+    expect(canTransition('blocked', 'completed', { outputAssetId: 'o1', outputValidated: true }).allowed).toBe(false);
+  });
+
+  it('go block = tao job MOI, job cu giu nguyen trang thai blocked', () => {
+    const outcome = resolveBlockedJob();
+    expect(outcome.previousJobStaysBlocked).toBe(true);
+    expect(outcome.newJobInitialState).toBe('uploaded');
   });
 
   it('canSubmitProviderJob chi true o queued/processing', () => {
     for (const s of JOB_STATES) {
       expect(canSubmitProviderJob(s)).toBe(s === 'queued' || s === 'processing');
     }
+  });
+
+  it('job blocked tra ma loi rieng khi co gang submit provider job', () => {
+    const r = assertCanSubmitProviderJob('blocked');
+    expect(r.allowed).toBe(false);
+    expect(r.error?.code).toBe('MCP_STATE_JOB_BLOCKED');
+    expect(assertCanSubmitProviderJob('queued').allowed).toBe(true);
+    expect(assertCanSubmitProviderJob('uploaded').error?.code).toBe('MCP_STATE_INVALID_TRANSITION');
   });
 });

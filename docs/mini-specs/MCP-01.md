@@ -55,3 +55,23 @@ Không áp dụng (không có runtime nghiệp vụ trong Phase 0).
 
 ## Remaining Limits
 - Chưa có preset TikTok/Reels/Shorts cụ thể (tỷ lệ, độ dài) — `planned`.
+
+---
+
+## Amendment 2026-09-15 — Owner decisions (Q-04, Q-08)
+
+**Thay đổi vocabulary** (không xoá giá trị cũ, chỉ bổ sung):
+- `WorkspaceRole`: `owner` · `admin` · `member` · `viewer` — xem MCP-09.
+- `BlockReasonKind`: `policy_block` · `validation_block` · `provider_block`.
+- `StorageClass`: `source` · `output` · `preview` — xem MCP-10.
+- Entity thứ 15: `WorkspaceMembership`.
+
+**Không tạo enum trùng nghĩa**: "static mask" được map vào `blur`/`brand_overlay` trên một
+`NormalizedRegion` cố định thay vì thêm giá trị mới (D-020, Q-15).
+
+**Vocabulary bị thay**: `MCP_POLICY_WORKSPACE_MISMATCH` → `MCP_AUTHZ_WORKSPACE_ACCESS_DENIED`
+(D-021) — mã cũ mô tả tình trạng dữ liệu, mã mới mô tả quyết định truy cập; giữ cả hai sẽ là hai mã
+trùng nghĩa.
+
+**Test bổ sung**: `tenancy.test.ts` khẳng định đúng 4 role; `invariants.test.ts` I-11 khẳng định
+`JobState.blocked` và `EvidenceStatus.blocked` không phải tập con của nhau theo cả hai chiều.

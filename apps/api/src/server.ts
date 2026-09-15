@@ -8,7 +8,14 @@
  * Client-agnostic: khong co route rieng cho web hay Chrome Extension (guardrail 12).
  */
 import Fastify from 'fastify';
-import { API_ROUTES, ERROR_CODES, PHASE, PRODUCTION_AI_PROCESSING_ENABLED, apiError } from '@mediaclear/contracts';
+import {
+  API_ROUTES,
+  ERROR_CODES,
+  PHASE,
+  PRODUCTION_AI_PROCESSING_ENABLED,
+  apiError,
+  httpStatusFor,
+} from '@mediaclear/contracts';
 
 export function buildServer() {
   const app = Fastify({ logger: false });
@@ -24,8 +31,12 @@ export function buildServer() {
   for (const route of API_ROUTES) {
     if (route.status !== 'planned') continue;
     const path = route.path.replace(/:([A-Za-z]+)/g, ':$1');
+    // Status lay tu ERROR_CATALOGUE, khong hard-code so 501 o day.
+    const notImplementedStatus = httpStatusFor(ERROR_CODES.MCP_NOT_IMPLEMENTED);
     const handler = async (_req: unknown, reply: { code: (n: number) => { send: (b: unknown) => unknown } }) =>
-      reply.code(501).send({ ok: false, error: apiError(ERROR_CODES.MCP_NOT_IMPLEMENTED, { route: route.path }) });
+      reply
+        .code(notImplementedStatus)
+        .send({ ok: false, error: apiError(ERROR_CODES.MCP_NOT_IMPLEMENTED, { route: route.path }) });
     if (route.method === 'GET') app.get(path, handler);
     else app.post(path, handler);
   }

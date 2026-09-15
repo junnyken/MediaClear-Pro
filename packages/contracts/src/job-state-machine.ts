@@ -74,3 +74,32 @@ export function canTransition(
 export function canSubmitProviderJob(state: JobState): boolean {
   return state === 'queued' || state === 'processing';
 }
+
+/**
+ * Ban day du cua I-3 cho tang service: tra ve ly do tu choi thay vi chi boolean.
+ * Job 'blocked' tra MCP_STATE_JOB_BLOCKED de phan biet voi cac state khac.
+ */
+export function assertCanSubmitProviderJob(state: JobState): TransitionResult {
+  if (state === 'blocked') {
+    return { allowed: false, error: apiError(ERROR_CODES.MCP_STATE_JOB_BLOCKED, { state }) };
+  }
+  if (!canSubmitProviderJob(state)) {
+    return { allowed: false, error: apiError(ERROR_CODES.MCP_STATE_INVALID_TRANSITION, { state }) };
+  }
+  return { allowed: true, error: null };
+}
+
+/**
+ * Owner decision Q-08: go block KHONG phai transition - phai tao ProcessingJob MOI.
+ * Ham nay chi ton tai de goi ten hanh vi do va de test khang dinh job cu giu nguyen.
+ */
+export interface UnblockOutcome {
+  /** Job cu: giu nguyen state 'blocked' va toan bo audit history. */
+  previousJobStaysBlocked: true;
+  /** Job moi bat dau lai tu 'uploaded'. */
+  newJobInitialState: Extract<JobState, 'uploaded'>;
+}
+
+export function resolveBlockedJob(): UnblockOutcome {
+  return { previousJobStaysBlocked: true, newJobInitialState: 'uploaded' };
+}
