@@ -1,0 +1,22 @@
+{
+  "name": "mediaclear-pro",
+  "private": true,
+  "version": "0.0.0-phase0",
+  "description": "MediaClear Pro - Phase 0 foundation (docs, contracts, skeleton). No production AI processing.",
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "typecheck": "tsc -b --force packages/contracts packages/design-tokens packages/i18n apps/api",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "build:web": "pnpm --filter @mediaclear/web build",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.37.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^2.1.8"
+  }
+}

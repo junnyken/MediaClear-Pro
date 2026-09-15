@@ -1,0 +1,14 @@
+{
+  "name": "@mediaclear/api",
+  "version": "0.0.0-phase0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@mediaclear/contracts": "workspace:*",
+    "fastify": "^5.2.0"
+  }
+}

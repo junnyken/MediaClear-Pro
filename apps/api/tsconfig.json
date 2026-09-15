@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "types": ["node"],
+    "paths": { "@mediaclear/contracts": ["../../packages/contracts/src/index.js"] }
+  },
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../../packages/contracts" }]
+}
