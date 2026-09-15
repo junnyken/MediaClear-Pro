@@ -248,5 +248,8 @@
   "screen.job_status.reservation_hold_until": "Giữ mức dùng đến",
   "usage.state.expired": "Đã hết hạn giữ",
   "screen.usage.expired_label": "Đã hết hạn giữ",
-  "errors.mcp_usage_reservation_expired": "Lượt giữ mức dùng đã hết hạn, vui lòng tạo lượt xử lý mới"
+  "errors.mcp_usage_reservation_expired": "Lượt giữ mức dùng đã hết hạn, vui lòng tạo lượt xử lý mới",
+  "rights.attestation.scope_heading": "Phạm vi hỗ trợ",
+  "rights.attestation.statement_version_label": "Phiên bản tuyên bố",
+  "provenance.retained_data_note": "Dữ liệu nguồn gốc và dấu hiệu nhận diện vô hình có thể vẫn được giữ trong tệp."
 }

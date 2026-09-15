@@ -234,7 +234,7 @@
   "errors.mcp_val_not_validated": "This file has not been checked yet, so it cannot be processed",
   "errors.mcp_storage_upload_ticket_invalid": "This upload has expired. Please choose the file and upload again.",
   "errors.mcp_job_idempotency_conflict": "This request was already sent earlier with different content",
-  "policy.visible_identity_scope": "MediaClear Pro only supports processing visible logos, brand marks and identifying signs",
+  "policy.visible_identity_scope": "MediaClear Pro only supports processing visible logos, trademarks, and identifying marks",
   "provenance.invisible_identity_disclaimer": "MediaClear Pro makes no commitment to remove or alter invisible identifying signs in the file.",
   "rights.attestation.v2.title": "Confirm usage rights",
   "rights.attestation.v2.statement": "I confirm that I own this content or that I have the right to edit this content.",
@@ -248,5 +248,8 @@
   "screen.job_status.reservation_hold_until": "Usage held until",
   "usage.state.expired": "Hold expired",
   "screen.usage.expired_label": "Hold expired",
-  "errors.mcp_usage_reservation_expired": "The usage hold has expired, please create a new run"
+  "errors.mcp_usage_reservation_expired": "The usage hold has expired, please create a new run",
+  "rights.attestation.scope_heading": "Supported scope",
+  "rights.attestation.statement_version_label": "Statement version",
+  "provenance.retained_data_note": "Source information and invisible identifying marks may still remain in the file."
 }

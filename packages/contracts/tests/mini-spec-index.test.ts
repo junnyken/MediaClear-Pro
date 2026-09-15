@@ -9,7 +9,11 @@ import { API_ROUTES } from '../src/api.js';
 
 const ROOT = join(import.meta.dirname, '../../..');
 const INDEX_PATH = join(ROOT, 'docs/MINI_SPEC_INDEX.md');
-const CANONICAL = /^P(?:0|1|1\.1|2)-MCP-\d{2}$/;
+/**
+ * Canonical ID: `P<phase>-MCP-<nn>`, hoac `P<phase>-Q<nn>-MCP-<nn>` cho MINI-SPEC sinh ra
+ * tu mot cau hoi da chot (vd P1.1-Q20-MCP-20).
+ */
+const CANONICAL = /^P(?:0|1|1\.1|2)(?:-Q\d{1,3})?-MCP-\d{2}$/;
 
 interface Row {
   canonical: string;
@@ -83,18 +87,20 @@ describe('MINI_SPEC_INDEX', () => {
   });
 
   it('historical ID cua Phase 0/Phase 1 khong bi xoa khoi index', () => {
-    const historical = rows.filter((r) => r.phase !== 'Phase 1.1').map((r) => r.historical);
-    expect(historical.every((h) => h.includes('MCP-'))).toBe(true);
+    // MINI-SPEC ra doi tu Phase 1.1 tro di khong co ID lich su ('—'); moi hang con lai PHAI co.
+    const legacy = rows.filter((r) => !r.phase.startsWith('Phase 1.1'));
+    expect(legacy.length).toBeGreaterThanOrEqual(17);
+    const missing = legacy.filter((r) => !r.historical.includes('MCP-')).map((r) => r.canonical);
+    expect(missing, 'hang cu bi mat historical ID').toEqual([]);
     // Va chan da biet: MCP-10 xuat hien o CA HAI phase, ca hai deu phai co mat.
-    const mcp10 = rows.filter((r) => r.historical.startsWith('`MCP-10') || r.historical.includes('MCP-10'));
-    expect(mcp10.length).toBe(2);
+    expect(rows.filter((r) => r.historical.includes('MCP-10')).length).toBe(2);
   });
 
   it('MINI-SPEC moi (Phase 1.1) dung ID co tien to phase trong CA ten file', () => {
     const phase11 = miniSpecFiles().filter((f) => f.includes('phase-1.1/'));
     expect(phase11.length).toBeGreaterThanOrEqual(4);
     for (const file of phase11) {
-      expect(file, 'file moi phai mang canonical ID').toMatch(/P1\.1-MCP-\d{2}\.md$/);
+      expect(file, 'file moi phai mang canonical ID').toMatch(/P1\.1(?:-Q\d{1,3})?-MCP-\d{2}\.md$/);
     }
   });
 

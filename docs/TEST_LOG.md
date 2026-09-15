@@ -322,3 +322,68 @@ hồ, #10 chỉ lộ khi mở hộp thoại bằng mắt.
 - **Chưa từng chạy dọn dữ liệu thật** — Phase 1.1 cố ý không có đường xoá nào.
 - Runtime vẫn `ephemeral`; báo cáo lưu giữ trên máy chỉ thấy dữ liệu của phiên hiện tại.
 - Chưa có worker tự chạy hai việc vận hành trên.
+
+---
+
+## 2026-09-15 (lần 5) — Bản vá đóng Q-20 (câu chữ)
+
+### 1. Lệnh chạy riêng từng cái
+
+| Lệnh | Kết quả | Ghi chú |
+|---|---|---|
+| `pnpm typecheck` | exit 0 | |
+| `pnpm lint` | exit 0 | |
+| `pnpm test` | exit 0 — **327/327 pass**, 36 tệp, 0 skip | Phase 1.1 có 299 ⇒ **+28** |
+| `pnpm build:web` | exit 0 | `dist` của gói i18n đồng bộ với `src` (253/253), bundle chứa câu canonical |
+| Migration | **không chạy migration mới** — bản vá này không đụng schema |
+
+### 2. Test thêm
+
+| Nhóm | Số test | Nội dung |
+|---|---|---|
+| Câu chữ canonical + đóng băng văn bản | 13 | khớp từng chữ; **văn bản v1/v2 không đổi**; không câu nào hứa xoá/kiểm soát dấu hiệu vô hình; không giá trị nào trông như khoá thô; không lệch nội suy |
+| Phiên bản tuyên bố qua HTTP | 6 | API công bố đúng v2; ký v1 ⇒ `STALE`; ký v2 ⇒ nhận, lưu đủ `statementId/version/locale/type`; hồ sơ cũ **không** bị tự cập nhật; ký lại tạo bản ghi mới (append-only) |
+| Cấu trúc hộp thoại | 9 | đủ ba mục; dùng đúng văn bản được ký; giữ đủ bốn thông điệp Phase 1; số phiên bản lấy từ máy chủ; có nhãn cho trình đọc màn hình |
+
+### 3. Live verification — API (server chạy từ `dist`)
+
+| Kiểm | Kết quả |
+|---|---|
+| API công bố tuyên bố | `rights_attestation` **v2**, `i18nKey = rights.attestation.v2.statement`, hiệu lực 365 ngày |
+| Ký bằng **v1** | **403 `MCP_POLICY_RIGHTS_ATTESTATION_STALE`** |
+| Ký bằng **v2** | 200 · lưu `statementVersion: 2`, `localeShown: vi`, `attestationType: user_self_declared` |
+| Tạo job sau khi ký | `queued`, mức dùng `reserved` |
+| Bảng route | **31 route — không đổi** so với Phase 1.1 (không thêm route nào ngoài phạm vi) |
+
+### 4. Live verification — giao diện (Chrome thật)
+
+Mở hộp thoại xác nhận quyền và đọc lại từng câu:
+
+- **Phạm vi hỗ trợ** → đúng câu canonical + câu dữ liệu còn sót + câu giới hạn.
+- **Xác nhận quyền sử dụng** → đủ hai lưu ý + **văn bản được ký** + ô tick.
+- **Phiên bản tuyên bố: v2 · hiệu lực 365 ngày**.
+- **Không còn khoá thô**; nút xác nhận khoá cho tới khi tick; **0 lỗi console**.
+- CTA hiển thị "Làm sạch vùng nhận diện".
+- Khổ điện thoại **390×844**: đo 12 phần tử chữ ⇒ **0 tràn, 0 bị cắt**, không cuộn ngang; ký thành công ở khổ này.
+
+**Chưa kiểm được**: giao diện **chưa có bộ chuyển ngôn ngữ** (tiếng Việt là mặc định), nên bản English
+chỉ được kiểm ở tầng dữ liệu bằng test ⇒ ghi `partially_verified`, **không** ghi `verified`.
+
+### 5. Bug thật tìm được
+
+**#12 — Test index MINI-SPEC hiểu sai chính ý định của nó.** Khi thêm hàng `P1.1-Q20-MCP-20`
+(phase ghi là "Phase 1.1 (Q-20 closure)"), test "historical ID không bị xoá" lọc bằng
+`phase !== 'Phase 1.1'` nên coi hàng mới là hàng cũ và đòi nó phải có historical ID.
+*Root cause*: điều kiện lọc bám vào chuỗi phase thay vì bám vào ý định "hàng nào có ID lịch sử".
+*Fix*: lọc theo `phase.startsWith('Phase 1.1')` và khẳng định rõ số hàng cũ tối thiểu.
+*Regression*: chính test đó, nay phát biểu đúng ý định.
+
+Không có bug sản phẩm nào trong lượt này — thay đổi giới hạn ở câu chữ và cấu trúc hiển thị.
+
+### 6. Giới hạn của lần kiểm tra này
+
+- Bản English mới chỉ kiểm ở tầng dữ liệu (chưa có bộ chuyển ngôn ngữ trên giao diện).
+- Chữ cuối của bản English là suy ra từ bản bị cắt trong prompt (Q-21).
+- Câu thứ hai của tooltip trong prompt vẫn không đọc được — **không viết tiếp**.
+- Mọi giới hạn của Phase 1.1 giữ nguyên: runtime `ephemeral`, chưa có worker, benchmark `unknown`,
+  **không có đường xoá dữ liệu nào**.

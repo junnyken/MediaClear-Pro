@@ -270,3 +270,12 @@ vượt rào trạng thái. Hai lỗi tìm được (đồng hồ của phiên �
 chốt chặn kiểm đối chứng âm.
 
 **Agent dừng tại đây, không bắt đầu Phase 2.**
+
+---
+
+> **Cập nhật sau bản vá đóng Q-20** (2026-09-15): Q-20 đã đóng (D-033). Câu chữ canonical được xác
+> nhận khớp từng chữ, bản English dùng đúng từ ngữ owner, hộp thoại xác nhận quyền được dựng lại theo
+> cấu trúc ba mục, và **văn bản tuyên bố v1/v2 không bị sửa** (có test đóng băng).
+> Hai câu hỏi mới phát sinh: Q-21 (chữ cuối bản English) và Q-22 (có version hoá phần ngữ cảnh không).
+> Chi tiết: `docs/PHASE_1_1_Q20_CLOSURE.md` và MINI-SPEC `P1.1-Q20-MCP-20`.
+> Số test sau bản vá: **327/327**.

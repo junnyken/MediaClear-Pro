@@ -211,3 +211,68 @@ Quy tắc không được vi phạm:
 4. Tệp gốc không bị dọn chỉ vì "đã tạo lâu" — phải là **không ai dùng** đủ 30 ngày.
 5. Phase 1.1 **không có đường xoá nào**: chỉ có bản thử chỉ đếm, không có cờ ép xoá, không có
    route `DELETE`. Có test khẳng định điều này.
+
+---
+
+# Đóng Q-20 — câu chữ canonical và quy tắc phiên bản (2026-09-15)
+
+## 16. Cái gì là bằng chứng, cái gì là ngữ cảnh
+
+Đây là phân biệt quan trọng nhất của mục này:
+
+| Thành phần | Vai trò | Có version không |
+|---|---|---|
+| `rights.attestation.v2.statement` | **Văn bản được ký** — cùng với `statementVersion` tạo thành bằng chứng người dùng đã đồng ý điều gì | **Có**. Đổi chữ ⇒ phải lên phiên bản mới |
+| Câu phạm vi hỗ trợ, câu về dữ liệu còn sót, câu giới hạn dấu hiệu nhận diện vô hình | **Ngữ cảnh hiển thị kèm** để người dùng hiểu hệ thống làm được gì | Không |
+| Tiêu đề mục, nhãn phiên bản, nhãn nút | Nhãn giao diện | Không |
+
+Vì vậy bản vá Q-20 sửa được câu chữ ngữ cảnh mà **không** cần tạo phiên bản tuyên bố mới, và **không
+một chữ nào** của văn bản đã phát hành (v1, v2) bị đụng tới. Có test đóng băng hai văn bản này.
+
+> Điểm còn chờ owner: ô tick ghi "xác nhận **nội dung trên**" trong khi chỉ một câu được version hoá.
+> Xem Q-22.
+
+## 17. Bộ câu chữ canonical đang hiệu lực
+
+| Vai trò | Câu tiếng Việt |
+|---|---|
+| Phạm vi hỗ trợ | "MediaClear Pro chỉ hỗ trợ xử lý logo, nhãn hiệu và dấu hiệu nhận diện nhìn thấy được" |
+| Dữ liệu còn sót trong tệp | "Dữ liệu nguồn gốc và dấu hiệu nhận diện vô hình có thể vẫn được giữ trong tệp." |
+| Giới hạn | "MediaClear Pro không cam kết loại bỏ hoặc thay đổi các dấu hiệu nhận diện vô hình trong tệp." |
+| Xác nhận quyền (**văn bản được ký**, v2) | "Tôi xác nhận rằng tôi sở hữu nội dung này hoặc có quyền chỉnh sửa nội dung này." |
+| CTA | "Làm sạch vùng nhận diện" · "Xử lý vùng logo và dấu hiệu nhận diện" |
+
+Ba điều hệ thống **không bao giờ** nói: không nói xoá/vô hiệu hoá/kiểm soát được dấu hiệu nhận diện
+vô hình · không nói dữ liệu nguồn gốc luôn còn sau mọi lần xuất tệp · không dùng cách nói bị cấm làm
+CTA chính. Có test chặn cả ba ở **cả hai** ngôn ngữ.
+
+## 18. Ánh xạ khoá dịch
+
+Prompt gợi ý năm khoá theo ngữ nghĩa; repo đã có sẵn ba khoá tương đương nên **dùng lại**, không tạo
+khoá trùng nghĩa:
+
+| Ngữ nghĩa prompt gợi ý | Khoá thật trong repo | Ghi chú |
+|---|---|---|
+| `rights.attestation.visible_scope_note` | `policy.visible_identity_scope` | dùng lại |
+| `rights.attestation.rights_confirmation` | `rights.attestation.v2.statement` | dùng lại — **văn bản được ký** |
+| `rights.attestation.provenance_warning` | `provenance.invisible_identity_disclaimer` | dùng lại |
+| `rights.attestation.statement_version` | `rights.attestation.statement_version_label` | **mới**, không gắn version |
+| `cleanup.visible_identity.cta` | `screen.asset_detail.create_job_cta` | dùng lại |
+| — | `rights.attestation.scope_heading` | **mới**, tiêu đề mục |
+| — | `provenance.retained_data_note` | **mới**, câu về dữ liệu còn sót |
+
+Khoá lịch sử (`rights.attestation.v1.*`, `provenance.invisible_watermark_disclaimer`) **giữ nguyên
+trong file dịch** để hồ sơ cũ vẫn tra cứu được; giao diện không còn gọi chúng.
+
+## 19. Cấu trúc hộp thoại xác nhận quyền
+
+```
+Xác nhận quyền sử dụng
+├─ Phạm vi hỗ trợ
+│    câu phạm vi · câu dữ liệu còn sót · câu giới hạn
+├─ Xác nhận quyền sử dụng
+│    lưu ý sở hữu · lưu ý đây là tuyên bố của bạn · VĂN BẢN ĐƯỢC KÝ · ô tick
+└─ Phiên bản tuyên bố: vN · hiệu lực 365 ngày
+```
+
+Nút xác nhận **khoá** cho tới khi người dùng tick. Hai mục có tiêu đề gắn nhãn cho trình đọc màn hình.

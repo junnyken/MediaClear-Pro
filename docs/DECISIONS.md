@@ -350,3 +350,37 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   Phase 0 đã thiết kế, nay chạy thật lần đầu (đã kiểm chứng live). Câu cảnh báo về dấu hiệu nhận diện
   vô hình trong prompt bị cắt giữa chừng nên chỉ dùng phần đọc được (Q-20).
 - **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+
+---
+
+# Quyết định đóng Q-20 (2026-09-15)
+
+> ID tiếp theo chưa dùng sau khi audit toàn bộ decision log (D-001…D-032) là **D-033**.
+
+## D-033 — Câu chữ canonical về phạm vi hỗ trợ và giới hạn dấu hiệu nhận diện (Q-20)
+
+- **Context**: Q-20 mở vì câu cảnh báo trong prompt Phase 1.1 bị cắt giữa chừng, nên hệ thống chỉ
+  dùng phần đọc được. Bản vá đóng Q-20 cung cấp bộ câu chữ canonical. Audit cho thấy câu phạm vi
+  tiếng Việt và câu xác nhận quyền **đã khớp từng chữ** từ Phase 1.1; thứ còn thiếu là bản English
+  đúng từ ngữ owner, câu nói về dữ liệu còn sót trong tệp, và **cấu trúc hiển thị** của hộp thoại.
+- **Decision**:
+  1. **Không tạo phiên bản tuyên bố mới.** Văn bản được ký vẫn là `rights.attestation.v2.statement`
+     và **không đổi một chữ nào**; các đoạn phạm vi/cảnh báo là **ngữ cảnh hiển thị kèm**, không phải
+     văn bản ký.
+  2. Dùng lại khoá sẵn có cho ba trong năm khoá prompt gợi ý (bảng ánh xạ ở `POLICY.md` §16); chỉ
+     thêm ba khoá mới cho tiêu đề mục, nhãn phiên bản và câu về dữ liệu còn sót. Khoá mới **không gắn
+     version** vì là nhãn giao diện.
+  3. Bản English dùng đúng từ ngữ owner ở phần đọc được (`trademarks`, `identifying ma…`); chữ cuối
+     hoàn thành là `marks`, đánh dấu `unconfirmed` (Q-21) thay vì im lặng chọn.
+  4. Hộp thoại dựng lại theo ba mục: **Phạm vi hỗ trợ** → **Xác nhận quyền sử dụng** →
+     **Phiên bản tuyên bố: vN**.
+- **Alternatives considered**: (a) tạo v3 cho tuyên bố — bị loại vì thay đổi không chạm văn bản ký,
+  tạo v3 sẽ buộc mọi người dùng ký lại mà không bảo vệ thêm được gì; (b) đổi tên hàng loạt bộ khoá
+  `rights.attestation.v2.*` sang tên không gắn version — bị loại vì prompt cảnh báo đúng rủi ro này
+  và Phase 1.1 đã trả giá một lần (đổi tiền tố hàng loạt làm lộ khoá thô ra giao diện); (c) tự viết
+  tiếp phần câu bị cắt — bị loại vì đó là bịa nội dung pháp lý.
+- **Consequences**: bằng chứng của các lời khai đã ký còn nguyên; người dùng đã ký v2 **không** phải
+  ký lại; giao diện hiển thị đúng cấu trúc owner yêu cầu. Còn hai điểm chờ owner: chữ cuối bản English
+  (Q-21) và có version hoá phần ngữ cảnh hay không (Q-22).
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro

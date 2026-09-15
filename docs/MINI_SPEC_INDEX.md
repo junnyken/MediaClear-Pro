@@ -1,6 +1,6 @@
 # MINI_SPEC_INDEX — MediaClear Pro
 
-- **Cập nhật**: 2026-09-15 (Phase 1.1) · **Quyết định**: Q-16 / D-029
+- **Cập nhật**: 2026-09-15 (Phase 1.1 + Q-20 closure) · **Quyết định**: Q-16 / D-029
 
 Đây là **nguồn tra cứu duy nhất** cho ID của MINI-SPEC.
 
@@ -10,7 +10,8 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
 
 ## Quy tắc
 
-1. **Canonical ID** có dạng `P<phase>-MCP-<nn>` và là **ổn định** — không đổi, không tái sử dụng.
+1. **Canonical ID** có dạng `P<phase>-MCP-<nn>`, hoặc `P<phase>-Q<nn>-MCP-<nn>` cho MINI-SPEC sinh ra
+   từ một câu hỏi đã chốt (vd `P1.1-Q20-MCP-20`). ID là **ổn định** — không đổi, không tái sử dụng.
 2. **Historical ID** là ID từng được publish; giữ nguyên, không xoá khỏi bảng này.
 3. Tên file lịch sử **không đổi** — đổi tên sẽ phá mọi đường dẫn đã trích dẫn trong báo cáo đã publish.
 4. MINI-SPEC **mới bắt buộc** dùng canonical ID có tiền tố phase (Phase 2 dùng `P2-MCP-20…`).
@@ -42,6 +43,7 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
 | `P1.1-MCP-17` | — | Phase 1.1 | Usage Reservation TTL & Expiry | `docs/mini-specs/phase-1.1/P1.1-MCP-17.md` | completed |
 | `P1.1-MCP-18` | — | Phase 1.1 | Data Retention Contract & Dry Run | `docs/mini-specs/phase-1.1/P1.1-MCP-18.md` | completed |
 | `P1.1-MCP-19` | — | Phase 1.1 | Vietnamese Policy & UX Wording | `docs/mini-specs/phase-1.1/P1.1-MCP-19.md` | completed |
+| `P1.1-Q20-MCP-20` | — | Phase 1.1 (Q-20 closure) | Canonical Provenance and Rights Warning Wording | `docs/mini-specs/phase-1.1/P1.1-Q20-MCP-20.md` | completed |
 
 ## Điểm mơ hồ duy nhất còn lại
 
@@ -52,4 +54,7 @@ theo thư mục chứa nó. Từ Phase 1.1 trở đi, mọi tham chiếu mới p
 ## ID đã dùng — không được tái sử dụng
 
 `MCP-00` … `MCP-15` (cả hai phase), `P0-MCP-00` … `P0-MCP-10`, `P1-MCP-10` … `P1-MCP-15`,
-`P1.1-MCP-16` … `P1.1-MCP-19`. Phase 2 bắt đầu từ `P2-MCP-20`.
+`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`.
+
+> Lưu ý: số `20` đã được dùng bởi `P1.1-Q20-MCP-20`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt
+> đầu từ `P2-MCP-21`**.

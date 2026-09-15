@@ -85,28 +85,45 @@ export function RightsDialog({
         }}
       >
         <h2 style={{ marginTop: 0 }}>{translate('rights.attestation.v2.title')}</h2>
-        <p>{translate('rights.attestation.v2.ownership_note')}</p>
-        <p>{translate('rights.attestation.v2.declaration_note')}</p>
-        <p>{translate('policy.visible_identity_scope')}</p>
-        <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('provenance.invisible_identity_disclaimer')}</p>
-        <p>{translate('rights.attestation.v2.statement')}</p>
+
+        {/* Muc 1: pham vi he thong lam duoc gi - cau canonical owner duyet (Q-20). */}
+        <section aria-labelledby="rights-scope-heading">
+          <h3 id="rights-scope-heading" style={{ fontSize: 'var(--mcp-font-size-md)', marginBottom: 'var(--mcp-space-2)' }}>
+            {translate('rights.attestation.scope_heading')}
+          </h3>
+          <p>{translate('policy.visible_identity_scope')}</p>
+          <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('provenance.retained_data_note')}</p>
+          <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('provenance.invisible_identity_disclaimer')}</p>
+        </section>
+
+        {/* Muc 2: van ban duoc ky + o tick. Day moi la thu duoc luu lam bang chung. */}
+        <section aria-labelledby="rights-confirm-heading">
+          <h3 id="rights-confirm-heading" style={{ fontSize: 'var(--mcp-font-size-md)', marginBottom: 'var(--mcp-space-2)' }}>
+            {translate('rights.attestation.v2.title')}
+          </h3>
+          <p>{translate('rights.attestation.v2.ownership_note')}</p>
+          <p>{translate('rights.attestation.v2.declaration_note')}</p>
+          <p>{translate('rights.attestation.v2.statement')}</p>
+
+          <label style={{ display: 'flex', gap: 'var(--mcp-space-3)', alignItems: 'flex-start', margin: 'var(--mcp-space-4) 0' }}>
+            <input
+              type="checkbox"
+              name="accepted"
+              checked={accepted}
+              onChange={(event) => setAccepted(event.target.checked)}
+              style={{ width: 20, height: 20, marginTop: 2 }}
+            />
+            <span>{translate('rights.attestation.v2.checkbox')}</span>
+          </label>
+        </section>
+
+        {/* Muc 3: phien ban tuyen bo - de nguoi dung biet minh dang ky ban nao. */}
         {statement ? (
           <p style={{ color: 'var(--mcp-text-secondary)' }}>
-            {translate('rights.attestation.v2.policy_version')}: {statement.id} v{statement.version} ·{' '}
+            {translate('rights.attestation.statement_version_label')}: v{statement.version} ·{' '}
             {translate('rights.attestation.v2.validity_note', { days: statement.validityDays })}
           </p>
         ) : null}
-
-        <label style={{ display: 'flex', gap: 'var(--mcp-space-3)', alignItems: 'flex-start', margin: 'var(--mcp-space-4) 0' }}>
-          <input
-            type="checkbox"
-            name="accepted"
-            checked={accepted}
-            onChange={(event) => setAccepted(event.target.checked)}
-            style={{ width: 20, height: 20, marginTop: 2 }}
-          />
-          <span>{translate('rights.attestation.v2.checkbox')}</span>
-        </label>
 
         <div style={{ display: 'flex', gap: 'var(--mcp-space-3)', flexWrap: 'wrap' }}>
           <Button onClick={submit} disabled={!accepted || busy || statement === null}>
