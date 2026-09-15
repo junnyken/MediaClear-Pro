@@ -192,3 +192,13 @@ Không có cột `reservation_state` — thêm cột thứ hai nghĩa là có l�
 Không có cột nào bị xoá, không có dữ liệu nào bị xoá, **không có đường xoá nào tồn tại**. Trạng thái
 `deleted` và `scheduled_for_deletion` mới chỉ là contract — chưa có gì đặt bản ghi vào các trạng thái
 đó. Worker dọn dữ liệu là việc của phase sau.
+
+## 16. Bản vá Q-22 — tham chiếu chéo, không đổi lược đồ
+
+Bản vá Q-22 (`P1.1-Q22-MCP-21`, D-034) **không** thêm/xoá/đổi bảng, cột, ràng buộc hay migration nào.
+`RightsAttestation` giữ nguyên `statement_id`, `statement_version`, `locale_shown`, `attestation_type`.
+
+Ghi ở đây để người đọc lược đồ khỏi hiểu nhầm: cột `statement_version` chỉ nói về **câu xác nhận
+quyền**, không nói về các đoạn ngữ cảnh hiển thị kèm trong hộp thoại. Ranh giới bằng chứng ↔ ngữ cảnh
+nằm ở `docs/POLICY.md` §16; từ Q-22, nhãn ô tick bắt buộc chính là câu được ký, nên thứ người dùng
+tick khớp đúng thứ cột này lưu.

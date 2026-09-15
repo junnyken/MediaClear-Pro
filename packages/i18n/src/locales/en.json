@@ -238,7 +238,6 @@
   "provenance.invisible_identity_disclaimer": "MediaClear Pro makes no commitment to remove or alter invisible identifying signs in the file.",
   "rights.attestation.v2.title": "Confirm usage rights",
   "rights.attestation.v2.statement": "I confirm that I own this content or that I have the right to edit this content.",
-  "rights.attestation.v2.checkbox": "I have read and confirm the statement above",
   "rights.attestation.v2.decline_note": "Without your confirmation we do not process this file.",
   "rights.attestation.v2.ownership_note": "Only process content you own or are allowed to edit.",
   "rights.attestation.v2.declaration_note": "This confirmation is your own declaration about usage rights, not a verification by us.",

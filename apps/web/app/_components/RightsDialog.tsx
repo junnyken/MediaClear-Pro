@@ -9,6 +9,10 @@
  *
  * P1.1 (Q-19): dung TRON BO khoa v2. Khoa v1 van con trong file dich lam dau vet
  * lich su cua van ban ma nguoi dung truoc day da dong y - khong xoa.
+ *
+ * P1.1 (Q-22): o tick hien THANG cau duoc ky, khong dung nhan tom tat "noi dung tren".
+ * Phan biet: cau `rights.attestation.v2.statement` la BANG CHUNG (co version, duoc luu);
+ * tieu de muc, cau pham vi ho tro va hai cau canh bao la NGU CANH (khong version, khong luu).
  */
 import { useState } from 'react';
 import { apiFetch, translate, type ApiErrorShape } from '../_lib/api';
@@ -103,8 +107,13 @@ export function RightsDialog({
           </h3>
           <p>{translate('rights.attestation.v2.ownership_note')}</p>
           <p>{translate('rights.attestation.v2.declaration_note')}</p>
-          <p>{translate('rights.attestation.v2.statement')}</p>
 
+          {/*
+            P1.1-Q22-MCP-21: nhan o tick CHINH LA cau duoc ky, khong phai mot cau tom tat.
+            Cau nay chi duoc xuat hien DUNG MOT CHO trong hop thoai - neu tach ra mot the <p>
+            rieng roi de nhan tick tro toi no bang chu "noi dung tren" thi nguoi dung dang tick
+            vao mot loi hua rong hon thu he thong thuc su luu lam bang chung.
+          */}
           <label style={{ display: 'flex', gap: 'var(--mcp-space-3)', alignItems: 'flex-start', margin: 'var(--mcp-space-4) 0' }}>
             <input
               type="checkbox"
@@ -113,7 +122,7 @@ export function RightsDialog({
               onChange={(event) => setAccepted(event.target.checked)}
               style={{ width: 20, height: 20, marginTop: 2 }}
             />
-            <span>{translate('rights.attestation.v2.checkbox')}</span>
+            <span>{translate('rights.attestation.v2.statement')}</span>
           </label>
         </section>
 

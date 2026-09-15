@@ -14,7 +14,7 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
    từ một câu hỏi đã chốt (vd `P1.1-Q20-MCP-20`). ID là **ổn định** — không đổi, không tái sử dụng.
 2. **Historical ID** là ID từng được publish; giữ nguyên, không xoá khỏi bảng này.
 3. Tên file lịch sử **không đổi** — đổi tên sẽ phá mọi đường dẫn đã trích dẫn trong báo cáo đã publish.
-4. MINI-SPEC **mới bắt buộc** dùng canonical ID có tiền tố phase (Phase 2 dùng `P2-MCP-20…`).
+4. MINI-SPEC **mới bắt buộc** dùng canonical ID có tiền tố phase (Phase 2 dùng `P2-MCP-22…`).
 5. Mã nguồn (`API_ROUTES.mcp`) chỉ dùng canonical ID.
 6. Không có hai canonical ID trùng nhau — có test chặn.
 
@@ -44,6 +44,7 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
 | `P1.1-MCP-18` | — | Phase 1.1 | Data Retention Contract & Dry Run | `docs/mini-specs/phase-1.1/P1.1-MCP-18.md` | completed |
 | `P1.1-MCP-19` | — | Phase 1.1 | Vietnamese Policy & UX Wording | `docs/mini-specs/phase-1.1/P1.1-MCP-19.md` | completed |
 | `P1.1-Q20-MCP-20` | — | Phase 1.1 (Q-20 closure) | Canonical Provenance and Rights Warning Wording | `docs/mini-specs/phase-1.1/P1.1-Q20-MCP-20.md` | completed |
+| `P1.1-Q22-MCP-21` | — | Phase 1.1 (Q-22 closure) | Rights Attestation Checkbox Scope Clarification | `docs/mini-specs/phase-1.1/P1.1-Q22-MCP-21.md` | completed |
 
 ## Điểm mơ hồ duy nhất còn lại
 
@@ -54,7 +55,11 @@ theo thư mục chứa nó. Từ Phase 1.1 trở đi, mọi tham chiếu mới p
 ## ID đã dùng — không được tái sử dụng
 
 `MCP-00` … `MCP-15` (cả hai phase), `P0-MCP-00` … `P0-MCP-10`, `P1-MCP-10` … `P1-MCP-15`,
-`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`.
+`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-21`.
 
-> Lưu ý: số `20` đã được dùng bởi `P1.1-Q20-MCP-20`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt
-> đầu từ `P2-MCP-21`**.
+> Lưu ý: số `20` đã được dùng bởi `P1.1-Q20-MCP-20` và số `21` bởi `P1.1-Q22-MCP-21`. Để tránh mọi
+> khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-22`**.
+>
+> Canonical ID là **chuỗi đầy đủ**, không phải con số cuối: `P1.1-Q22-MCP-21` và `P2-MCP-21` là hai ID
+> khác nhau và không bao giờ đụng nhau. Quy ước "Phase 2 bắt đầu từ số kế tiếp" chỉ để người đọc lướt
+> qua không nhầm, chứ không phải ràng buộc kỹ thuật.

@@ -1,6 +1,6 @@
 # OPEN_QUESTIONS — MediaClear Pro
 
-Cập nhật: **2026-09-15** (sau bản vá đóng Q-20 của Phase 1.1).
+Cập nhật: **2026-09-15** (sau bản vá đóng Q-22 của Phase 1.1).
 
 Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã chốt chuyển xuống mục "Đã giải quyết" và
 **không** còn xuất hiện ở bảng đang mở.
@@ -18,7 +18,6 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 | Q-14 | Auth provider/IdP cụ thể (session, JWT, OAuth, vendor nào)? | API, tenancy | `unknown` | Phase 1 — owner đã cho phép để ngỏ ở mức implementation decision |
 | Q-15 | "Static mask" đang được map vào `blur`/`brand_overlay` trên một vùng cố định thay vì tạo enum mới. Owner xác nhận cách map này chứ? | vocabulary, provider | `unconfirmed` | không chặn |
 | Q-21 | Bản English của câu phạm vi trong prompt Q-20 **bị cắt ở "identifying ma"**. Đang dùng đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối là "marks". Owner xác nhận chữ cuối và phần sau (nếu còn) chứ? | i18n `policy.visible_identity_scope` (en) | `unconfirmed` | không chặn — sửa một khoá i18n là xong |
-| Q-22 | Ô tick ghi "xác nhận **nội dung trên**" trong khi hệ thống chỉ version hoá **một câu** (`rights.attestation.v2.statement`). Owner có muốn version hoá cả phần ngữ cảnh (phạm vi hỗ trợ, cảnh báo) để lưu làm bằng chứng không? | POLICY §16, RightsAttestation | `unconfirmed` | không chặn — nếu có thì phải thêm khái niệm phiên bản cho bộ ngữ cảnh |
 
 > Q-13 và Q-15 là **cách hiểu** của agent khi áp dụng owner decisions, đã ghi rõ trong `DECISIONS.md`
 > (D-018, D-020) thay vì tự đoán im lặng. Cả hai đều sửa được bằng một thay đổi nhỏ nếu owner muốn khác.
@@ -39,6 +38,7 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 | Q-18 | Thời hạn lưu giữ dữ liệu | Retention policy v1: source/output 30 ngày theo **lần truy cập cuối**, trung gian 7 ngày, xem thử 24 giờ, audit 365 ngày, sổ mức dùng 24 tháng, dấu vết đã xoá 30 ngày; Phase 1.1 **chỉ có bản thử, không xoá** | D-031 |
 | Q-19 | Câu chữ tiếng Việt | Dùng bản owner duyệt; nội dung xác nhận quyền **lên phiên bản 2**; CTA ưu tiên "Làm sạch vùng nhận diện" | D-032 |
 | Q-20 | Câu cảnh báo về dấu hiệu nhận diện vô hình bị cắt trong prompt Phase 1.1 | Owner cung cấp bộ câu chữ canonical ở bản vá Q-20; câu phạm vi và câu xác nhận quyền **giữ nguyên** (đã khớp từng chữ từ Phase 1.1); thêm câu về dữ liệu còn sót và dựng lại cấu trúc hộp thoại | D-033 |
+| Q-22 | Ô tick ghi "xác nhận nội dung trên" trong khi hệ thống chỉ version hoá một câu | **Không** version hoá phần ngữ cảnh và **không** tạo statement v3. Thay vào đó ô tick hiển thị thẳng chính câu được ký (`rights.attestation.v2.statement`); tiêu đề mục, câu phạm vi hỗ trợ và hai câu cảnh báo được ghi rõ là **ngữ cảnh**, không lưu làm bằng chứng | D-034 |
 
 ## 3. Ghi chú về evidence còn `unknown`
 

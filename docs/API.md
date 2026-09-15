@@ -253,3 +253,22 @@ Extension chưa tồn tại; khi có, nó dùng **chính** các route trên, kh�
 Rate limit (`unknown`) · webhook (`out_of_scope`) · OpenAPI file (`planned`) · phân trang cho
 audit events (`planned`) · auth provider production (`unknown`, Q-14) · resumable upload (`planned`) ·
 worker tự chạy lệnh hết hạn và báo cáo lưu giữ (`planned`).
+
+## 11. Bản vá Q-22 — không có thay đổi API
+
+Bản vá Q-22 (`P1.1-Q22-MCP-21`, D-034) chỉ sửa **nhãn hiển thị của ô tick** trong hộp thoại xác nhận
+quyền. Không có gì ở tầng API đổi:
+
+| Hạng mục | Trước Q-22 | Sau Q-22 |
+|---|---|---|
+| Số route | 31 | 31 |
+| Route mới / xoá | — | không có |
+| Route `DELETE` | không có | không có |
+| Hình dạng request `POST /v1/assets/:assetId/rights-attestation` | `statementId`, `statementVersion`, `localeShown`, `accepted` | **giữ nguyên** |
+| Hình dạng response `GET /v1/assets/:assetId/rights-attestation` | `statement.{id,version,i18nKey,validityDays}` | **giữ nguyên** |
+| `RIGHTS_STATEMENT.version` do API công bố | `2` | `2` |
+| Cổng `stale` (`statementVersion` cũ hơn ⇒ 403) | có | **giữ nguyên** |
+| Migration | `0001`, `0002` | không thêm bản nào |
+
+Lý do không cần đổi API: thứ được lưu làm bằng chứng vẫn là **đúng câu cũ** ở **đúng phiên bản cũ**.
+Q-22 sửa chỗ người dùng *đọc* câu đó, không sửa câu.

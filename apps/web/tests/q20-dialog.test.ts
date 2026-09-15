@@ -24,9 +24,10 @@ describe('Q-20 — cau truc hop thoai', () => {
     expect(DIALOG).toContain("translate('provenance.invisible_identity_disclaimer')");
   });
 
+  // P1.1-Q22-MCP-21: nhan o tick khong con la khoa rieng - no LA cau duoc ky.
+  // Chi tiet duoc kiem o apps/web/tests/q22-checkbox.test.ts.
   it('muc xac nhan quyen dung VAN BAN DUOC KY va co o tick', () => {
     expect(DIALOG).toContain("translate('rights.attestation.v2.statement')");
-    expect(DIALOG).toContain("translate('rights.attestation.v2.checkbox')");
     expect(DIALOG).toContain('type="checkbox"');
   });
 

@@ -387,3 +387,104 @@ Không có bug sản phẩm nào trong lượt này — thay đổi giới hạn
 - Câu thứ hai của tooltip trong prompt vẫn không đọc được — **không viết tiếp**.
 - Mọi giới hạn của Phase 1.1 giữ nguyên: runtime `ephemeral`, chưa có worker, benchmark `unknown`,
   **không có đường xoá dữ liệu nào**.
+
+---
+
+## 2026-09-15 (lần 6) — Bản vá đóng Q-22 (phạm vi ô tick)
+
+MINI-SPEC `P1.1-Q22-MCP-21` · quyết định `D-034`. Nền: `511498a` (Q-20 closure).
+
+### 1. Bốn lệnh kiểm, chạy RIÊNG từng lệnh
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | `tsc -b --force` 4 package, không lỗi |
+| 2 | `pnpm lint` | `0` | `eslint .`, không cảnh báo |
+| 3 | `pnpm test` | `0` | **37 tệp / 337 test đạt** (trước Q-22: 36 tệp / 327 test) |
+| 4 | `pnpm build:web` | `0` | `✓ Compiled successfully` |
+
+`git diff --check`: sạch, mã thoát `0`.
+
+Mã thoát được ghi ra tệp riêng từng lệnh (`q22_typecheck.log`, `q22_lint.log`, `q22_test.log`,
+`q22_build.log`) chứ không đọc `$?` giữa chuỗi lệnh.
+
+Lần chạy đầu `pnpm build` trả `254` vì **không có script tên `build`** ở gốc — tên đúng là
+`build:web`. Đây là lỗi gõ lệnh của người chạy, không phải lỗi mã nguồn; ghi lại để lần sau khỏi
+tưởng là hồi quy.
+
+### 2. Đối chứng âm — năm phép, mỗi phép tái tạo lỗi rồi khôi phục
+
+| # | Tái tạo lỗi gì | Test phải đỏ | Thực tế |
+|---|---|---|---|
+| 1 | Trả nhãn ô tick về `rights.attestation.v2.checkbox` ("xác nhận nội dung trên") | `q22-checkbox` | **5 test đỏ** |
+| 2 | Đổi **một ký tự** trong văn bản đã ký v2 (`này` → `nầy`) | `q20-wording` freeze | **3 test đỏ** |
+| 2b | Đổi **một ký tự** trong văn bản đã ký v1 (`kết` → `kêt`) | `q20-wording` freeze | **1 test đỏ** |
+| 3 | Xoá một khoá (`rights.attestation.scope_heading`) khỏi `en.json` | parity + khoá UI | **4 test đỏ** |
+| 4 | Cho UI gọi khoá không tồn tại (`…v2.statement_text`) | khoá thô | **7 test đỏ** |
+| 5 | Giả vờ đóng Q-21 (`unconfirmed` → `confirmed`) | chốt giữ Q-21 | **1 test đỏ** |
+
+Sau mỗi phép, tệp được khôi phục từ bản sao lưu và toàn bộ 337 test xanh lại. Không phép nào được
+"khôi phục" bằng cách nới lỏng test.
+
+### 3. Live verification — bấm tay trên trình duyệt thật
+
+Môi trường: API `:3001` chạy từ `apps/api/dist/server.js` (bản vừa `typecheck` emit), web `:3000`
+chạy `next start` trên bản vừa `build:web`. Người dùng `q22@matbao.com`, workspace
+`Studio kiểm ô tick Q-22`, dự án `prj_20185b26bb5f4a448743e56367f3a450`.
+
+**Desktop 1280×900** — asset `ast_26bc240c9753478a861bdcfe5b07b27b`:
+
+| Kiểm gì | Quan sát được |
+|---|---|
+| Tên gọi của ô tick (trình đọc màn hình đọc ra) | "Tôi xác nhận rằng tôi sở hữu nội dung này hoặc có quyền chỉnh sửa nội dung này." |
+| Hộp thoại còn đủ 3 mục | Phạm vi hỗ trợ · Xác nhận quyền sử dụng · Phiên bản tuyên bố |
+| Số phiên bản lấy từ máy chủ | `v2` |
+| Nút xác nhận trước khi tick | `disabled` |
+| Ký | thành công, thẻ chuyển sang "Đã xác nhận quyền sử dụng" |
+| Lỗi console | **không có** |
+| Tràn ngang | `scrollWidth 1280 = clientWidth 1280` |
+
+**Mobile 390×844** — asset `ast_f9bb732314c14798bf11bfe558b181cd`:
+
+| Kiểm gì | Quan sát được |
+|---|---|
+| Nhãn ô tick | đúng câu canonical, không bị cắt |
+| Câu được ký xuất hiện mấy lần trong hộp thoại | **đúng 1 lần** |
+| Tràn ngang | `scrollWidth 390 = clientWidth 390`, không phần tử nào vượt biên |
+| Hộp thoại có phải cuộn dọc không | không (`scrollHeight 781 = clientHeight 781`) |
+| Ký | thành công |
+| Lỗi console | **không có** |
+
+### 4. Hồi quy API — đọc từ máy chủ thật, không dựng lại
+
+| Kiểm gì | Kết quả |
+|---|---|
+| Phiên bản tuyên bố API công bố | `2`, `i18nKey = rights.attestation.v2.statement`, `validityDays = 365` |
+| Ký bản **v1** (cũ) | **HTTP 403** `MCP_POLICY_RIGHTS_ATTESTATION_STALE` |
+| Ký bản **v2** | HTTP 200, `att_cdad4218…` và `att_494e9b90…` |
+| Bản ghi lưu gì | `statementVersion: 2` · `localeShown: "vi"` · `attestationType: "user_self_declared"` · `status: "active"` |
+| Lần ký v1 bị chặn có ghi đè bản ghi cũ không | **không** — bản ghi vẫn nguyên `att_cdad4218…`, version 2 |
+| Số route | `31` (25 chạy thật · 3 trả 501 · 2 nội bộ tắt mặc định) — **không đổi** |
+| Route `DELETE` | **không có** |
+| Migration | vẫn `0001`, `0002` — **không thêm bản nào** |
+
+### 5. Bug thật tìm được trong lượt này
+
+**#13 — Test bộ khoá v2 của Phase 1.1 khoá cứng một khoá mà Q-22 phải bỏ.** `wording.test.ts` liệt kê
+`checkbox` trong danh sách hậu tố bắt buộc của `rights.attestation.v2.*`. Khi Q-22 xoá khoá nhãn mơ hồ,
+test này đỏ. *Root cause*: test phát biểu "bộ khoá v2 phải có đủ 9 hậu tố" — đúng ở Phase 1.1, nhưng
+đó là mô tả **hiện trạng**, không phải bất biến. *Fix*: bỏ `checkbox` khỏi danh sách và **thêm một test
+ngược** khẳng định khoá đó phải **không còn tồn tại**, để việc xoá là có chủ đích chứ không phải sơ suất.
+*Regression*: chính hai test đó.
+
+Không có bug sản phẩm nào trong lượt này — thay đổi giới hạn ở nhãn hiển thị và tài liệu.
+
+### 6. Giới hạn của lần kiểm tra này
+
+- Bản **English** của nhãn ô tick chỉ kiểm được ở tầng dữ liệu: giao diện **chưa có nút đổi ngôn ngữ**,
+  nên trạng thái bằng chứng của bản en là `partially_verified`, không phải `confirmed`.
+- Q-21 vẫn để ngỏ: chữ cuối bản English của câu phạm vi là suy ra từ prompt bị cắt ở "identifying ma".
+- Runtime vẫn `ephemeral` — khởi động lại API là mất dữ liệu; hai asset ở trên chỉ tồn tại trong phiên
+  kiểm này.
+- Mọi giới hạn của Phase 1.1 giữ nguyên: chưa có worker, benchmark provider `unknown`,
+  **không có đường xoá dữ liệu nào**.

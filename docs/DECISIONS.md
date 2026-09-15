@@ -384,3 +384,39 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   ký lại; giao diện hiển thị đúng cấu trúc owner yêu cầu. Còn hai điểm chờ owner: chữ cuối bản English
   (Q-21) và có version hoá phần ngữ cảnh hay không (Q-22).
 - **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+---
+
+# Quyết định đóng Q-22 (2026-09-15)
+
+> ID tiếp theo chưa dùng sau khi audit toàn bộ decision log (D-001…D-033) là **D-034**.
+
+## D-034 — Ô tick xác nhận quyền hiển thị thẳng câu được ký (Q-22)
+
+- **Context**: Sau bản vá Q-20, hộp thoại xác nhận quyền hiển thị bốn đoạn văn: câu phạm vi hỗ trợ,
+  câu về dữ liệu nguồn gốc còn sót, câu về giới hạn dấu hiệu nhận diện không nhìn thấy được, và câu
+  xác nhận quyền. Nhưng ô tick ghi *"Tôi đã đọc và xác nhận **nội dung trên**"* — chữ "nội dung trên"
+  trỏ vào cả bốn đoạn, trong khi hệ thống chỉ version hoá và chỉ lưu **một câu duy nhất**
+  (`rights.attestation.v2.statement`) làm bằng chứng. Người dùng tick vào một phạm vi rộng hơn thứ họ
+  thực sự ký, còn bản ghi lưu lại thì hẹp hơn thứ giao diện ngụ ý.
+- **Decision**:
+  1. **Nhãn ô tick chính là câu được ký.** Hộp thoại không còn nhãn tóm tắt riêng; `<label>` của ô
+     tick render trực tiếp `rights.attestation.v2.statement`.
+  2. Câu được ký **chỉ xuất hiện đúng một chỗ** trong hộp thoại. Thẻ `<p>` riêng chứa câu này bị bỏ,
+     nên nhãn hiển thị và văn bản lưu làm bằng chứng không thể lệch nhau.
+  3. **Không** version hoá phần ngữ cảnh. Ghi rõ ranh giới trong `POLICY.md`: chỉ câu xác nhận quyền
+     là bằng chứng có version; tiêu đề mục, câu phạm vi và hai câu cảnh báo là ngữ cảnh hiển thị.
+  4. **Không tạo statement v3.** `RIGHTS_STATEMENT.version` giữ nguyên `2` vì văn bản được ký không
+     đổi một ký tự nào.
+  5. Khoá nhãn cũ `rights.attestation.v2.checkbox` bị **xoá khỏi cả hai locale** để nhãn mơ hồ không
+     quay lại được. Khoá lịch sử `rights.attestation.v1.checkbox` **giữ nguyên** làm dấu vết hộp
+     thoại v1.
+- **Alternatives considered**: (a) đổi nội dung khoá `v2.checkbox` thành câu canonical — bị loại vì
+  cùng một câu nằm ở hai khoá, sau này sửa một khoá quên khoá kia thì nhãn ô tick và văn bản ký lệch
+  nhau trong im lặng, đúng loại lỗi Q-22 muốn chặn; (b) version hoá cả bộ ngữ cảnh thành v3 — bị loại
+  vì buộc mọi người đã ký v2 phải ký lại dù câu họ ký không đổi, và owner cấm tạo v3; (c) giữ nhãn cũ
+  và chỉ thêm giải thích bên dưới — bị loại vì không sửa được chỗ mơ hồ, chỉ thêm chữ.
+- **Consequences**: lời khai đã ký còn nguyên, không ai phải ký lại; thứ người dùng tick bằng đúng
+  thứ hệ thống lưu; API, schema, số route và migration không đổi. Q-21 (chữ cuối bản English của câu
+  phạm vi) **vẫn để ngỏ** — Q-22 không đụng tới khoá đó.
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro

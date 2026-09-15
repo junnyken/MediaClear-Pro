@@ -229,8 +229,18 @@ Quy tắc không được vi phạm:
 Vì vậy bản vá Q-20 sửa được câu chữ ngữ cảnh mà **không** cần tạo phiên bản tuyên bố mới, và **không
 một chữ nào** của văn bản đã phát hành (v1, v2) bị đụng tới. Có test đóng băng hai văn bản này.
 
-> Điểm còn chờ owner: ô tick ghi "xác nhận **nội dung trên**" trong khi chỉ một câu được version hoá.
-> Xem Q-22.
+**Q-22 (D-034) — phạm vi của phiên bản và nghĩa vụ của ô tick.** Số phiên bản tuyên bố áp dụng
+**chỉ** cho câu xác nhận quyền, không áp cho phần ngữ cảnh. Vì vậy ô tick **bắt buộc** hiển thị
+thẳng chính câu được ký, không được dùng nhãn tóm tắt kiểu "xác nhận nội dung trên": nhãn tóm tắt
+khiến người dùng tick vào một phạm vi rộng hơn thứ hệ thống thực sự lưu làm bằng chứng.
+
+Hệ quả bắt buộc, có test chặn:
+
+- Câu được ký xuất hiện **đúng một chỗ** trong hộp thoại, và chỗ đó là nhãn của ô tick.
+- Không có khoá dịch thứ hai nào chứa bản sao câu được ký (khoá `rights.attestation.v2.checkbox`
+  đã bị xoá khỏi cả hai locale ở bản vá Q-22).
+- Sửa phần ngữ cảnh **không** làm thay đổi `RIGHTS_STATEMENT.version`; sửa câu được ký thì **bắt
+  buộc** lên phiên bản mới.
 
 ## 17. Bộ câu chữ canonical đang hiệu lực
 
@@ -264,6 +274,10 @@ khoá trùng nghĩa:
 Khoá lịch sử (`rights.attestation.v1.*`, `provenance.invisible_watermark_disclaimer`) **giữ nguyên
 trong file dịch** để hồ sơ cũ vẫn tra cứu được; giao diện không còn gọi chúng.
 
+Ngoại lệ duy nhất là `rights.attestation.v2.checkbox`: bản vá Q-22 **xoá hẳn** khoá này khỏi cả hai
+locale. Nó không phải dấu vết của một văn bản đã ký — nó là nhãn giao diện mơ hồ, và để lại trong
+catalogue thì sớm muộn sẽ có người gọi lại. Nhãn ô tick nay dùng chính `rights.attestation.v2.statement`.
+
 ## 19. Cấu trúc hộp thoại xác nhận quyền
 
 ```
@@ -271,7 +285,8 @@ Xác nhận quyền sử dụng
 ├─ Phạm vi hỗ trợ
 │    câu phạm vi · câu dữ liệu còn sót · câu giới hạn
 ├─ Xác nhận quyền sử dụng
-│    lưu ý sở hữu · lưu ý đây là tuyên bố của bạn · VĂN BẢN ĐƯỢC KÝ · ô tick
+│    lưu ý sở hữu · lưu ý đây là tuyên bố của bạn
+│    [ ] VĂN BẢN ĐƯỢC KÝ  ← nhãn ô tick chính là câu được ký (Q-22)
 └─ Phiên bản tuyên bố: vN · hiệu lực 365 ngày
 ```
 
