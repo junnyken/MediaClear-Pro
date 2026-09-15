@@ -79,6 +79,8 @@ export const AUDIT_EVENTS = {
   PROCESSING_JOB_CANCELLED: 'processing_job_cancelled',
   USAGE_RESERVED: 'usage_reserved',
   USAGE_RELEASED: 'usage_released',
+  /** P1.1: reservation qua han 30 phut va duoc hoan tra tu dong. */
+  USAGE_RESERVATION_EXPIRED: 'usage_reservation_expired',
   PERMISSION_DENIED: 'permission_denied',
 } as const;
 

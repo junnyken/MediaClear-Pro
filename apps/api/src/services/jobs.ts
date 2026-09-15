@@ -22,6 +22,8 @@ import {
   computeUsageQuantity,
   evaluateProcessingPolicy,
   requiresProvider,
+  reservationExpiresAt,
+  reservationViewOf,
   type ApiError,
   type AttestationSnapshot,
   type CleanupOperation,
@@ -54,7 +56,14 @@ export interface JobView {
   providerCapability: EvidenceStatus;
   /** Luon false trong Phase 1. UI phai noi thang dieu nay. */
   productionProcessingEnabled: false;
-  usage: { unitType: UsageLedgerEntry['unitType']; quantity: number; state: 'reserved' | 'released' | 'committed' | 'none' };
+  usage: {
+    unitType: UsageLedgerEntry['unitType'];
+    quantity: number;
+    /** P1.1: trang thai cua RESERVATION, khac han state cua job. */
+    state: 'reserved' | 'expired' | 'released' | 'committed' | 'none';
+    /** P1.1: han giu muc dung. null = but toan cu chua co han. */
+    expiresAt: string | null;
+  };
 }
 
 interface ParsedRequest {
@@ -252,6 +261,8 @@ export async function createJob(
     reasonCode: null,
     idempotencyKey: `${queued.id}:reserve`,
     recordedAt: now,
+    // P1.1 (Q-17): moi reservation deu co han; mot cho duy nhat tinh gia tri nay.
+    expiresAt: reservationExpiresAt(now),
   };
   await ctx.persistence.usage.append(entry);
 
@@ -282,7 +293,13 @@ export async function createJob(
     job: queued,
     providerCapability: capability.evidence,
     productionProcessingEnabled: false,
-    usage: { unitType: entry.unitType, quantity: entry.quantity, state: 'reserved' },
+    usage: {
+      unitType: entry.unitType,
+      quantity: entry.quantity,
+      state: 'reserved',
+      // Han giu muc dung lo ra ngay tu luc tao, de nguoi dung biet minh co bao lau.
+      expiresAt: entry.expiresAt,
+    },
   });
 }
 
@@ -360,19 +377,19 @@ async function blockJob(
 }
 
 async function viewOf(ctx: AppContext, actor: Actor, job: ProcessingJob): Promise<JobView> {
-  const entries = (await ctx.persistence.usage.listByWorkspace(actor.workspace.id)).filter((e) => e.jobId === job.id);
-  const reserve = entries.find((e) => e.entryType === 'reserve');
-  const released = entries.some((e) => e.entryType === 'release');
-  const committed = entries.some((e) => e.entryType === 'commit');
+  const entries = await ctx.persistence.usage.listByWorkspace(actor.workspace.id);
   const capability = evaluateProviderCapability(ctx, job.request.operations, job.mediaType);
+  // Trang thai reservation SUY RA tu ledger + dong ho (khong luu cot thu hai).
+  const reservation = reservationViewOf(job.id, entries, ctx.now());
   return {
     job,
     providerCapability: capability.evidence,
     productionProcessingEnabled: false,
     usage: {
-      unitType: reserve?.unitType ?? 'image_unit',
-      quantity: reserve?.quantity ?? 0,
-      state: committed ? 'committed' : released ? 'released' : reserve ? 'reserved' : 'none',
+      unitType: reservation?.unitType ?? 'image_unit',
+      quantity: reservation?.quantity ?? 0,
+      state: reservation?.state ?? 'none',
+      expiresAt: reservation?.expiresAt ?? null,
     },
   };
 }
@@ -421,6 +438,7 @@ export async function cancelJob(ctx: AppContext, actor: Actor, jobId: string): P
       reasonCode: 'cancelled',
       idempotencyKey: `${job.id}:release`,
       recordedAt: now,
+      expiresAt: null,
     };
     await ctx.persistence.usage.append(release);
     await recordAudit(ctx.persistence, {

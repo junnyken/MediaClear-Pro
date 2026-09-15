@@ -20,6 +20,8 @@ export const RELEASE_REASONS = [
   'validation_failed',
   'cancelled',
   'blocked',
+  /** P1.1 (Q-17): reservation qua han 30 phut va duoc hoan tra tu dong. */
+  'expired',
 ] as const;
 export type ReleaseReason = (typeof RELEASE_REASONS)[number];
 
@@ -66,6 +68,12 @@ export interface LedgerEntryLike {
   unitType: UnitType;
   quantity: number;
   idempotencyKey: string;
+  /** P1.1: thoi diem ghi but toan. Dung de biet reservedAt/releasedAt. */
+  recordedAt?: string;
+  /** P1.1: chi co nghia tren but toan 'reserve'. null = but toan cu truoc khi co TTL. */
+  expiresAt?: string | null;
+  /** Ly do hoan tra, chi co nghia tren but toan 'release'. */
+  reasonCode?: string | null;
 }
 
 /**
@@ -76,17 +84,24 @@ export interface LedgerEntryLike {
 export function canCommitUsage(
   jobId: string,
   existingEntries: readonly LedgerEntryLike[],
+  /** P1.1: truyen dong ho de chan commit mot reservation DA HET HAN. */
+  now?: Date,
 ): { allowed: boolean; error: ApiError | null } {
   const forJob = existingEntries.filter((e) => e.jobId === jobId);
   if (forJob.some((e) => e.entryType === 'commit')) {
     return { allowed: false, error: apiError(ERROR_CODES.MCP_USAGE_DOUBLE_COMMIT, { jobId }) };
   }
-  if (!forJob.some((e) => e.entryType === 'reserve')) {
+  const reserve = forJob.find((e) => e.entryType === 'reserve');
+  if (!reserve) {
     return { allowed: false, error: apiError(ERROR_CODES.MCP_USAGE_RESERVE_MISSING, { jobId }) };
   }
   if (forJob.some((e) => e.entryType === 'release')) {
     // Da hoan tra thi khong duoc commit lai tren cung reserve.
     return { allowed: false, error: apiError(ERROR_CODES.MCP_USAGE_RESERVE_MISSING, { jobId }) };
+  }
+  // Het han thi khong con gi de commit - phai tao job moi va reservation moi (Q-17).
+  if (now && reserve.expiresAt && now.getTime() > new Date(reserve.expiresAt).getTime()) {
+    return { allowed: false, error: apiError(ERROR_CODES.MCP_USAGE_RESERVATION_EXPIRED, { jobId }) };
   }
   return { allowed: true, error: null };
 }

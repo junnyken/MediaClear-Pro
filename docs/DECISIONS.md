@@ -280,3 +280,73 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
 - **Consequences**: đã ghi rõ ngoại lệ này trong `API.md` §3. (Chính chỗ này từng làm giao diện kẹt ở
   trạng thái "đang tải" — xem `TEST_LOG.md`.)
 - **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+
+---
+
+# Quyết định Phase 1.1 (2026-09-15)
+
+> Prompt Phase 1.1 gợi ý dùng D-024…D-027, nhưng repository **đã dùng** các ID đó ở Phase 1.
+> Theo đúng yêu cầu "không tạo duplicate ID", Phase 1.1 tiếp tục từ **D-029**.
+
+## D-029 — Canonical ID có tiền tố phase cho MINI-SPEC (Q-16)
+
+- **Context**: `MCP-10` đã được publish ở **cả hai** phase với hai nội dung khác nhau (Object Storage
+  Abstraction ở Phase 0, Authentication & Workspace Boundary ở Phase 1); riêng chuỗi `MCP-10` xuất
+  hiện 37 lần trong tài liệu. Mã nguồn lại dùng quy ước thứ ba (`MCP-10-P1`).
+- **Decision**: canonical ID là `P<phase>-MCP-<nn>`; lập `docs/MINI_SPEC_INDEX.md` ánh xạ
+  canonical ↔ historical; **giữ nguyên** tên file và nội dung lịch sử; MINI-SPEC mới bắt buộc mang
+  tiền tố phase (kể cả trong tên file); `API_ROUTES.mcp` chuyển sang canonical ID.
+- **Alternatives considered**: (a) đổi tên 17 file lịch sử cho khớp — bị loại vì phá mọi đường dẫn đã
+  trích dẫn trong báo cáo đã publish, tức là sửa lịch sử; (b) giữ nguyên hiện trạng và "nhớ trong
+  đầu" — bị loại vì đây chính là thứ đã gây mơ hồ.
+- **Consequences**: có một chỗ duy nhất để tra ID; test chặn trùng canonical ID, chặn file không có
+  trong index, và chặn `API_ROUTES` trỏ tới MINI-SPEC không tồn tại. Điểm mơ hồ còn lại: `MCP-10`
+  đứng một mình trong tài liệu cũ vẫn phải đọc theo thư mục chứa nó.
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+## D-030 — Khoản giữ mức dùng hết hạn sau 30 phút (Q-17)
+
+- **Context**: Phase 1 tạo `reserve` mà không có hạn; chưa có worker nên khoản giữ tồn tại vô thời hạn
+  và bị đếm là "đang giữ" mãi mãi.
+- **Decision**: `USAGE_RESERVATION_TTL_SECONDS = 1800`; `expires_at = reserved_at + TTL`; vòng đời
+  `reserved → expired → released` (và `reserved → released`, `reserved → committed`); hoàn trả khi hết
+  hạn là **idempotent**; **không** commit khoản đã hết hạn/đã hoàn trả; hết hạn **không** đổi
+  `ProcessingJob.state`. Trạng thái khoản giữ được **suy ra** từ sổ mức dùng + đồng hồ, không lưu cột
+  trạng thái thứ hai.
+- **Alternatives considered**: (a) thêm bảng `usage_reservations` riêng — bị loại vì trùng dữ liệu với
+  sổ append-only và tạo khả năng hai nguồn nói khác nhau; (b) để worker tự đổi trạng thái job khi hết
+  hạn — bị loại vì trộn hai vòng đời khác nhau.
+- **Consequences**: `GET /v1/usage` tách ba nhóm (đang giữ / đã hết hạn giữ / đã tính). Cần ai đó gọi
+  lệnh hoàn trả — worker production là follow-up, đã ghi rõ.
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+## D-031 — Retention policy v1, chỉ có bản thử, không có đường xoá (Q-18)
+
+- **Context**: Không có `last_accessed_at`, không có trạng thái lưu giữ, không có lệnh dọn nào — audit
+  trả về `not found` gần như toàn bộ.
+- **Decision**: áp bảng luật theo **lớp dữ liệu** (source/output 30 ngày theo lần truy cập cuối, trung
+  gian 7 ngày, xem thử 24 giờ, audit 365 ngày, sổ mức dùng 24 tháng, dấu vết đã xoá 30 ngày); 4 trạng
+  thái lưu giữ; thêm 6 field có lý do riêng; chỉ hiện thực **bản thử (dry-run) chỉ đếm**.
+  **Không** route xoá, **không** cờ `--force`, **không** xoá dữ liệu trong migration.
+- **Alternatives considered**: (a) làm luôn lệnh dọn thật có cờ an toàn — bị loại vì chưa có worker,
+  chưa có sao lưu, chưa có luồng khôi phục: bật xoá lúc này là rủi ro dữ liệu không đổi lấy được gì;
+  (b) để luật trong truy vấn SQL — bị loại vì không kiểm được ca biên và bản thử sẽ khác bản chạy thật.
+- **Consequences**: trả lời được "tệp này giữ tới bao giờ" và "nếu dọn thì dọn gì"; chưa dọn được cái
+  nào. Audit event và sổ mức dùng **không bao giờ** bị dọn theo retention của asset.
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+## D-032 — Câu chữ tiếng Việt và phiên bản 2 của nội dung xác nhận quyền (Q-19)
+
+- **Context**: Owner duyệt bộ câu chữ chính thức. Câu xác nhận đang dùng (v1) **có thêm** mệnh đề
+  trách nhiệm mà bản duyệt không có — tức là đổi nghĩa, không phải sửa chính tả.
+- **Decision**: dùng đúng bản owner duyệt; **lên phiên bản 2** cho nội dung xác nhận
+  (`RIGHTS_STATEMENT.version = 2`, khoá `rights.attestation.v2.*`); giữ nguyên khoá v1 trong file dịch
+  làm dấu vết lịch sử; CTA chính đổi theo bản ưu tiên; mở rộng lớp chặn tài liệu để bắt cả cách gọi mới.
+- **Alternatives considered**: sửa chữ mà giữ nguyên version — bị loại vì hệ thống lưu
+  `statementVersion` trên từng lời khai để chứng minh người dùng đã đồng ý với văn bản nào; hai văn bản
+  khác nhau cùng mang số 1 sẽ phá chính bằng chứng đó.
+- **Consequences**: mọi lời khai ký theo v1 trở thành `stale` và phải xác nhận lại — đúng cơ chế
+  Phase 0 đã thiết kế, nay chạy thật lần đầu (đã kiểm chứng live). Câu cảnh báo về dấu hiệu nhận diện
+  vô hình trong prompt bị cắt giữa chừng nên chỉ dùng phần đọc được (Q-20).
+- **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro

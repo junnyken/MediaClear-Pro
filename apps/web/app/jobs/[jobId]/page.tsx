@@ -12,6 +12,7 @@ import {
   Loading,
   PageTitle,
   StateBadge,
+  ValueOrUnknown,
   LinkButton,
 } from '../../_components/Ui';
 
@@ -27,7 +28,7 @@ interface JobView {
   };
   providerCapability: string;
   productionProcessingEnabled: boolean;
-  usage: { unitType: string; quantity: number; state: string };
+  usage: { unitType: string; quantity: number; state: string; expiresAt: string | null };
 }
 
 export default function JobStatusPage() {
@@ -64,6 +65,12 @@ export default function JobStatusPage() {
         <DefinitionRow label={translate('screen.job_status.provider_capability')}>
           <EvidenceBadge status={view.providerCapability} />
         </DefinitionRow>
+        {/* Han giu muc dung: noi ro khoan giu khong ton tai vinh vien. */}
+        {view.usage.expiresAt && view.usage.state !== 'released' && view.usage.state !== 'none' ? (
+          <DefinitionRow label={translate('screen.job_status.reservation_hold_until')}>
+            <ValueOrUnknown value={new Date(view.usage.expiresAt).toLocaleString('vi-VN')} />
+          </DefinitionRow>
+        ) : null}
       </Card>
 
       {isBlocked ? (

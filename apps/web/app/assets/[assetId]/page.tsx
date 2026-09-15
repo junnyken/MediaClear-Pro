@@ -93,7 +93,7 @@ export default function AssetDetailPage() {
       <Card title={translate('screen.asset_detail.rights_title')}>
         <p>{rightsLabel}</p>
         {view.rightsAttestation.status !== 'active' ? (
-          <Button onClick={() => setDialogOpen(true)}>{translate('rights.attestation.v1.title')}</Button>
+          <Button onClick={() => setDialogOpen(true)}>{translate('rights.attestation.v2.title')}</Button>
         ) : null}
       </Card>
 

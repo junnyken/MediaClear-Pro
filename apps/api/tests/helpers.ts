@@ -2,6 +2,7 @@
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { RIGHTS_STATEMENT } from '@mediaclear/contracts';
 import { createAppContext, type AppContext } from '../src/app-context.js';
 import { buildServer } from '../src/server.js';
 
@@ -9,7 +10,11 @@ export const FIXTURES = join(import.meta.dirname, 'fixtures/media');
 
 export type TestApp = ReturnType<typeof buildServer>;
 
-export async function makeApp(overrides: { now?: () => Date } = {}): Promise<{ app: TestApp; ctx: AppContext }> {
+export const INTERNAL_TOKEN = 'internal-token-for-tests-only-32b';
+
+export async function makeApp(
+  overrides: { now?: () => Date; internalApiToken?: string | null } = {},
+): Promise<{ app: TestApp; ctx: AppContext }> {
   const dataDir = await mkdtemp(join(tmpdir(), 'mediaclear-test-'));
   const ctx = createAppContext({
     config: {
@@ -18,6 +23,8 @@ export async function makeApp(overrides: { now?: () => Date } = {}): Promise<{ a
       uploadSecretProvided: true,
       devAuthEnabled: true,
       publicBaseUrl: 'http://api.test',
+      // Mac dinh TAT route noi bo: test phai bat tuong minh moi dung duoc.
+      internalApiToken: overrides.internalApiToken ?? null,
     },
     ...(overrides.now ? { now: overrides.now } : {}),
   });
@@ -116,7 +123,13 @@ export async function attest(app: TestApp, token: string, workspaceId: string, a
     method: 'POST',
     url: `/v1/assets/${assetId}/rights-attestation`,
     headers: auth(token, workspaceId),
-    payload: { statementId: 'rights_attestation', statementVersion: 1, localeShown: 'vi', accepted: true },
+    payload: {
+      statementId: RIGHTS_STATEMENT.id,
+      // Doc tu contract: len phien ban cau chu thi test khong phai sua tay.
+      statementVersion: RIGHTS_STATEMENT.version,
+      localeShown: 'vi',
+      accepted: true,
+    },
   });
   return { status: res.statusCode, body: res.json() };
 }

@@ -264,4 +264,9 @@ export interface UsageLedgerEntry {
   /** Unique key chong double charge: (jobId, entryType) cho commit. */
   idempotencyKey: string;
   recordedAt: IsoTimestamp;
+  /**
+   * P1.1 (Q-17): han cua reservation, CHI co nghia tren but toan 'reserve'.
+   * null tren but toan commit/release va tren but toan cu truoc khi co TTL.
+   */
+  expiresAt: IsoTimestamp | null;
 }

@@ -1,6 +1,6 @@
 # FEATURES — MediaClear Pro
 
-- **Date**: 2026-09-15 · **Phase**: 1 (SaaS Shell & Media Intake Foundation)
+- **Date**: 2026-09-15 · **Phase**: 1.1 (Post-Phase-1 Hardening)
 
 Bảng dưới là **trạng thái thật trong repository này**, không phải kế hoạch bán hàng.
 `implemented` = có code chạy được, có test, và đã được gọi thật ít nhất một lần.
@@ -29,12 +29,19 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Giao diện 16 màn theo workflow, vi mặc định | `apps/web/app/` | bấm tay hết luồng trên trình duyệt thật, 0 lỗi console |
 | i18n vi + en, 235 khoá, parity tuyệt đối | `packages/i18n/` | 8 test |
 | Schema PostgreSQL cho 10 entity | `db/migrations/0001_phase1_init.sql` | chạy thật trên DB sạch, 6 ràng buộc chặn đúng |
+| Hạn 30 phút cho khoản giữ mức dùng + hoàn trả idempotent | `usage-reservation.ts`, `services/usage.ts` | 18 test đơn vị + 11 test HTTP, có ca biên 1799/1800/1801 giây |
+| Tách rõ "đang giữ" / "đã hết hạn giữ" / "đã tính" | `services/usage.ts` | kiểm live trên server đã build |
+| Luật lưu giữ dữ liệu theo từng lớp + báo cáo thử-không-xoá | `retention.ts`, `services/retention.ts` | 18 test đơn vị + 11 test HTTP; live: 0 ứng viên hôm nay, 1 ứng viên khi nhìn tới 31 ngày sau |
+| Route vận hành nội bộ tắt mặc định | `server.ts` | không khoá hoặc sai khoá đều trả 404 |
+| Index ID của MINI-SPEC | `docs/MINI_SPEC_INDEX.md` | 9 test chặn trùng ID, chặn tham chiếu mồ côi |
+| Câu chữ owner duyệt + phiên bản 2 của nội dung xác nhận | `policy.ts`, `packages/i18n/` | 11 test câu chữ; live: lời khai v1 bị từ chối là `stale` |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
 Adapter PostgreSQL thật (schema đã có) · Adapter R2/MinIO thật (port đã có) · Auth provider
 production · Queue/worker · Preview render · Ước tính chi phí · Biên nhận xử lý · Phân trang audit ·
-Soft-delete/retention · Resumable upload · OpenAPI.
+Resumable upload · OpenAPI · **worker tự chạy việc hoàn trả khoản giữ quá hạn** ·
+**worker dọn dữ liệu theo luật lưu giữ** · **giao diện hiển thị hạn lưu giữ của tệp**.
 
 ## 3. Chưa có bằng chứng (`unknown`)
 
@@ -42,6 +49,10 @@ Provider AI nào đủ chất lượng · Giá thật mỗi ảnh/mỗi phút vi
 đọc C2PA · Queue runtime (Q-02) · Auth provider cụ thể (Q-14) · Bộ media mẫu cho benchmark (Q-07).
 
 ## 4. Chưa xác minh (`unconfirmed`)
+
+Việc dọn dữ liệu thật theo luật lưu giữ (**chưa từng chạy** — Phase 1.1 chỉ có bản thử chỉ đếm) ·
+Hành vi hoàn trả tại đúng mốc 30 phút trên môi trường thật (đã kiểm bằng đồng hồ điều khiển được
+trong test; live chỉ xác nhận lệnh chạy được và bị chặn đúng) ·
 
 Bảo toàn metadata/provenance khi xử lý thật (chưa xử lý lần nào) · Hành vi ở tải cao · Khả năng phục
 hồi khi mất kết nối giữa chừng upload · Đọc màn hình (screen reader) trên toàn bộ giao diện.

@@ -165,3 +165,49 @@ Job bị chặn **vẫn được ghi lại** (trạng thái `blocked`, có `reas
 
 Ngoại lệ: khi **quyền** bị từ chối thì **không** ghi job nào — người không có quyền không được tạo
 dấu vết trong workspace của người khác.
+
+---
+
+# Phase 1.1 — câu chữ và lưu giữ (2026-09-15)
+
+## 14. Nội dung xác nhận quyền: phiên bản 2
+
+Owner duyệt bản câu chữ mới. Vì hệ thống lưu `statementId + statementVersion + localeShown` trên từng
+lời khai để về sau chứng minh người dùng đã đồng ý với **văn bản nào**, đổi chữ ⇒ **đổi phiên bản**
+(D-032). Bản v1 được giữ nguyên trong file dịch làm dấu vết lịch sử, không xoá.
+
+| Khoản | Bản đang hiệu lực (v2) |
+|---|---|
+| Phạm vi năng lực | "MediaClear Pro chỉ hỗ trợ xử lý logo, nhãn hiệu và dấu hiệu nhận diện nhìn thấy được" |
+| Xác nhận quyền | "Tôi xác nhận rằng tôi sở hữu nội dung này hoặc có quyền chỉnh sửa nội dung này." |
+| Giới hạn về dấu hiệu nhận diện vô hình | "MediaClear Pro không cam kết loại bỏ hoặc thay đổi các dấu hiệu nhận diện vô hình trong tệp." |
+| CTA chính | "Làm sạch vùng nhận diện" · "Xử lý vùng logo và dấu hiệu nhận diện" |
+
+**Hệ quả có chủ đích**: mọi lời khai ký theo v1 trở thành `stale`, người dùng phải xác nhận lại. Đây
+là lần đầu cơ chế phiên bản của Phase 0 chạy thật — đã kiểm chứng trên server thật.
+
+> Câu về giới hạn dấu hiệu nhận diện vô hình trong prompt **bị cắt giữa chừng**; hệ thống chỉ dùng
+> phần đọc được và **không tự viết tiếp** (Q-20).
+
+## 15. Lưu giữ dữ liệu (owner decision Q-18)
+
+| Loại dữ liệu | Giữ trong bao lâu | Tính từ |
+|---|---|---|
+| Tệp gốc, tệp kết quả | 30 ngày | **lần truy cập cuối** |
+| Tệp trung gian / thất bại | 7 ngày | lúc tạo |
+| Bản xem thử | 24 giờ | lúc tạo |
+| Nhật ký thao tác | 365 ngày | lúc xảy ra |
+| Sổ mức dùng | 24 tháng | lúc ghi |
+| Dấu vết của tệp đã xoá | 30 ngày | lúc xoá |
+| Xác nhận quyền | theo tệp; hiệu lực 365 ngày | lúc ký |
+
+Bốn trạng thái lưu giữ: `active` · `scheduled_for_deletion` · `deleted` · `legal_hold`.
+
+Quy tắc không được vi phạm:
+
+1. Tệp **đang giữ theo yêu cầu pháp lý** không bao giờ nằm trong danh sách dọn.
+2. Nhật ký thao tác **không** bị dọn theo tệp — có luật riêng.
+3. Sổ mức dùng giữ 24 tháng cho đối soát.
+4. Tệp gốc không bị dọn chỉ vì "đã tạo lâu" — phải là **không ai dùng** đủ 30 ngày.
+5. Phase 1.1 **không có đường xoá nào**: chỉ có bản thử chỉ đếm, không có cờ ép xoá, không có
+   route `DELETE`. Có test khẳng định điều này.

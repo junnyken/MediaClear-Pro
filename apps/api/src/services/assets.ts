@@ -7,6 +7,7 @@
 import {
   ERROR_CODES,
   MAX_FILE_SIZE_BYTES,
+  RETENTION_POLICY_VERSION,
   SUPPORTED_IMAGE_FORMATS,
   SUPPORTED_VIDEO_FORMATS,
   apiError,
@@ -115,6 +116,13 @@ export async function createUploadIntent(
     measured: null,
     createdAt: ctx.now().toISOString(),
     uploadedAt: null,
+    // P1.1 (Q-18): moi tep sinh ra o trang thai 'active', chua tung duoc doc.
+    lastAccessedAt: null,
+    retentionState: 'active',
+    legalHoldAt: null,
+    scheduledDeletionAt: null,
+    deletedAt: null,
+    retentionPolicyVersion: RETENTION_POLICY_VERSION,
   };
   await ctx.persistence.assets.create(asset);
   await ctx.persistence.sourceFiles.create(record);
@@ -335,6 +343,9 @@ export async function getAssetView(ctx: AppContext, actor: Actor, assetId: strin
   const record = await ctx.persistence.sourceFiles.findById(actor.workspace.id, asset.sourceFileId);
   if (!record) return fail(apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'source_file' }));
 
+  // P1.1: doc tep la mot lan truy cap => moc 30 ngay tinh lai tu day.
+  await ctx.persistence.sourceFiles.touchAccess(actor.workspace.id, record.id, ctx.now().toISOString());
+
   const validation = await ctx.persistence.validations.findLatest(actor.workspace.id, assetId);
   const attestation = await ctx.persistence.attestations.findLatest(actor.workspace.id, assetId);
   const attestationMatchesFile = attestation !== null && attestation.sourceFileId === record.id;
@@ -398,6 +409,7 @@ export async function createAssetDownloadUrl(
   if (!record || record.uploadState !== 'stored') {
     return fail(apiError(ERROR_CODES.MCP_STORAGE_OBJECT_NOT_FOUND));
   }
+  await ctx.persistence.sourceFiles.touchAccess(actor.workspace.id, record.id, ctx.now().toISOString());
   const signed = await ctx.storage.createDownloadUrl(
     { bucket: ctx.bucket, key: record.storageKey },
     ctx.config.downloadUrlTtlSeconds,

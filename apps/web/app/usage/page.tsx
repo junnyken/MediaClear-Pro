@@ -19,6 +19,8 @@ interface UsageResponse {
   videoMinuteUnitsCommitted: number;
   imageUnitsReserved: number;
   videoMinuteUnitsReserved: number;
+  imageUnitsExpired: number;
+  videoMinuteUnitsExpired: number;
   entries: UsageEntry[];
 }
 
@@ -39,6 +41,10 @@ export default function UsagePage() {
             </DefinitionRow>
             <DefinitionRow label={translate('screen.usage.committed_label')}>
               {resource.data.imageUnitsCommitted} {translate('usage.image_unit')} · {resource.data.videoMinuteUnitsCommitted}{' '}
+              {translate('usage.video_minute_unit')}
+            </DefinitionRow>
+            <DefinitionRow label={translate('screen.usage.expired_label')}>
+              {resource.data.imageUnitsExpired} {translate('usage.image_unit')} · {resource.data.videoMinuteUnitsExpired}{' '}
               {translate('usage.video_minute_unit')}
             </DefinitionRow>
             <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('usage.preview_free')}</p>

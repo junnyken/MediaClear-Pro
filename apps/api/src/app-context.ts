@@ -34,6 +34,8 @@ export interface AppContextOverrides {
 
 export function createAppContext(overrides: AppContextOverrides = {}): AppContext {
   const config: ApiConfig = { ...loadConfig(), ...overrides.config };
+  // Mot dong ho duy nhat cho ca tien trinh: danh tinh, job, usage, retention deu doc day.
+  const now = overrides.now ?? (() => new Date());
   const persistence = overrides.persistence ?? new InMemoryPersistence();
   const bucket = 'mediaclear-phase1';
   const storage = new LocalFsStorageAdapter({
@@ -52,11 +54,11 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
   return {
     config,
     persistence,
-    identity: new DevIdentityProvider(persistence, config.sessionTtlSeconds),
+    identity: new DevIdentityProvider(persistence, config.sessionTtlSeconds, now),
     storage,
     probe: overrides.probe ?? new HeaderMediaProbe(),
     providers,
     bucket,
-    now: overrides.now ?? (() => new Date()),
+    now,
   };
 }

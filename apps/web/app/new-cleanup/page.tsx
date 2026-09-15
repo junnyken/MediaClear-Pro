@@ -13,7 +13,7 @@ export default function NewCleanupPage() {
           <li>{translate('screen.project_list.create_cta')}</li>
           <li>{translate('screen.project_detail.upload_cta')}</li>
           <li>{translate('screen.upload_validation.title')}</li>
-          <li>{translate('rights.attestation.v1.title')}</li>
+          <li>{translate('rights.attestation.v2.title')}</li>
           <li>{translate('screen.job_review.submit')}</li>
         </ol>
         <LinkButton href="/projects">{translate('common.continue')}</LinkButton>

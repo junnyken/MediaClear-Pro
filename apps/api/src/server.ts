@@ -16,7 +16,9 @@ import {
   MAX_FILE_SIZE_BYTES,
   MEDIA_LIMITS,
   PRODUCTION_AI_PROCESSING_ENABLED,
+  RETENTION_POLICY_VERSION,
   RIGHTS_STATEMENT,
+  USAGE_RESERVATION_TTL_SECONDS,
   apiError,
   httpStatusFor,
   type ApiError,
@@ -36,7 +38,8 @@ import {
 } from './services/assets.js';
 import { createAttestation, getAttestation } from './services/attestations.js';
 import { cancelJob, createJob, getJob } from './services/jobs.js';
-import { getUsageSummary } from './services/usage.js';
+import { expireReservations, getUsageSummary } from './services/usage.js';
+import { retentionDryRunReport, retentionForAsset } from './services/retention.js';
 import type { ServiceResult } from './services/result.js';
 
 const PHASE = 'phase-1-saas-shell' as const;
@@ -237,6 +240,8 @@ export function buildServer(options: BuildServerOptions = {}) {
       mediaProbe: ctx.probe.id,
       productionProviders: ctx.providers.listProduction().length,
       uploadSecretProvided: ctx.config.uploadSecretProvided,
+      internalApiEnabled: ctx.config.internalApiToken !== null,
+      internalRoutes: API_ROUTES.filter((r) => r.status === 'internal').length,
       limits: {
         maxFileBytes: MEDIA_LIMITS.maxFileBytesInclusive,
         maxVideoDurationSeconds: MEDIA_LIMITS.video.maxDurationSecondsInclusive,
@@ -245,6 +250,9 @@ export function buildServer(options: BuildServerOptions = {}) {
         imageMimeTypes: MEDIA_LIMITS.image.allowedMimeTypes,
         videoMimeTypes: MEDIA_LIMITS.video.allowedMimeTypes,
         rightsAttestationValidityDays: RIGHTS_STATEMENT.validityDays,
+        rightsStatementVersion: RIGHTS_STATEMENT.version,
+        usageReservationTtlSeconds: USAGE_RESERVATION_TTL_SECONDS,
+        retentionPolicyVersion: RETENTION_POLICY_VERSION,
       },
     };
     log(request, reply, { operation: 'healthz' });
@@ -556,6 +564,68 @@ export function buildServer(options: BuildServerOptions = {}) {
     const actor = await withActor(request, reply, 'usage.read', workspaceHeader(request));
     if (!actor) return reply;
     return respond(request, reply, 'usage.read', actor, await getUsageSummary(ctx, actor));
+  });
+
+  /* --------------------------------------------- P1.1: luu giu du lieu --- */
+
+  app.get('/v1/assets/:assetId/retention', async (request, reply) => {
+    const actor = await withActor(request, reply, 'asset.retention', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'asset.retention', actor, await retentionForAsset(ctx, actor, param(request, 'assetId')));
+  });
+
+  /* ------------------------------------------- P1.1: route van hanh --- */
+
+  /**
+   * Guard cho route noi bo: khong cau hinh khoa => route coi nhu KHONG TON TAI (404),
+   * giong het duong dan la. Khong bao gio mo mac dinh, khong bao gio dung route cua
+   * nguoi dung de chay viec van hanh.
+   */
+  function internalDenied(request: FastifyRequest, reply: FastifyReply, operation: string) {
+    const configured = ctx.config.internalApiToken;
+    const provided = request.headers['x-internal-token'];
+    if (!configured || typeof provided !== 'string' || provided !== configured) {
+      return sendError(
+        request,
+        reply,
+        apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'route' }),
+        operation,
+      );
+    }
+    return null;
+  }
+
+  app.post('/v1/internal/usage-reservations/expire', async (request, reply) => {
+    const denied = internalDenied(request, reply, 'internal.usage_expire');
+    if (denied) return denied;
+    const payload = body(request);
+    const dryRun = payload.dryRun === true;
+    const result = await expireReservations(ctx, { dryRun });
+    return sendOk(request, reply, result, 'internal.usage_expire', {
+      usageOperation: dryRun ? null : 'release',
+    });
+  });
+
+  app.post('/v1/internal/retention/dry-run', async (request, reply) => {
+    const denied = internalDenied(request, reply, 'internal.retention_dry_run');
+    if (denied) return denied;
+    const payload = body(request);
+    const asOfRaw = typeof payload.asOf === 'string' ? new Date(payload.asOf) : ctx.now();
+    if (Number.isNaN(asOfRaw.getTime())) {
+      return sendError(
+        request,
+        reply,
+        apiError(ERROR_CODES.MCP_VAL_REQUEST_INVALID, { field: 'asOf' }),
+        'internal.retention_dry_run',
+      );
+    }
+    // Chi DEM. Khong co nhanh nao trong route nay xoa du lieu.
+    const report = await retentionDryRunReport(ctx, {
+      asOf: asOfRaw,
+      workspaceId: typeof payload.workspaceId === 'string' ? payload.workspaceId : null,
+      dataClass: typeof payload.dataClass === 'string' ? (payload.dataClass as never) : null,
+    });
+    return sendOk(request, reply, report, 'internal.retention_dry_run');
   });
 
   /* ------------------------------------- route chua hien thuc: van 501 --- */

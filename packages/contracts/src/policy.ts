@@ -20,9 +20,15 @@ import type { CleanupOperation } from './vocabulary.js';
 /** Cau xac nhan quyen dang hien hanh. Text that su nam o packages/i18n. */
 export const RIGHTS_STATEMENT = {
   id: 'rights_attestation',
-  version: 1,
+  /**
+   * P1.1 (Q-19): owner duyet cau chu moi => LEN PHIEN BAN, khong sua tai cho.
+   * He thong luu statementVersion tren tung loi khai de ve sau chung minh nguoi dung
+   * da dong y voi VAN BAN NAO; sua chu ma giu so se pha chinh bang chung do.
+   * Hau qua co chu dich: loi khai ky theo v1 tro thanh 'stale', phai xac nhan lai.
+   */
+  version: 2,
   /** i18n key cua noi dung xac nhan (vi mac dinh, en san sang). */
-  i18nKey: 'rights.attestation.v1.statement',
+  i18nKey: 'rights.attestation.v2.statement',
   /** Owner decision Q-09: hieu luc 365 ngay (doc tu config, khong hard-code). */
   validityDays: RIGHTS_ATTESTATION_VALIDITY_DAYS,
 } as const;

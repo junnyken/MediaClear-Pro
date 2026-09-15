@@ -247,3 +247,78 @@ xử lý → xem trạng thái → huỷ. **0 lỗi console** trên toàn luồn
 2. Gói workspace phải được build **trước** khi bundler đóng gói; nếu không, bản dịch/contract cũ lọt
    vào mà không ai báo lỗi.
 3. Bấm tay tìm ra 5/8 bug trong lượt này, trong đó có một lỗi rò rỉ lỗi nội bộ mà 200+ test không bắt.
+
+---
+
+## 2026-09-15 (lần 4) — Phase 1.1: Hardening
+
+### 1. Lệnh chạy riêng từng cái
+
+| Lệnh | Kết quả | Ghi chú |
+|---|---|---|
+| `pnpm typecheck` | exit 0 | |
+| `pnpm lint` | exit 0 | |
+| `pnpm test` | exit 0 — **299/299 pass**, 33 tệp, 0 skip | Phase 1 có 214 ⇒ Phase 1.1 thêm **85** |
+| `pnpm build:web` | exit 0 | |
+| Migration `0002` trên DB sạch (sau `0001`) | exit 0 | 5/5 ràng buộc mới **chặn thật** |
+| Migration `0002` trên DB **đã có dữ liệu** | exit 0 | số bản ghi trước/sau **bằng nhau**; hàng cũ nhận mặc định `active`/`policy_v=1` |
+
+### 2. Test thêm theo nhóm
+
+| Nhóm | Số test | Nội dung |
+|---|---|---|
+| Đánh số MINI-SPEC | 9 | không trùng canonical ID, file trên đĩa đều có trong index, `API_ROUTES` không trỏ mồ côi |
+| Hạn khoản giữ (đơn vị) | 18 | biên 1799/1800/1801 giây, múi giờ, bảng transition, chặn commit sau hết hạn |
+| Hạn khoản giữ (HTTP) | 11 | hết hạn không đổi trạng thái job, hoàn trả đúng 1 lần, chạy lại không sinh thêm, thử lại tạo khoản mới |
+| Lưu giữ dữ liệu (đơn vị) | 18 | từng luật một, biên hai phía, legal hold, audit/sổ mức dùng không bị dọn theo asset |
+| Lưu giữ dữ liệu (HTTP) | 11 | báo cáo chỉ đếm, route nội bộ bị chặn, không route xoá nào tồn tại |
+| Câu chữ | 11 + 3 | khớp từng chữ bản owner duyệt, không CTA cấm, v1 giữ làm lịch sử |
+| Khoá dịch UI | 3 | **mọi** khoá UI gọi đều tồn tại ở cả hai locale |
+
+### 3. Live verification (server chạy từ `dist`, có khoá nội bộ)
+
+| Kiểm | Kết quả |
+|---|---|
+| `/healthz` | 31 route · 25 implemented · 3 planned · 2 internal · TTL 1800 giây · retention policy v1 · statement v2 |
+| Luồng Phase 1 | không regress: upload → validate → job đều 200 |
+| Ký xác nhận bằng **bản v1** | **403 `MCP_POLICY_RIGHTS_ATTESTATION_STALE`** — lần đầu cơ chế phiên bản chạy thật |
+| Ký bằng v2 | 200, `statementVersion: 2` |
+| Tạo job | khoản giữ có `expiresAt` = lúc tạo + 30 phút |
+| Hạn lưu giữ của tệp | giữ tới +30 ngày, chưa phải ứng viên, lý do `within_retention` |
+| Route nội bộ **không khoá** | 404 `MCP_RESOURCE_NOT_FOUND` |
+| Route nội bộ **sai khoá** | 404 — không phân biệt được với đường dẫn lạ |
+| Báo cáo lưu giữ, mốc hôm nay | quét 1, ứng viên **0** |
+| Báo cáo lưu giữ, nhìn tới +31 ngày | ứng viên **1**, lý do `source_inactive_30d`, 391 byte (kích thước thật của tệp) |
+| Sau báo cáo | tệp vẫn đọc được (HTTP 200) — **không xoá gì** |
+| Lệnh hoàn trả khoản quá hạn | quét 1, quá hạn **0** (chưa khoản nào đủ 30 phút) |
+| Mức dùng | tách rõ đang giữ / đã hết hạn giữ / đã tính |
+
+### 4. Live verification — giao diện (bấm tay trên Chrome thật)
+
+Đăng nhập → tạo workspace → tạo dự án → tải ảnh thật → mở hộp thoại xác nhận quyền → ký → tạo lượt
+xử lý. **0 lỗi console**.
+
+- Hộp thoại hiện **đủ 4 câu chính thức** và ghi `rights_attestation v2`.
+- CTA hiện đúng bản ưu tiên: "Làm sạch vùng nhận diện" (tổng quan, chi tiết tệp) và
+  "Xử lý vùng logo và dấu hiệu nhận diện" (màn xác nhận trước khi xử lý).
+- Màn trạng thái hiện "Giữ mức dùng đến 18:56:12 15/9/2026".
+
+### 5. Bug THẬT tìm được và đã sửa
+
+| # | Bug | Tìm ra bằng | Nguyên nhân gốc | Cách sửa | Chốt chặn tái diễn |
+|---|---|---|---|---|---|
+| 9 | Phiên đăng nhập bị coi là **hết hạn ngay** khi đồng hồ được tua | test lưu giữ (tua 20 ngày) | `DevIdentityProvider` dùng `Date.now()` thay vì đồng hồ của ứng dụng ⇒ **hai nguồn thời gian trong một tiến trình**: phiên tạo theo đồng hồ này nhưng kiểm theo đồng hồ kia | tiêm `ctx.now()` vào identity provider; cả tiến trình dùng một đồng hồ | test "phiên tính hạn theo đồng hồ của ứng dụng", **đã kiểm đối chứng âm** |
+| 10 | Hộp thoại xác nhận quyền hiện **khoá dịch thô** `rights.attestation.v2.visible_scope_note` | bấm tay | đổi tiền tố khoá v1→v2 hàng loạt, nhưng câu đó đã chuyển sang khoá chính sách mới ⇒ khoá v2 tương ứng không tồn tại | dùng `policy.visible_identity_scope` | test mới: **mọi** khoá UI gọi phải tồn tại ở cả hai locale, **đã kiểm đối chứng âm** |
+| 11 | Kỳ vọng sai trong chính test lưu giữ | test | bản ghi cũ nhất đang `legal_hold` nên **không** phải ứng viên; tôi kỳ vọng nhầm nó là ứng viên cũ nhất | sửa kỳ vọng, ghi chú lý do ngay trong test | — |
+
+Lỗi #9 và #10 đều **không** bị 214 test của Phase 1 bắt được: #9 chỉ lộ khi có test điều khiển đồng
+hồ, #10 chỉ lộ khi mở hộp thoại bằng mắt.
+
+### 6. Giới hạn của lần kiểm tra này
+
+- Hành vi hoàn trả **tại đúng mốc 30 phút** được kiểm bằng đồng hồ điều khiển được trong test; live
+  chỉ xác nhận lệnh chạy được, bị chặn đúng, và báo 0 khoản quá hạn (chưa khoản nào đủ 30 phút).
+  ⇒ live ở mức `partially_verified`.
+- **Chưa từng chạy dọn dữ liệu thật** — Phase 1.1 cố ý không có đường xoá nào.
+- Runtime vẫn `ephemeral`; báo cáo lưu giữ trên máy chỉ thấy dữ liệu của phiên hiện tại.
+- Chưa có worker tự chạy hai việc vận hành trên.

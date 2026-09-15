@@ -43,9 +43,15 @@ export class DevIdentityProvider implements IdentityProvider {
 
   private readonly sessions: StoredSession[] = [];
 
+  /**
+   * `now` PHAI la cung mot dong ho voi phan con lai cua ung dung.
+   * Dung Date.now() truc tiep o day se tao ra hai nguon thoi gian trong cung mot
+   * tien trinh: phien tao theo dong ho nay nhung duoc kiem theo dong ho kia.
+   */
   constructor(
     private readonly persistence: PersistencePort,
     private readonly sessionTtlSeconds: number,
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   async signIn(input: { email: string; displayName?: string }): Promise<{ session: SessionInfo; user: User }> {
@@ -62,7 +68,7 @@ export class DevIdentityProvider implements IdentityProvider {
       }));
 
     const token = randomBytes(32).toString('base64url');
-    const expiresAtMs = Date.now() + this.sessionTtlSeconds * 1000;
+    const expiresAtMs = this.now().getTime() + this.sessionTtlSeconds * 1000;
     this.sessions.push({ tokenHash: hashToken(token), userId: user.id, expiresAtMs });
     return {
       session: { token, userId: user.id, expiresAt: new Date(expiresAtMs).toISOString() },
@@ -70,7 +76,7 @@ export class DevIdentityProvider implements IdentityProvider {
     };
   }
 
-  async resolveSession(token: string, nowMs: number = Date.now()): Promise<{ userId: string } | null> {
+  async resolveSession(token: string, nowMs: number = this.now().getTime()): Promise<{ userId: string } | null> {
     const wanted = hashToken(token);
     for (const session of this.sessions) {
       if (session.tokenHash.length !== wanted.length) continue;

@@ -19,7 +19,7 @@ import type {
   Workspace,
   WorkspaceMembership,
 } from '@mediaclear/contracts';
-import type { ApiError, MediaType } from '@mediaclear/contracts';
+import type { ApiError, MediaType, RetentionState } from '@mediaclear/contracts';
 
 export interface MeasuredSourceFile {
   /** MIME doc tu magic bytes, KHONG phai tu client. */
@@ -50,6 +50,19 @@ export interface SourceFileRecord {
   measured: MeasuredSourceFile | null;
   createdAt: IsoTimestamp;
   uploadedAt: IsoTimestamp | null;
+
+  /* --- P1.1 (Q-18) retention. Moi field mot vai tro, khong field nao trung nghia. --- */
+  /** Lan doc gan nhat. Luat 30 ngay tinh theo day, KHONG theo createdAt. */
+  lastAccessedAt: IsoTimestamp | null;
+  retentionState: RetentionState;
+  /** Tu luc nao bi giu theo yeu cau phap ly (de audit). */
+  legalHoldAt: IsoTimestamp | null;
+  /** Co nghia khi retentionState = 'scheduled_for_deletion'. */
+  scheduledDeletionAt: IsoTimestamp | null;
+  /** Moc tinh thoi gian giu dau vet sau khi xoa. */
+  deletedAt: IsoTimestamp | null;
+  /** Biet ban ghi da duoc ap luat phien ban nao. */
+  retentionPolicyVersion: number;
 }
 
 /**
@@ -99,4 +112,5 @@ export interface PageQuery {
   limit?: number;
 }
 
+export type { RetentionState };
 export type { Asset, AuditEvent, ProcessingJob, Project, RightsAttestation, UsageLedgerEntry, User, Workspace, WorkspaceMembership };

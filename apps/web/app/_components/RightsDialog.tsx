@@ -4,8 +4,11 @@
  * Hop thoai xac nhan quyen su dung (MCP-13).
  *
  * BAT BUOC hien du 4 thong diep: pham vi so huu - day la tuyen bo cua nguoi dung -
- * chi xu ly phan hien thi duoc - va gioi han ve dau an khong nhin thay duoc.
+ * chi xu ly phan nhin thay duoc - va gioi han ve dau hieu nhan dien vo hinh.
  * Co o tick va hien phien ban dieu khoan.
+ *
+ * P1.1 (Q-19): dung TRON BO khoa v2. Khoa v1 van con trong file dich lam dau vet
+ * lich su cua van ban ma nguoi dung truoc day da dong y - khong xoa.
  */
 import { useState } from 'react';
 import { apiFetch, translate, type ApiErrorShape } from '../_lib/api';
@@ -59,7 +62,7 @@ export function RightsDialog({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={translate('rights.attestation.v1.title')}
+      aria-label={translate('rights.attestation.v2.title')}
       style={{
         position: 'fixed',
         inset: 0,
@@ -81,16 +84,16 @@ export function RightsDialog({
           overflowY: 'auto',
         }}
       >
-        <h2 style={{ marginTop: 0 }}>{translate('rights.attestation.v1.title')}</h2>
-        <p>{translate('rights.attestation.v1.ownership_note')}</p>
-        <p>{translate('rights.attestation.v1.declaration_note')}</p>
-        <p>{translate('rights.attestation.v1.visible_scope_note')}</p>
-        <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('provenance.invisible_watermark_disclaimer')}</p>
-        <p>{translate('rights.attestation.v1.statement')}</p>
+        <h2 style={{ marginTop: 0 }}>{translate('rights.attestation.v2.title')}</h2>
+        <p>{translate('rights.attestation.v2.ownership_note')}</p>
+        <p>{translate('rights.attestation.v2.declaration_note')}</p>
+        <p>{translate('policy.visible_identity_scope')}</p>
+        <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('provenance.invisible_identity_disclaimer')}</p>
+        <p>{translate('rights.attestation.v2.statement')}</p>
         {statement ? (
           <p style={{ color: 'var(--mcp-text-secondary)' }}>
-            {translate('rights.attestation.v1.policy_version')}: {statement.id} v{statement.version} ·{' '}
-            {translate('rights.attestation.v1.validity_note', { days: statement.validityDays })}
+            {translate('rights.attestation.v2.policy_version')}: {statement.id} v{statement.version} ·{' '}
+            {translate('rights.attestation.v2.validity_note', { days: statement.validityDays })}
           </p>
         ) : null}
 
@@ -102,18 +105,18 @@ export function RightsDialog({
             onChange={(event) => setAccepted(event.target.checked)}
             style={{ width: 20, height: 20, marginTop: 2 }}
           />
-          <span>{translate('rights.attestation.v1.checkbox')}</span>
+          <span>{translate('rights.attestation.v2.checkbox')}</span>
         </label>
 
         <div style={{ display: 'flex', gap: 'var(--mcp-space-3)', flexWrap: 'wrap' }}>
           <Button onClick={submit} disabled={!accepted || busy || statement === null}>
-            {translate('rights.attestation.v1.submit')}
+            {translate('rights.attestation.v2.submit')}
           </Button>
           <Button variant="secondary" onClick={onClose}>
             {translate('common.cancel')}
           </Button>
         </div>
-        <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('rights.attestation.v1.decline_note')}</p>
+        <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('rights.attestation.v2.decline_note')}</p>
         {error ? <ErrorNotice error={error} /> : null}
       </div>
     </div>

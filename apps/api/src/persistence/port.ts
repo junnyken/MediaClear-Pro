@@ -61,6 +61,10 @@ export interface PersistencePort {
     findById(workspaceId: string, id: string): Promise<SourceFileRecord | null>;
     /** Chi duoc goi MOT lan cho moi file: lan hai bi tu choi (bat bien I-1). */
     markStored(workspaceId: string, id: string, patch: Pick<SourceFileRecord, 'measured' | 'uploadedAt'>): Promise<SourceFileRecord>;
+    /** P1.1: ghi nhan lan truy cap de luat luu giu 30 ngay co moc that su. */
+    touchAccess(workspaceId: string, id: string, at: string): Promise<void>;
+    /** P1.1: quet cho bao cao luu giu. Khong workspaceId = pham vi noi bo. */
+    listForRetention(workspaceId?: string | null): Promise<SourceFileRecord[]>;
   };
 
   validations: {
@@ -84,6 +88,8 @@ export interface PersistencePort {
   usage: {
     append(entry: UsageLedgerEntry): Promise<UsageLedgerEntry>;
     listByWorkspace(workspaceId: string): Promise<UsageLedgerEntry[]>;
+    /** P1.1: lenh het han chay tren moi workspace nen can duong doc toan bo. */
+    listAll(): Promise<UsageLedgerEntry[]>;
   };
 
   audit: {

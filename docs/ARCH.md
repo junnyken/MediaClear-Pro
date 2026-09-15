@@ -156,3 +156,33 @@ tự khai `productionProcessingEnabled: false`.
 Mỗi request ghi: `requestId`, workspace, user, subject, operation, kết quả, mã lỗi, thời gian,
 thao tác usage. **Không** ghi: byte media, API key, session token, mật khẩu, URL có chữ ký.
 `redactAuditDetail()` chặn theo **tên trường** và có test riêng.
+
+---
+
+# Phase 1.1 — hardening (2026-09-15)
+
+## 11. Hai vòng đời tách bạch
+
+`ProcessingJob.state` và trạng thái khoản giữ mức dùng là **hai thứ khác nhau** và không được trộn:
+
+```
+Job:         uploaded -> validating -> queued -> ...            (blocked là trạng thái cuối)
+Khoản giữ:   reserved -> expired -> released                    (hoặc reserved -> released/committed)
+```
+
+Khoản giữ hết hạn **không** làm job đổi trạng thái. Job bị huỷ thì khoản giữ được hoàn trả. Không có
+đường nào biến `queued` thành `completed` vì đồng hồ chạy.
+
+## 12. Route vận hành nội bộ
+
+`/v1/internal/*` **tắt mặc định**. Không cấu hình `MEDIACLEAR_INTERNAL_TOKEN` ⇒ trả 404 y hệt đường
+dẫn lạ; sai khoá cũng 404. Không bao giờ dùng route của người dùng để chạy việc vận hành, và không
+route nội bộ nào xoá dữ liệu.
+
+Hai route hiện có: hoàn trả khoản giữ quá hạn (idempotent) và báo cáo lưu giữ **chỉ đếm**.
+
+## 13. Một đồng hồ duy nhất
+
+Toàn bộ tiến trình đọc thời gian qua `ctx.now()`. Trước Phase 1.1, `DevIdentityProvider` dùng
+`Date.now()` riêng — hai nguồn thời gian trong một tiến trình, và phiên đăng nhập bị coi là hết hạn
+sai. Đã sửa; có test chặn tái diễn.

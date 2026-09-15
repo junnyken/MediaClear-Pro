@@ -164,6 +164,13 @@ export class InMemoryPersistence implements PersistencePort {
       this.sourceFileRows.set(id, next);
       return next;
     },
+    touchAccess: async (workspaceId: string, id: string, at: string): Promise<void> => {
+      const row = this.sourceFileRows.get(id);
+      if (!row || row.workspaceId !== workspaceId) return;
+      this.sourceFileRows.set(id, { ...row, lastAccessedAt: at });
+    },
+    listForRetention: async (workspaceId?: string | null): Promise<SourceFileRecord[]> =>
+      [...this.sourceFileRows.values()].filter((r) => !workspaceId || r.workspaceId === workspaceId),
   };
 
   readonly validations = {
@@ -220,6 +227,7 @@ export class InMemoryPersistence implements PersistencePort {
     },
     listByWorkspace: async (workspaceId: string): Promise<UsageLedgerEntry[]> =>
       this.usageRows.filter((e) => e.workspaceId === workspaceId),
+    listAll: async (): Promise<UsageLedgerEntry[]> => [...this.usageRows],
   };
 
   readonly audit = {

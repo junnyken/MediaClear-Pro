@@ -170,4 +170,26 @@ describe('MCP-10 auth & workspace boundary', () => {
     expect(types).toContain('workspace_member_added');
     await app.close();
   });
+  /*
+   * Chot chan cho mot bug THAT tim duoc o Phase 1.1: DevIdentityProvider truoc day
+   * dung Date.now() thay vi dong ho cua ung dung, nen phien vua tao da bi coi la het
+   * han khi dong ho duoc tua. Hai nguon thoi gian trong mot tien trinh = loi im lang.
+   */
+  it('phien dang nhap tinh han theo DONG HO CUA UNG DUNG, khong phai gio he thong', async () => {
+    let current = new Date('2027-01-01T00:00:00.000Z').getTime();
+    const { app, ctx } = await makeApp({ now: () => new Date(current) });
+    const token = await signIn(app, 'owner@matbao.com');
+
+    // Ngay sau khi dang nhap: phien phai con hieu luc du gio he thong khac xa.
+    expect((await app.inject({ method: 'GET', url: '/v1/me', headers: auth(token) })).statusCode).toBe(200);
+
+    // Vua truoc han: con hieu luc.
+    current += (ctx.config.sessionTtlSeconds - 1) * 1000;
+    expect((await app.inject({ method: 'GET', url: '/v1/me', headers: auth(token) })).statusCode).toBe(200);
+
+    // Qua han: het hieu luc.
+    current += 2000;
+    expect((await app.inject({ method: 'GET', url: '/v1/me', headers: auth(token) })).statusCode).toBe(401);
+    await app.close();
+  });
 });

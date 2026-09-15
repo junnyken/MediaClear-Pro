@@ -36,3 +36,25 @@ export const VIDEO_USAGE_ROUNDING = 'ceil_minute' as const;
 
 export type SupportedImageFormat = (typeof SUPPORTED_IMAGE_FORMATS)[number];
 export type SupportedVideoFormat = (typeof SUPPORTED_VIDEO_FORMATS)[number];
+
+/* ------------------------------------------------ Phase 1.1 hardening --- */
+
+/**
+ * Q-17: reservation KHONG duoc song vo thoi han. 30 phut.
+ * Bien inclusive: dung 1800 giay van con hieu luc, 1801 giay moi het han.
+ */
+export const USAGE_RESERVATION_TTL_SECONDS = 1800;
+
+/**
+ * Q-18 - retention policy v1. Moi lop du lieu mot luat rieng, khong lop nao an theo lop khac.
+ * Source/output tinh theo LAN TRUY CAP CUOI, khong phai ngay tao.
+ */
+export const SOURCE_OUTPUT_RETENTION_DAYS = 30;
+export const FAILED_INTERMEDIATE_RETENTION_DAYS = 7;
+export const PREVIEW_PROXY_RETENTION_HOURS = 24;
+export const AUDIT_RETENTION_DAYS = 365;
+export const USAGE_LEDGER_RETENTION_MONTHS = 24;
+export const DELETED_TOMBSTONE_RETENTION_DAYS = 30;
+
+/** Phien ban luat luu giu dang ap dung; ghi lai tren tung ban ghi de biet ap luat nao. */
+export const RETENTION_POLICY_VERSION = 1;

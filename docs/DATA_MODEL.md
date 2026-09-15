@@ -137,3 +137,58 @@ cần owner quyết thời hạn lưu.
 Runtime Phase 1 dùng `InMemoryPersistence` (`ephemeral`), **không** phải PostgreSQL. Schema được
 thiết kế và chạy thử để không nợ thiết kế, nhưng adapter PostgreSQL là việc của phase sau
 (`planned`). `/healthz` khai đúng điều này, không giả vờ đã có DB.
+
+---
+
+# Phase 1.1 — hạn khoản giữ và lưu giữ dữ liệu (2026-09-15)
+
+## 12. Migration `0002_phase1_1_retention_and_reservation_ttl.sql`
+
+**Chỉ thêm**, không sửa, không xoá. Đã chạy thật trên PostgreSQL 16 sạch **sau** `0001`, và đã chạy
+trên một database **đã có dữ liệu** để chứng minh không mất bản ghi nào (số bản ghi trước/sau bằng nhau).
+
+| Bảng | Cột thêm |
+|---|---|
+| `usage_ledger_entries` | `expires_at` |
+| `source_files` | `last_accessed_at`, `retention_state`, `legal_hold_at`, `scheduled_deletion_at`, `deleted_at`, `retention_policy_version` |
+
+Ràng buộc mới (đã kiểm chứng là **chặn thật** trên DB sạch):
+
+| Ràng buộc | Chặn điều gì |
+|---|---|
+| `usage_ledger_expires_only_on_reserve` | gắn hạn vào bút toán không phải `reserve` |
+| `usage_ledger_release_reason_known` | lý do hoàn trả nằm ngoài danh sách đã chốt (nay có thêm `expired`) |
+| `source_files_retention_state_known` | trạng thái lưu giữ bịa |
+| `source_files_retention_state_has_timestamp` | trạng thái mà thiếu mốc thời gian tương ứng (vd `legal_hold` không có `legal_hold_at`) |
+
+## 13. Khoản giữ mức dùng: trạng thái là **suy ra**, không phải cột
+
+Sổ mức dùng là append-only và là nguồn sự thật duy nhất. Trạng thái khoản giữ được tính từ các bút
+toán của job đó cộng với đồng hồ:
+
+| Bút toán có | Đồng hồ | Trạng thái |
+|---|---|---|
+| chỉ `reserve` | chưa quá `expires_at` | `reserved` |
+| chỉ `reserve` | đã quá `expires_at` | `expired` |
+| có `release` | — | `released` |
+| có `commit` | — | `committed` |
+
+Không có cột `reservation_state` — thêm cột thứ hai nghĩa là có lúc hai nguồn nói khác nhau.
+`UNIQUE (job_id, entry_type)` ở tầng dữ liệu là thứ chặn hoàn trả hai lần.
+
+## 14. Trường lưu giữ trên `source_files` — mỗi trường một vai trò
+
+| Trường | Vai trò | Vì sao không dùng trường cũ |
+|---|---|---|
+| `last_accessed_at` | mốc tính luật 30 ngày | `created_at` không trả lời được "còn ai dùng không" |
+| `retention_state` | active / chờ xoá / đã xoá / giữ theo pháp lý | không có trường nào mang nghĩa này |
+| `legal_hold_at` | từ lúc nào bị giữ | để audit, khác với chính trạng thái |
+| `scheduled_deletion_at` | xoá vào lúc nào | để `scheduled_for_deletion` có nghĩa |
+| `deleted_at` | mốc tính 30 ngày giữ dấu vết | khác `updated_at` |
+| `retention_policy_version` | bản ghi được áp luật phiên bản nào | để đổi luật sau này không phải đoán |
+
+## 15. Điều Phase 1.1 **không** làm
+
+Không có cột nào bị xoá, không có dữ liệu nào bị xoá, **không có đường xoá nào tồn tại**. Trạng thái
+`deleted` và `scheduled_for_deletion` mới chỉ là contract — chưa có gì đặt bản ghi vào các trạng thái
+đó. Worker dọn dữ liệu là việc của phase sau.

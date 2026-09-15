@@ -56,6 +56,8 @@ export const ERROR_CODES = {
   MCP_USAGE_RESERVE_MISSING: 'MCP_USAGE_RESERVE_MISSING',
   MCP_USAGE_RESERVATION_CONFLICT: 'MCP_USAGE_RESERVATION_CONFLICT',
   MCP_USAGE_QUANTITY_UNKNOWN: 'MCP_USAGE_QUANTITY_UNKNOWN',
+  /** P1.1 (Q-17): reservation da qua han 30 phut, khong con commit duoc. */
+  MCP_USAGE_RESERVATION_EXPIRED: 'MCP_USAGE_RESERVATION_EXPIRED',
 
   // --- Storage (MCP-10 Phase 0 / MCP-15 Phase 1) ---
   MCP_STORAGE_OBJECT_NOT_FOUND: 'MCP_STORAGE_OBJECT_NOT_FOUND',
@@ -157,6 +159,8 @@ export const ERROR_CATALOGUE: Readonly<Record<ErrorCode, ErrorDefinition>> = {
   [C.MCP_USAGE_RESERVE_MISSING]: def(C.MCP_USAGE_RESERVE_MISSING, 'usage', 409, false, false),
   [C.MCP_USAGE_RESERVATION_CONFLICT]: def(C.MCP_USAGE_RESERVATION_CONFLICT, 'usage', 409, false, false),
   [C.MCP_USAGE_QUANTITY_UNKNOWN]: def(C.MCP_USAGE_QUANTITY_UNKNOWN, 'usage', 422, true, true),
+  // Het han roi thi khong con reservation de giai phong nua => releasesUsageReservation = false.
+  [C.MCP_USAGE_RESERVATION_EXPIRED]: def(C.MCP_USAGE_RESERVATION_EXPIRED, 'usage', 409, false, false),
 
   [C.MCP_STORAGE_OBJECT_NOT_FOUND]: def(C.MCP_STORAGE_OBJECT_NOT_FOUND, 'storage', 404, false, true),
   [C.MCP_STORAGE_WRITE_DENIED]: def(C.MCP_STORAGE_WRITE_DENIED, 'storage', 409, false, true),

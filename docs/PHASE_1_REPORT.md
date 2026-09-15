@@ -257,3 +257,10 @@ Tám lỗi thật, chi tiết reproduction/nguyên nhân/cách sửa ở `TEST_L
 về product decision. Không provider nào được đánh `verified` trước khi có run thật.
 
 **Agent dừng tại đây, không bắt đầu Phase 2.**
+
+---
+
+> **Cập nhật sau Phase 1.1** (2026-09-15): bốn câu hỏi mở của báo cáo này đã được owner chốt và áp
+> dụng — Q-16 (đánh số MINI-SPEC), Q-17 (khoản giữ mức dùng tồn tại vô thời hạn), Q-18 (lưu giữ dữ
+> liệu), Q-19 (câu chữ). Xem `docs/PHASE_1_1_REPORT.md` và `docs/MINI_SPEC_INDEX.md`.
+> Các canonical ID `MCP-10-P1` … `MCP-15-P1` nhắc trong báo cáo này nay đọc là `P1-MCP-10` … `P1-MCP-15`.
