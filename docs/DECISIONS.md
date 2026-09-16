@@ -1074,3 +1074,40 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   chứng và test**; phần chưa có là *nền tảng có chấp nhận tệp hay không*. Vì vậy preset giữ
   `partially_verified` và hai trường giới hạn vẫn `null`.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-057 — Đóng lỗ hổng số kênh tiếng, và CỐ Ý không vá một ca không xảy ra ngoài đời
+
+- **Context**: hai giới hạn tự ghi ở `P3-MCP-30` và `P3-MCP-33`. Đi kiểm cả hai bằng đo, và **kết
+  luận hai hướng khác nhau** — vì dữ liệu nói khác nhau.
+
+**1. Số kênh tiếng — CÓ lỗ hổng thật, đã đóng.**
+
+`channelCount` có trong lược đồ từ đầu nhưng `compareAudio` **không dùng lần nào** (đếm được: 0).
+Hậu quả: stereo bị ép về mono thì tiếng **vẫn còn**, thời lượng **vẫn đúng**, nên mọi phép kiểm khác
+đều qua và hệ thống báo **`preserved`** cho một bản đã mất một kênh tiếng.
+
+Thêm kết luận `channel_changed` ⇒ **không cho phép `completed`**. Đường render hiện dùng `-c:a copy`
+nên không đổi kênh (đo: 1→1, và stereo 2→2), nhưng cổng phải chặn được **bất kể** đường nào trong
+tương lai làm nó đổi. Fixture stereo thật + **đối chứng âm** (ép `-ac 1` ⇒ test đỏ đúng chỗ).
+
+`null` vẫn là "chưa đo", **không** suy ra là "không đổi" — cùng nguyên tắc `D-044`.
+
+**2. Proxy lớn hơn bản gốc — KHÔNG vá, và đây là quyết định có cơ sở.**
+
+| Đầu vào | Nguồn | Proxy | Tỉ lệ |
+|---|---|---|---|
+| fixture test (`crf 40`, 144×256) | 9 658 B | 15 908 B | **165 %** |
+| video kiểu điện thoại (`crf 20`, 1080×1920) | 3 395 254 B | 59 022 B | **2 %** |
+
+Ca "proxy lớn hơn" **chỉ xuất hiện ở fixture nén ở mức không ai dùng thật**. Với đầu vào thật proxy
+nhỏ hơn **~50 lần**. Thêm phép chắn ở đây là viết mã cho một nhánh **không chạy tới ngoài đời** — mà
+mã không chạy tới là mã không ai kiểm được, và nó vẫn phải được đọc, hiểu và bảo trì mãi.
+
+**Ghi lại số đo thay vì viết mã** là câu trả lời đúng cho trường hợp này. Giới hạn trong `P3-MCP-30`
+nay là một bảng số liệu chứ không phải một câu cảnh báo mơ hồ.
+
+- **Nguyên tắc rút ra**: *"đã ghi vào phần giới hạn"* không có nghĩa *"phải vá"*. Đi đo trước; có
+  cái đáng vá, có cái chỉ đáng **nói cho chính xác**.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

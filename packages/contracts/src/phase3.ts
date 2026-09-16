@@ -98,6 +98,8 @@ export type AudioVerdict =
   | 'absent_by_design'
   | 'lost'
   | 'duration_drift'
+  /** P3: so kenh doi (vd stereo bi ep ve mono). Tieng VAN CON nhung KHAC ban goc. */
+  | 'channel_changed'
   | 'changed_by_preset'
   | 'unknown';
 
@@ -117,6 +119,25 @@ export function compareAudio(
   if (before.present && !after.present) return 'lost';
   if (!before.present && after.present) return 'changed_by_preset';
   if (options.presetChangesAudio === true) return 'changed_by_preset';
+
+  /*
+   * So KENH. Truoc day `channelCount` co trong luoc do nhung `compareAudio` KHONG dung lan nao —
+   * mot lo hong cua cong audio: stereo bi ep ve mono thi tieng VAN CON, thoi luong VAN DUNG, nen
+   * moi phep kiem khac deu qua, va he thong se bao `preserved` cho mot ban da mat mot kenh tieng.
+   *
+   * Duong render hien tai dung `-c:a copy` nen khong doi kenh — nhung cong phai chan duoc dieu do
+   * BAT KE duong nao trong tuong lai lam no doi (vd mot preset them `-ac 1`).
+   *
+   * Chi ket luan khi DO DUOC ca hai phia: `null` la "chua do", khong duoc suy ra la "khong doi".
+   */
+  if (
+    before.channelCount !== null &&
+    after.channelCount !== null &&
+    before.channelCount !== after.channelCount
+  ) {
+    return 'channel_changed';
+  }
+
   if (before.durationSeconds === null || after.durationSeconds === null) return 'unknown';
   const tolerance = options.toleranceSeconds ?? AUDIO_DURATION_TOLERANCE_SECONDS;
   return Math.abs(before.durationSeconds - after.durationSeconds) > tolerance ? 'duration_drift' : 'preserved';

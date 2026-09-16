@@ -178,6 +178,28 @@ describe('P3 — so sanh audio', () => {
     expect(compareAudio(track(), track({ codec: 'opus' }), { presetChangesAudio: true })).toBe('changed_by_preset');
   });
 
+  it('SO KENH doi (stereo -> mono) => channel_changed, va KHONG duoc completed', () => {
+    /*
+     * Lo hong da dong: truoc day `channelCount` co trong luoc do nhung `compareAudio` KHONG dung
+     * lan nao. Stereo bi ep ve mono thi tieng VAN CON va thoi luong VAN DUNG, nen moi phep kiem
+     * khac deu qua — he thong se bao `preserved` cho mot ban da mat mot kenh tieng.
+     */
+    const verdict = compareAudio(track({ channelCount: 2 }), track({ channelCount: 1 }));
+    expect(verdict).toBe('channel_changed');
+    expect(audioAllowsCompletion(verdict)).toBe(false);
+    expect(verdict).not.toBe('preserved');
+  });
+
+  it('so kenh GIU NGUYEN thi van la preserved', () => {
+    expect(compareAudio(track({ channelCount: 2 }), track({ channelCount: 2 }))).toBe('preserved');
+  });
+
+  it('CHUA DO duoc so kenh thi KHONG suy ra la "khong doi"', () => {
+    // `null` la "chua do", khong phai "giong nhau" — cung bai hoc D-044.
+    expect(compareAudio(track({ channelCount: null }), track({ channelCount: 1 }))).toBe('preserved');
+    expect(compareAudio(track({ channelCount: 2 }), track({ channelCount: null }))).toBe('preserved');
+  });
+
   it('khong do duoc thoi luong => unknown, KHONG suy ra la preserved', () => {
     const verdict = compareAudio(track({ durationSeconds: null }), track());
     expect(verdict).toBe('unknown');

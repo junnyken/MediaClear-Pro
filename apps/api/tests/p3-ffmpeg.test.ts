@@ -147,6 +147,30 @@ describe.skipIf(!hasFfmpeg)('P3 — render giu audio', () => {
   }, 120_000);
 });
 
+describe.skipIf(!hasFfmpeg)('P3 — so kenh tieng qua duong render', () => {
+  it('video STEREO giu nguyen 2 kenh qua mask / blur / crop', async () => {
+    const source = await load('video-stereo-audio.mp4');
+    const before = await probeVideo(source);
+    expect(before.audio.channelCount, 'fixture khong phai stereo thi phep kiem vo nghia').toBe(2);
+
+    for (const opts of [
+      { mode: 'mask' as const, regions: [region(0.1, 0.1, 0.3, 0.2)] },
+      { mode: 'blur' as const, regions: [region(0.1, 0.1, 0.3, 0.2)] },
+      { mode: 'crop' as const, regions: [], cropAspect: '9:16' },
+    ]) {
+      const out = await renderVideo(source, opts);
+      expect(out.probe.audio.channelCount, `che do ${opts.mode} lam doi so kenh`).toBe(2);
+      expect(compareAudio(before.audio, out.probe.audio)).toBe('preserved');
+    }
+  }, 240_000);
+
+  it('ban proxy cua video stereo van giu 2 kenh', async () => {
+    const source = await load('video-stereo-audio.mp4');
+    const proxy = await makeProxy(source, 120);
+    expect(proxy.probe.audio.channelCount).toBe(2);
+  }, 180_000);
+});
+
 describe.skipIf(!hasFfmpeg)('P3 — dung sai audio co co so DO DUOC (Q-P3-03)', () => {
   /*
    * Ban dau `0,25s` chi la mot con so agent tu dat. Do that tren 12 luot render cho ket qua ro:

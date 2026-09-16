@@ -15,6 +15,7 @@ ghi cho vui — nó là một CỔNG**.
 | `lost` | có tiếng trước, **không có sau** | **`failed`** |
 | `duration_drift` | lệch quá dung sai | `review_required` |
 | `unknown` | **không đo được** | `review_required` |
+| `channel_changed` | **số kênh đổi** (vd stereo → mono) | `review_required` |
 | `changed_by_preset` | preset đổi tiếng **có chủ đích** | `review_required` |
 
 **Phân biệt `absent_by_design` với `lost` là điều quan trọng nhất ở đây.** Gộp hai cái sẽ biến một
@@ -46,4 +47,6 @@ test đỏ đúng chỗ.
 - **Dung sai chưa được owner duyệt** (Q-P3-03).
 - **Chưa so nội dung tiếng**, chỉ so sự hiện diện + thời lượng + codec. Một bản render giữ đúng độ
   dài nhưng **tiếng bị méo** sẽ lọt qua.
-- Chưa đo số kênh sau render để phát hiện stereo bị ép về mono.
+- ~~Chưa đo số kênh sau render~~ — **đã đóng**: `compareAudio` nay so `channelCount` và trả
+  `channel_changed` khi số kênh đổi, và kết luận đó **không cho phép `completed`**. Có fixture
+  stereo thật + đối chứng âm (ép `-ac 1` ⇒ test đỏ).

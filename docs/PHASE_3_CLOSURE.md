@@ -87,11 +87,11 @@ duyệt** — cộng với ~30 khoá chưa duyệt của Phase 2 (Q-11).
 |---|---|
 | `pnpm typecheck` | `0` |
 | `pnpm lint` | `0` |
-| `pnpm test` (có PostgreSQL + MinIO) | `0` — **58 tệp · 627 test đạt** |
+| `pnpm test` (có PostgreSQL + MinIO) | `0` — **58 tệp · 632 test đạt** |
 | `pnpm build:web` | `0` |
 | `git diff --check` | sạch |
 
-Phase 3 thêm **80 test**. Chạy riêng từng lệnh.
+Phase 3 thêm **85 test**. Chạy riêng từng lệnh.
 
 ## 14. Xác minh desktop/mobile — ĐÃ CHẠY THẬT
 
@@ -130,6 +130,7 @@ màn hình đọc được *"Cách xử lý"* và *"Khung hình khi xuất"*; c�
 | Preset khai `verified` | **đỏ** — 3 test |
 | Enum giao diện lệch enum máy chủ | **đỏ** — bỏ `review_required` khỏi `JOB_STATES` |
 | Ghi đè tệp gốc | **bị chặn** ở tầng lưu trữ |
+| **Ép stereo → mono** (`-ac 1`) | **đỏ** — cổng số kênh bắt được (`D-057`) |
 
 Sau mỗi lần, implementation **đã được khôi phục** và toàn bộ suite chạy lại **xanh**.
 
@@ -137,7 +138,7 @@ Sau mỗi lần, implementation **đã được khôi phục** và toàn bộ su
 
 - Proxy có thể **lớn hơn** bản gốc với video rất nhỏ (đo được: 12261 > 9658 byte).
 - **Không bám chuyển động**: logo ra khỏi vùng mask sẽ không được che, hệ thống **không tự phát hiện**.
-- **Chưa so nội dung tiếng** — chỉ so hiện diện + thời lượng + codec.
+- **Chưa so nội dung tiếng** — chỉ so hiện diện, thời lượng, và **số kênh** (`D-057`). Một bản giữ đúng độ dài và đúng số kênh nhưng **tiếng bị méo** vẫn lọt qua.
 - Dung sai audio `0,25s` **nay có cơ sở đo được** (≈11× biên độ lớn nhất, xem `D-056`) nhưng vẫn là giá trị agent chọn — owner đổi được bằng một hằng số.
 - Preset **không có bằng chứng tuân thủ nền tảng**.
 - **25 interface giao diện tự khai** ở màn hình cũ vẫn ngoài phạm vi D-051.

@@ -44,9 +44,16 @@ tiếng mà vẫn khai "có tiếng" sẽ khiến người dùng tưởng đã n
 
 ## Remaining Limits
 
-- **Proxy có thể LỚN HƠN bản gốc với video đã rất nhỏ** (đo được: 12261 > 9658 byte). Fixture nén ở
-  `crf 40`, proxy mã hoá lại ở `crf 32`. Với video thật vài MB thì proxy nhỏ hơn hẳn — nhưng hệ
-  thống hiện **không kiểm** điều này và có thể lưu một bản tốn chỗ hơn bản gốc.
+- **Proxy có thể lớn hơn bản gốc — nhưng CHỈ với video nén quá tay.** Đo trên hai đầu vào:
+
+  | Đầu vào | Nguồn | Proxy | Tỉ lệ |
+  |---|---|---|---|
+  | fixture test (`crf 40`, 144×256) | 9 658 B | 15 908 B | **165 %** |
+  | video kiểu điện thoại (`crf 20`, 1080×1920) | 3 395 254 B | 59 022 B | **2 %** |
+
+  Với đầu vào thật, proxy nhỏ hơn **~50 lần**. Ca "lớn hơn" chỉ xuất hiện ở fixture bị nén ở mức
+  không ai dùng thật. **Cố ý KHÔNG thêm phép chắn**: nó sẽ là mã phức tạp cho một tình huống không
+  xảy ra ngoài đời, và mã không chạy tới là mã không ai kiểm được.
 - **Chưa hiển thị tiến trình tải lên** theo thời gian thực.
 - **`blocked_by_Q23`**: chưa xác minh được proxy sống sót qua một lần deploy lại, vì bản online vẫn
   là `local-fs-phase1`.
