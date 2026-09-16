@@ -1195,3 +1195,75 @@ Phép kiểm định dạng canonical ID cũng đã được sửa trong Phase 3
 nghĩa bằng *"các giá trị **đang** có"*.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-060 — Cứu job kẹt ở `processing`: nhịp tim + nhận lại + trần số lần thử
+
+**Lỗ hổng.** `FEATURES.md` đã ghi sẵn: *"chưa có cơ chế cứu job kẹt ở `processing` khi worker chết
+giữa chừng"*. Worker chết — hết bộ nhớ, container bị thay, máy khởi động lại — thì job nó đang cầm
+nằm ở `processing` **vĩnh viễn**: `claimQueued` chỉ nhìn `queued` nên không worker nào nhận lại, và
+không có gì đánh dấu nó thất bại. Người dùng thấy *"đang xử lý"* mãi mãi, và **phần mức dùng đã giữ
+không bao giờ được trả lại**.
+
+**Ba mảnh, và cả ba đều cần — bỏ mảnh nào cũng sinh lỗi mới.**
+
+1. **`claimStale(now, staleBefore)`** — nhận lại job `processing` đã im lặng quá lâu. Nguyên tử đúng
+   như `claimQueued` (`FOR UPDATE SKIP LOCKED`): hai worker cùng cứu một job thì tệp bị render hai lần.
+2. **`touch(workspaceId, id, now)` — nhịp tim.** Nếu chỉ có (1) thì **bản thân nó là lỗi mới**: một
+   job video render lâu hơn ngưỡng sẽ bị worker thứ hai cướp mất **trong khi worker thứ nhất vẫn đang
+   chạy**. Đây không phải khả năng lý thuyết — mini-spec Phase 3 để `maxDuration = null`, tức **không
+   có trần** thời lượng video, nên **mọi** ngưỡng cố định đều có thể bị vượt một cách hợp lệ. Nhịp tim
+   biến `updated_at` từ *"lần cuối đổi trạng thái"* thành *"lần cuối còn worker sống cầm job"* — nó là
+   thứ làm **"im lặng lâu" khác hẳn "đang làm việc lâu"**. Chỉ chạm khi job **vẫn** `processing`, nên
+   nhịp đến muộn không thể làm một job đã dừng trông như đang chạy.
+3. **Trần `maxAttempts` (mặc định 3).** Job kẹt vì mất điện thì lần hai đã xong. Job kẹt vì **chính
+   nó** làm worker chết thì mỗi lần cứu lại **giết thêm một worker** — trần là thứ chặn vòng đó.
+   `attemptCount` tăng **bên trong** câu lệnh `claimStale`, **trước** khi chạy, nên một job độc vẫn bị
+   đếm lên kể cả khi nó lại làm worker chết. Đếm sau khi chạy xong thì nó lặp vô tận.
+
+**Tham số.** Nhịp 30 giây, coi là kẹt sau 5 phút ⇒ phải lỡ **mười** nhịp liên tiếp mới bị nhận lại.
+
+**Vì sao chạy lại được mà không hỏng gì.** Đã kiểm chứ không suy đoán: mỗi lượt chạy sinh `outputId`
+**mới** và khoá kho **mới** (bất biến I-1 không bị đụng), còn `commitUsage`/`releaseUsage` khoá theo
+`${job.id}:commit` ở tầng dữ liệu nên **không thể** tính tiền hai lần. Có một test dựng đúng cảnh
+*"chết ngay sau khi đã tính tiền"* và khẳng định sổ vẫn đúng **một** bút toán.
+
+**Thứ tự ưu tiên.** Job `queued` được lấy **trước** job kẹt: việc đang chờ là việc **chắc chắn** chưa
+ai làm, còn job kẹt chỉ là **nghi ngờ**.
+
+**Mã lỗi mới** `MCP_JOB_MAX_ATTEMPTS_EXCEEDED` (500, `retryAllowed = false`,
+`releasesUsageReservation = true`): hệ thống đã tự thử đủ số lần rồi, bảo người dùng bấm lại **chính
+job này** là nói dối; và không bao giờ giữ tiền cho một việc không làm được. **Sự kiện audit mới**
+`processing_job_reclaimed` — đây là việc hệ thống tự làm sau lưng người dùng, không có dấu vết thì
+không ai biết một job đã chạy hai lần.
+
+**Bằng chứng.** 8 test mới (`p3-stuck-job.test.ts`) + 3 test hợp đồng chạy trên **cả hai** adapter,
+trong đó bản PostgreSQL thật mới kiểm được `SKIP LOCKED`. **Năm đối chứng âm** đã chạy, mỗi cái làm
+đỏ đúng những test nó phải làm đỏ: bỏ `claimStale` (5 đỏ) · bỏ trần (1) · bỏ nhịp tim (1) · đảo thứ
+tự ưu tiên (3) · hạ ngưỡng kẹt về 0 (1 — test *"job đang chạy bình thường không bị cướp"*).
+
+**Còn lại, nói thẳng:** vẫn **chưa có** retry có backoff cho job `failed` vì lý do tạm thời — đó là
+việc khác và chưa làm.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-061 — `Q-24`: nhãn câu chữ cho loại sự kiện ở trang Nhật ký
+
+Trang Nhật ký hiện nguyên chuỗi máy `snake_case` (`processing_job_completed`,
+`output_download_url_issued`…) cho **người dùng Việt**. Nay có **19 nhãn** `audit_event.*` ở cả hai
+ngôn ngữ và trang Nhật ký đọc qua `translate()`.
+
+**Phép chắn mới quan trọng hơn bản thân 19 chuỗi**: test đọc `AUDIT_EVENTS` **thẳng từ mã nguồn máy
+chủ** (`apps/api/src/services/audit.ts`) và bắt buộc mọi loại sự kiện phải có nhãn ở **cả hai** ngôn
+ngữ. Nhờ vậy, thêm một loại sự kiện mới mà quên nhãn thì **test đỏ**, thay vì âm thầm hiện chuỗi thô
+ra màn hình. Phép chắn này đã tự bắt `processing_job_reclaimed` của `D-060` ngay trong lượt làm —
+**đối chứng âm miễn phí**, không phải do tôi dựng.
+
+**Giới hạn — giữ nguyên ranh giới BA ⇄ DEV.** Câu chữ do agent soạn theo **đúng uỷ quyền owner đã
+cho ở `D-059`**, và **vẫn thuộc diện owner/BA duyệt**. Đây là nhãn mô tả thao tác hệ thống, **không
+phải** câu chữ pháp lý: `rights.attestation.*` / `policy.*` vẫn là `Q-11` và **không bị đụng vào**.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

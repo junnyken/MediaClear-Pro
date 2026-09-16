@@ -250,6 +250,57 @@ function contractSuite(label: string, make: () => Promise<PersistencePort>): voi
       );
     });
 
+    /*
+     * P3 (D-060): cuu job ket. Giong `claimQueued`, `claimStale` KHONG theo workspace - worker
+     * khong thuoc ve khong gian lam viec nao. Nen cac ca duoi day phai tinh ca `job_2` o OTHER_WS.
+     */
+    it('jobs: claimStale chi dong vao job `processing` da im lang qua lau', async () => {
+      // Hai job cua seedBase dang `queued` va rat cu - van tuyet doi khong duoc dong toi.
+      expect(await db.jobs.claimStale(at(1000), at(900))).toBeNull();
+
+      await db.jobs.create({ ...aJob('job_ket', 'key_ket'), state: 'processing', updatedAt: at(950) });
+      // Moi hon moc `staleBefore` => dang chay binh thuong, chua phai ket.
+      expect(await db.jobs.claimStale(at(1000), at(900))).toBeNull();
+
+      await db.jobs.update({ ...aJob('job_ket', 'key_ket'), state: 'processing', updatedAt: at(800) });
+      const claimed = await db.jobs.claimStale(at(1000), at(900));
+      expect(claimed?.id).toBe('job_ket');
+      // Tang NGAY luc nhan, truoc khi chay lai. Day la thu chan mot job doc lap vo tan.
+      expect(claimed?.attemptCount).toBe(2);
+      expect(claimed?.updatedAt).toBe(at(1000));
+
+      // Da nhan roi thi worker thu hai khong duoc nhan lai cung job do.
+      expect(await db.jobs.claimStale(at(1001), at(900))).toBeNull();
+    });
+
+    it('jobs: touch giu job khoi bi coi la ket - day la ly do nhip tim ton tai', async () => {
+      await db.jobs.create({ ...aJob('job_dai', 'key_dai'), state: 'processing', updatedAt: at(800) });
+
+      expect(await db.jobs.touch(WS, 'job_dai', at(950))).toBe(true);
+      // Mot job video dai hang phut van dang chay => nhip tim phai lam no MIEN NHIEM voi claimStale.
+      expect(await db.jobs.claimStale(at(1000), at(900))).toBeNull();
+
+      // Ngung dap => lai thanh ket. Nhip tim chi hoan lai, khong mien vinh vien.
+      expect((await db.jobs.claimStale(at(1000), at(960)))?.id).toBe('job_dai');
+    });
+
+    it('jobs: touch khong voi qua workspace khac va khong cham job da roi `processing`', async () => {
+      await db.jobs.create({ ...aJob('job_tim', 'key_tim'), state: 'processing', updatedAt: at(800) });
+      expect(await db.jobs.touch(OTHER_WS, 'job_tim', at(900))).toBe(false);
+      expect(await db.jobs.touch(WS, 'job_khong_co', at(900))).toBe(false);
+
+      await db.jobs.update({
+        ...aJob('job_tim', 'key_tim'), state: 'failed',
+        reasonCode: ERROR_CODES.MCP_PROVIDER_SUBMIT_FAILED, updatedAt: at(850),
+      });
+      /*
+       * Job da that bai ma nhip tim cua worker cu van den muon => KHONG duoc cham. Neu cham, mot
+       * job da dung se trong nhu dang chay va man hinh nguoi dung bao "dang xu ly" mai mai.
+       */
+      expect(await db.jobs.touch(WS, 'job_tim', at(900))).toBe(false);
+      expect((await db.jobs.findById(WS, 'job_tim'))?.updatedAt).toBe(at(850));
+    });
+
     it('usage: khoa idempotency trung bi CHAN - day la cho chan double-charge', async () => {
       await db.usage.append(aUsageEntry('use_1', 'job_1:reserve'));
       await expect(db.usage.append(aUsageEntry('use_2', 'job_1:reserve'))).rejects.toThrow(

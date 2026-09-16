@@ -50,12 +50,13 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Hợp đồng dùng chung UI ↔ server + kiểm lúc chạy | `contracts/{schema,phase3}.ts` | 25 test gồm thiếu trường/sai enum/sai kiểu; đóng D-047 **trong phạm vi Phase 3** |
 | Kiểm lúc chạy cho **toàn bộ** biên UI ↔ server | `contracts/api-schemas.ts`, `web/tests/contract-boundary.test.ts` | 0/29 lời gọi chưa kiểm; chốt chặn tái phát + đối chứng âm; bật lên là lộ ngay 3 lệch thật giữa UI và máy chủ |
 | Giao diện làm sạch video (chọn vùng · xem trước · preset · reset) | `app/assets/[assetId]/video/page.tsx` | bấm tay Chrome thật 1280×900 và 390×844: 0 tràn ngang, 0 chữ cắt, 0 khoá thô, console sạch; 3 lỗi chỉ bấm tay mới thấy |
+| Cứu job kẹt ở `processing` (nhịp tim · nhận lại · trần số lần thử) | `worker/job-worker.ts`, `persistence/{port,postgres,in-memory}.ts` | 8 test + 3 test hợp đồng trên **cả hai** adapter (PG thật kiểm `SKIP LOCKED`); **5 đối chứng âm**, mỗi cái làm đỏ đúng phần nó phải làm đỏ; `D-060` |
+| Nhãn câu chữ cho loại sự kiện ở trang Nhật ký | `i18n/locales/{vi,en}.json`, `app/activity/page.tsx` | 19 nhãn ×2 ngôn ngữ; phép chắn đọc `AUDIT_EVENTS` thẳng từ mã máy chủ — tự bắt sự kiện mới của `D-060` ngay trong lượt làm; `D-061` |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
 **worker dọn phiên tải lên quá hạn** (P2-MCP-35 để lại mảnh thừa) ·
-**nhãn câu chữ cho loại sự kiện ở trang Nhật ký** (chờ owner/BA duyệt) ·
 **giao diện dùng đường tải lên nối lại được** (mới có API).
 
 > Sửa một mục khai sai: *"Auth provider production"* vẫn nằm ở đây trong khi `P2-MCP-25` đã làm xong
@@ -76,8 +77,8 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 >
 > **Đã ra khỏi mục này (P2-MCP-28, D-042): worker tự chạy job.** Hàng đợi nằm trên PostgreSQL
 > (`FOR UPDATE SKIP LOCKED`), worker là vai thứ ba của cùng ảnh Docker (`MEDIACLEAR_ROLE=worker`).
-> Job tạo qua API **tự chạy**, không còn phải gọi route nội bộ. **Chưa có** retry có backoff và
-> **chưa có** cơ chế cứu job kẹt ở `processing` khi worker chết giữa chừng.
+> Job tạo qua API **tự chạy**, không còn phải gọi route nội bộ. **Chưa có** retry có backoff.
+> Cơ chế **cứu job kẹt** ở `processing` nay **đã có** (`D-060`) — xem dòng dưới.
 >
 > **Đã ra khỏi mục này (P2-MCP-27, D-041): xử lý ảnh THẬT.** Job nay đi tới `completed` với kết quả
 > thật — `crop`/`blur`/`brand_overlay` trên ảnh, chạy bằng libvips, **không dùng AI**. Video và các

@@ -114,6 +114,27 @@ export interface PersistencePort {
      * `FOR UPDATE SKIP LOCKED` - khoa dong da nhan va BO QUA no thay vi doi.
      */
     claimQueued(now: string): Promise<ProcessingJob | null>;
+    /**
+     * P3 (D-060): doi lai mot job KET o `processing`.
+     *
+     * Worker chet giua chung (het bo nho, container bi thay, may khoi dong lai) thi job no dang
+     * cam nam o `processing` VINH VIEN: khong worker nao nhan lai vi `claimQueued` chi nhin
+     * `queued`, va khong co gi danh dau no that bai. Nguoi dung thay "dang xu ly" mai mai.
+     *
+     * Phai NGUYEN TU giong `claimQueued`: hai worker cung doi mot job ket thi tep bi xu ly hai lan.
+     */
+    claimStale(now: string, staleBefore: string): Promise<ProcessingJob | null>;
+    /**
+     * P3 (D-060): bao "toi con song, van dang chay job nay".
+     *
+     * Khong co nhip nay thi `claimStale` khong dung duoc: mot job video dai hang phut trong lang
+     * le se bi cho la ket, va worker thu hai se render chinh no lan nua. Nhip tim bien
+     * `updated_at` tu "lan cuoi doi trang thai" thanh "lan cuoi con co worker song cam job".
+     *
+     * Chi cham khi job VAN o `processing`: job da xong roi thi khong duoc keo ngay len.
+     * Tra false = khong con gi de cham (da xong, da that bai, hoac worker khac da doi mat).
+     */
+    touch(workspaceId: string, id: string, now: string): Promise<boolean>;
   };
 
   /** P2-MCP-27: ban ket qua. Moi job dung mot ban - chay lai la job MOI (D-005). */

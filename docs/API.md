@@ -192,6 +192,7 @@ Mỗi mã có: machine code · translation key `errors.<mã viết thường>` (
 | `MCP_VAL_REQUEST_INVALID` | validation | 400 | không | có |
 | `MCP_VAL_NOT_VALIDATED` | validation | 409 | có | có |
 | `MCP_JOB_IDEMPOTENCY_CONFLICT` | state | 409 | không | không |
+| `MCP_JOB_MAX_ATTEMPTS_EXCEEDED` | state | 500 | không | có |
 
 ## 5. Vòng đời khoản giữ mức dùng (P1.1-MCP-17)
 

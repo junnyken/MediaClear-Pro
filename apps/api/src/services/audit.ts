@@ -80,6 +80,11 @@ export const AUDIT_EVENTS = {
   /** P2-MCP-27: job that su chay xong va ket qua DA duoc do lai. */
   PROCESSING_JOB_COMPLETED: 'processing_job_completed',
   PROCESSING_JOB_FAILED: 'processing_job_failed',
+  /**
+   * P3 (D-060): job ket o `processing` da duoc worker khac nhan lai. Ghi lai vi day la viec he
+   * thong tu lam sau lung nguoi dung — khong co dau vet thi khong ai biet job da chay hai lan.
+   */
+  PROCESSING_JOB_RECLAIMED: 'processing_job_reclaimed',
   /** P3-MCP-33: ra duoc ket qua nhung co canh bao — nguoi that phai xem truoc khi nhan. */
   PROCESSING_JOB_REVIEW_REQUIRED: 'processing_job_review_required',
   /**

@@ -66,11 +66,11 @@ export default function ActivityPage() {
               {rows.map((event) => (
                 <li key={event.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                   {/*
-                    * `eventType` con hien nguyen chuoi tieng Anh snake_case (vd
-                    * `output_download_url_issued`). Can ~20 nhan cau chu do owner/BA duyet - DEV
-                    * khong tu che. Da ghi vao phan gioi han cua P2-MCP-33.
+                    * Q-24 (D-060): nhan cho tung loai su kien. Truoc day cho nay hien nguyen chuoi
+                    * tieng Anh `snake_case` cho nguoi dung Viet. Co phep chan doc THANG danh sach
+                    * loai su kien tu ma may chu, nen them loai moi ma quen nhan la test do.
                     */}
-                  <strong>{event.eventType}</strong>
+                  <strong>{translate(`audit_event.${event.eventType}`)}</strong>
                   <span style={{ color: 'var(--mcp-text-secondary)', marginLeft: 'var(--mcp-space-3)' }}>
                     {event.subjectType} · {formatDateTime(DEFAULT_LOCALE, event.occurredAt)}
                   </span>

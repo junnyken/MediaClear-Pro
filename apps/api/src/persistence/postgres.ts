@@ -540,6 +540,41 @@ export class PostgresPersistence implements PersistencePort {
       );
       return rows[0] ? toJob(rows[0]) : null;
     },
+
+    claimStale: async (now: string, staleBefore: string): Promise<ProcessingJob | null> => {
+      /*
+       * Cung khuon voi `claimQueued`: chon va doi trang thai trong MOT cau lenh, `SKIP LOCKED` de
+       * nhieu worker chia nhau duoc that su.
+       *
+       * Khac o dieu kien: nhin `processing` va `updated_at` da cu. `updated_at` duoc chinh moi lan
+       * job doi trang thai, nen no chinh la "lan cuoi con co ai do dong vao job nay".
+       */
+      const rows = await this.q<JobRow>(
+        `UPDATE processing_jobs SET attempt_count = attempt_count + 1, updated_at = $1
+          WHERE id = (
+            SELECT id FROM processing_jobs
+             WHERE state = 'processing' AND updated_at < $2
+             ORDER BY updated_at ASC
+             LIMIT 1
+             FOR UPDATE SKIP LOCKED
+          )
+          RETURNING *`,
+        [now, staleBefore],
+      );
+      return rows[0] ? toJob(rows[0]) : null;
+    },
+
+    touch: async (workspaceId: string, id: string, now: string): Promise<boolean> => {
+      // `state = 'processing'` trong WHERE la phan quan trong: job da roi trang thai thi
+      // khong duoc cham nua, neu khong mot job da that bai se trong nhu dang chay.
+      const rows = await this.q<{ id: string }>(
+        `UPDATE processing_jobs SET updated_at = $3
+          WHERE id = $1 AND workspace_id = $2 AND state = 'processing'
+          RETURNING id`,
+        [id, workspaceId, now],
+      );
+      return rows.length > 0;
+    },
   };
 
   /* ------------------------------------------------------------------ usage */

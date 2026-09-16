@@ -278,7 +278,13 @@ async function writeReceipt(
 }
 
 /** Dua job ve `failed` va HOAN TRA khoan giu muc dung - khong tinh tien cho viec khong ra ket qua. */
-async function failJob(ctx: AppContext, job: ProcessingJob, error: ApiError): Promise<RunJobOutcome> {
+/**
+ * Dung han mot job va tra lai phan muc dung da giu.
+ *
+ * Xuat ra ngoai (P3, D-060) de worker dung DUNG duong nay khi bo mot job ket: neu worker tu viet
+ * lai, no se quen `releaseUsage` va nguoi dung bi giu tien cho mot viec khong bao gio chay.
+ */
+export async function failJob(ctx: AppContext, job: ProcessingJob, error: ApiError): Promise<RunJobOutcome> {
   const now = ctx.now().toISOString();
   const failed: ProcessingJob = { ...job, state: 'failed', reasonCode: error.code, updatedAt: now };
   if (canTransition(job.state, 'failed').allowed) {

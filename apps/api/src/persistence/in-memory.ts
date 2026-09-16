@@ -290,6 +290,25 @@ export class InMemoryPersistence implements PersistencePort {
       this.jobRows[index] = claimed;
       return claimed;
     },
+
+    claimStale: async (now: string, staleBefore: string): Promise<ProcessingJob | null> => {
+      const stale = this.jobRows
+        .filter((j) => j.state === 'processing' && j.updatedAt < staleBefore)
+        .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))[0];
+      if (!stale) return null;
+      const claimed: ProcessingJob = { ...stale, attemptCount: stale.attemptCount + 1, updatedAt: now };
+      const i = this.jobRows.findIndex((j) => j.id === stale.id);
+      this.jobRows[i] = claimed;
+      return claimed;
+    },
+
+    touch: async (workspaceId: string, id: string, now: string): Promise<boolean> => {
+      const i = this.jobRows.findIndex((j) => j.id === id && j.workspaceId === workspaceId);
+      const row = this.jobRows[i];
+      if (!row || row.state !== 'processing') return false;
+      this.jobRows[i] = { ...row, updatedAt: now };
+      return true;
+    },
   };
 
   readonly outputs = {

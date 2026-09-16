@@ -90,6 +90,14 @@ export const ERROR_CODES = {
   MCP_VAL_NOT_VALIDATED: 'MCP_VAL_NOT_VALIDATED',
   /** Phase 1: idempotencyKey da dung cho mot request khac noi dung. */
   MCP_JOB_IDEMPOTENCY_CONFLICT: 'MCP_JOB_IDEMPOTENCY_CONFLICT',
+  /**
+   * P3 (D-060): job da duoc nhan lai qua nhieu lan ma van khong chay xong.
+   *
+   * Day la cong CHONG LAP: neu chinh job do lam worker chet (tep dac biet, het bo nho), thi
+   * moi lan cuu no lai giet them mot worker. Sau `MAX_JOB_ATTEMPTS` lan, job dung han va
+   * nguoi dung nhan mot cau tra loi dut khoat thay vi "dang xu ly" mai mai.
+   */
+  MCP_JOB_MAX_ATTEMPTS_EXCEEDED: 'MCP_JOB_MAX_ATTEMPTS_EXCEEDED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -187,6 +195,13 @@ export const ERROR_CATALOGUE: Readonly<Record<ErrorCode, ErrorDefinition>> = {
   // retry duoc: chay validate xong roi tao job lai la hop le.
   [C.MCP_VAL_NOT_VALIDATED]: def(C.MCP_VAL_NOT_VALIDATED, 'validation', 409, true, true),
   [C.MCP_JOB_IDEMPOTENCY_CONFLICT]: def(C.MCP_JOB_IDEMPOTENCY_CONFLICT, 'state', 409, false, false),
+  /*
+   * 500 vi day la loi PHIA HE THONG, khong phai loi cua tep hay cua nguoi dung.
+   * `retryAllowed = false`: he thong da tu thu du so lan roi; bao nguoi dung bam lai chinh job
+   * nay la noi doi. Muon lam lai thi tao job MOI.
+   * `releasesUsageReservation = true`: khong bao gio giu tien cho mot viec khong lam duoc.
+   */
+  [C.MCP_JOB_MAX_ATTEMPTS_EXCEEDED]: def(C.MCP_JOB_MAX_ATTEMPTS_EXCEEDED, 'state', 500, false, true),
 };
 
 export const ALL_ERROR_CODES: readonly ErrorCode[] = Object.values(ERROR_CODES);

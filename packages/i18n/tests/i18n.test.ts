@@ -68,6 +68,27 @@ describe('i18n foundation', () => {
     expect(formatDuration('vi', 61)).toBe('1:01');
   });
 
+  /*
+   * Q-24: nhan cho tung loai su kien o trang Nhat ky. Truoc day man hinh hien nguyen chuoi tieng
+   * Anh `snake_case` (vd `output_download_url_issued`) cho nguoi dung Viet.
+   *
+   * Danh sach loai su kien nam trong ma MAY CHU (`AUDIT_EVENTS`), khong phai trong goi i18n — nen
+   * them mot loai moi ma quen nhan se lam man hinh hien chuoi tho ma khong test nao o tren bat duoc.
+   * Test nay doc THANG tu ma may chu.
+   */
+  it('MOI loai su kien trong ma may chu deu co nhan o ca hai ngon ngu (Q-24)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const src = readFileSync(join(import.meta.dirname, '../../../apps/api/src/services/audit.ts'), 'utf8');
+    const block = src.slice(src.indexOf('AUDIT_EVENTS = {'), src.indexOf('} as const;', src.indexOf('AUDIT_EVENTS = {')));
+    const types = [...block.matchAll(/: '([a-z_]+)'/g)].map((m) => m[1] as string);
+    expect(types.length, 'khong doc duoc loai su kien nao tu ma may chu').toBeGreaterThan(10);
+    const missing = types.filter(
+      (t) => MESSAGES.vi[`audit_event.${t}`] === undefined || MESSAGES.en[`audit_event.${t}`] === undefined,
+    );
+    expect(missing, 'loai su kien khong co nhan - man hinh se hien chuoi tho').toEqual([]);
+  });
+
   it('thieu key thi lo ra chinh key, khong tra chuoi rong', () => {
     expect(t('vi', 'khong.ton.tai')).toBe('khong.ton.tai');
   });
