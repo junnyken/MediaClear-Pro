@@ -87,11 +87,11 @@ duyệt** — cộng với ~30 khoá chưa duyệt của Phase 2 (Q-11).
 |---|---|
 | `pnpm typecheck` | `0` |
 | `pnpm lint` | `0` |
-| `pnpm test` (có PostgreSQL + MinIO) | `0` — **58 tệp · 624 test đạt** |
+| `pnpm test` (có PostgreSQL + MinIO) | `0` — **58 tệp · 627 test đạt** |
 | `pnpm build:web` | `0` |
 | `git diff --check` | sạch |
 
-Phase 3 thêm **77 test**. Chạy riêng từng lệnh.
+Phase 3 thêm **80 test**. Chạy riêng từng lệnh.
 
 ## 14. Xác minh desktop/mobile — ĐÃ CHẠY THẬT
 
@@ -138,7 +138,7 @@ Sau mỗi lần, implementation **đã được khôi phục** và toàn bộ su
 - Proxy có thể **lớn hơn** bản gốc với video rất nhỏ (đo được: 12261 > 9658 byte).
 - **Không bám chuyển động**: logo ra khỏi vùng mask sẽ không được che, hệ thống **không tự phát hiện**.
 - **Chưa so nội dung tiếng** — chỉ so hiện diện + thời lượng + codec.
-- Dung sai audio `0,25s` **chưa được owner duyệt**.
+- Dung sai audio `0,25s` **nay có cơ sở đo được** (≈11× biên độ lớn nhất, xem `D-056`) nhưng vẫn là giá trị agent chọn — owner đổi được bằng một hằng số.
 - Preset **không có bằng chứng tuân thủ nền tảng**.
 - **25 interface giao diện tự khai** ở màn hình cũ vẫn ngoài phạm vi D-051.
 - Chưa dọn proxy/phiên quá hạn; chưa retry có backoff.
@@ -168,6 +168,16 @@ vào Phase 3**:
 
 Vì vậy **không** khai `READY_FOR_PHASE_4` trần: mục cuối chưa đo được và **chỉ mở được khi owner
 cấp kho object dùng chung**. Đây là chặn **bên ngoài Phase 3**, không phải thiếu sót của Phase 3.
+
+## 17b. Câu hỏi mở — đã đo, không đoán (`D-056`)
+
+**Năm câu đã trả lời bằng đo**: `Q-P3-01` (giới hạn video) · `Q-P3-02` (codec/container thật:
+họ MP4 · `h264` · `aac`) · `Q-P3-03` (dung sai audio có cơ sở) · `Q-P3-06` (**chưa** dọn dữ liệu lần
+nào, và **không có** lệnh xoá nào trong mã) · `Q-P3-07` (**0** provider dùng AI).
+
+**Bốn câu còn mở, mỗi câu có lý do cụ thể**: `Q-P3-04` cần dữ liệu **từ chính nền tảng** ·
+`Q-P3-05` cần **kho object của owner** · `Q-P3-08` và `Q-P3-09` là **quyết định của owner**.
+Không câu nào mở vì chưa ai đi tìm.
 
 ## 18. Gate này KHÔNG phải GO_LIVE
 

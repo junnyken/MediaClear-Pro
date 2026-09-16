@@ -1037,3 +1037,40 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   3. `evidence` của mọi preset trỏ tới **bộ test chứng minh** pipeline sinh đúng giá trị đã khai.
   4. Tên "TikTok/Reels/Shorts" là **nhãn gợi ý** về tỉ lệ, **không phải** cam kết tương thích.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-056 — Trả lời năm câu hỏi Phase 3 bằng ĐO, không bằng phỏng đoán
+
+- **Context**: đóng Phase 3 với `Q-P3-01`…`Q-P3-09`, trong đó vài câu được đánh `unknown` chỉ vì
+  **chưa ai đi đo**, chứ không phải vì không đo được. Owner cho phép đi tìm lời giải.
+- **Cách làm**: với mỗi câu, hỏi trước *"điều này đo được từ repo không?"*. Nếu được thì **đo**; nếu
+  không thì nói rõ **vì sao không đo được** thay vì để một chữ `unknown` trần.
+
+| Câu | Đo được? | Kết quả |
+|---|---|---|
+| `Q-P3-01` giới hạn video | **có** — đã nằm sẵn trong `MCP-03`/D-018 | 199 MB · 599 s · ≤ 3840 px · MP4/MOV/WebM |
+| `Q-P3-02` codec/container thật | **có** — `ffprobe` trên byte thật | họ MP4 · `h264` · `aac`, giống nhau cho nguồn / kết quả / proxy |
+| `Q-P3-03` dung sai audio | **có** — 12 lượt render | render `-c:a copy` lệch **0.000000s**; proxy (mã hoá lại) lệch `0.021995s` |
+| `Q-P3-06` đã dọn dữ liệu chưa | **có** — truy vấn + đọc mã | **chưa**, và `retention.ts` **không có** lệnh xoá nào |
+| `Q-P3-07` provider AI nào | **có** — đếm provider | **0** provider khai `usesAiModel`; Phase 3 không gọi AI nào |
+| `Q-P3-04` tuân thủ nền tảng | **không** | phải hỏi chính nền tảng; **không** suy ra từ repo |
+| `Q-P3-05` kho object chung | **không** | bản online vẫn `local-fs-phase1` ⇒ `blocked` |
+| `Q-P3-08` duyệt câu chữ | **không** | quyết định của owner |
+| `Q-P3-09` quy ước ID `P3-` | **không** | cách hiểu của agent, chờ owner xác nhận |
+
+- **Phát hiện đáng giá nhất — `Q-P3-03`**: dung sai `0,25s` ban đầu là **con số agent tự đặt**. Đo
+  thật cho thấy mọi đường render lệch **đúng bằng không**, vì `-c:a copy` **sao chép nguyên luồng
+  tiếng** chứ không mã hoá lại. **Chỉ đường proxy** mới lệch, và chỉ `0.022s`. Nghĩa là dung sai chỉ
+  có ý nghĩa với đường mã hoá lại, và `0,25s` là **≈ 11 lần** biên độ lớn nhất đo được. Con số giữ
+  nguyên nhưng **nay có cơ sở**, kèm test ghim cả hai giá trị.
+- **`Q-P3-06` là câu trả lời PHỦ ĐỊNH có bằng chứng**, không phải "chưa biết": `0` bản ghi bị xoá,
+  `0` bản hẹn xoá, và **không dòng mã nào** gọi `deleteObject()` trong luồng lưu giữ. Phân biệt hai
+  thứ này quan trọng — "chưa biết" mời người ta đi tìm, "đã đo và chưa từng chạy" thì nói thẳng rằng
+  tính năng đó **chưa tồn tại**.
+- **Bốn câu còn mở đều có lý do cụ thể**, không câu nào mở vì lười: hai câu cần **dữ liệu ngoài
+  repo** (nền tảng, kho object của owner), hai câu là **quyết định của owner** (câu chữ, quy ước ID).
+- **Consequences**: `Q-P3-04` được **thu hẹp** chứ không đóng — phần pipeline tự sinh **đã có bằng
+  chứng và test**; phần chưa có là *nền tảng có chấp nhận tệp hay không*. Vì vậy preset giữ
+  `partially_verified` và hai trường giới hạn vẫn `null`.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

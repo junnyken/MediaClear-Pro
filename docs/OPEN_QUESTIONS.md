@@ -1,6 +1,6 @@
 # OPEN_QUESTIONS — MediaClear Pro
 
-Cập nhật: **2026-09-16** (mở Phase 3 — thêm `Q-P3-01`…`Q-P3-09`).
+Cập nhật: **2026-09-16** (đóng Phase 3 — `Q-P3-01/02/03/06/07` đã trả lời **bằng đo**; còn `Q-P3-04/05/08/09`).
 
 Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã chốt chuyển xuống mục "Đã giải quyết" và
 **không** còn xuất hiện ở bảng đang mở.
@@ -20,13 +20,8 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 | Q-23 | Kho object dùng chung cho bản online: dùng Cloudflare R2 hay nhà cung cấp S3 nào? | `P2-MCP-24`, `DEPLOYMENT.md` | `unknown` | **Chặn deploy worker VÀ chặn go-live.** Bản online đang chạy `local-fs-phase1`: tệp nằm trên đĩa container nên **mất mỗi lần deploy lại**, và worker ở container khác **không thấy tệp nguồn** |
 | Q-24 | ~20 nhãn câu chữ cho loại sự kiện ở trang Nhật ký (`processing_job_completed`, `output_download_url_issued`…) — ai viết? | `P2-MCP-33`, giao diện | `unknown` | không chặn — hiện hiện nguyên chuỗi tiếng Anh `snake_case`. DEV **không tự chế** câu chữ |
 
-| Q-P3-01 | Giới hạn duration / size / định dạng video cho Phase 3 | MCP-03, `media-limits.ts` | **đã có trong repo** | không chặn — **199 MB · 599 giây · ≤ 3840×3840 · MP4/MOV/WebM** (D-018). Phase 3 **dùng đúng** giới hạn này, **không** tự mở rộng |
-| Q-P3-02 | Codec/container nào cho proxy và export mà pipeline **thật sự** làm được? | `P3-MCP-30`, `P3-MCP-34` | `unknown` | không chặn — phải **đo bằng `ffmpeg` thật** rồi mới ghi. Không lấy từ tài liệu quảng cáo |
-| Q-P3-03 | Tolerance cho lệch thời lượng audio sau render là bao nhiêu? | `P3-MCP-33` | `unconfirmed` | không chặn — agent đặt mặc định và ghi rõ trong quyết định; owner đổi được bằng một hằng số |
-| Q-P3-04 | Preset nào đã có bằng chứng **platform-specific** (TikTok/Reels/Shorts)? | `P3-MCP-34` | `unknown` | không chặn — **hiện KHÔNG có bằng chứng nào**. Preset chỉ được khai `verified` ở phần pipeline tự đo được; phần tuân thủ nền tảng phải là `unknown` |
-| Q-P3-05 | Kho object dùng chung (Q-23) đã xác minh online chưa? | `Q-23`, `DEPLOYMENT.md` | **`blocked`** | **chặn mọi xác minh online** của Phase 3. Xem `Q-23` |
-| Q-P3-06 | Việc dọn dữ liệu / lưu giữ đã chạy thật lần nào chưa? | `P1.1-MCP-18` | `unknown` | chặn go-live, **không** chặn Phase 3 — tới nay **chưa xoá tệp nào**, chỉ có bản thử đếm |
-| Q-P3-07 | Provider AI nào được phép gọi, ở môi trường nào? | Q-06, `PROVIDER_BENCHMARK.md` | `unknown` | không chặn — Phase 3 **không** gọi provider AI nào. Dùng bản tất định + provider giả cho test |
+| Q-P3-04 | Preset nào đã có bằng chứng **platform-specific** (TikTok/Reels/Shorts)? | `P3-MCP-34` | `unknown` | không chặn — **đã thu hẹp**: phần pipeline tự sinh (tỉ lệ 9:16/16:9/1:1, `h264`, `aac`, MP4) **đã đo được và có test**. Phần **chưa** có bằng chứng là *nền tảng có chấp nhận tệp hay không* — thứ này **không đo được từ repo**, phải hỏi chính nền tảng. Vì vậy mọi preset giữ `partially_verified`, `maxDuration`/`maxFileSize` = `null` |
+| Q-P3-05 | Kho object dùng chung (Q-23) đã xác minh online chưa? | `Q-23`, `DEPLOYMENT.md` | **`blocked`** | **đo lại 2026-09-16**: `/healthz` bản online vẫn khai `storage: local-fs-phase1`, `production: false`. **Chặn mọi xác minh online** của Phase 3 |
 | Q-P3-08 | Khoá câu chữ nào của Phase 3 đã được owner duyệt? | i18n | `unknown` | không chặn — **chưa khoá nào**, kể cả ~30 khoá của Phase 2 (xem Q-11) |
 | Q-P3-09 | Đề bài đặt tên `MCP-30`…`MCP-34` trong khi repo đã có `P2-MCP-30`…`P2-MCP-34`. Agent dùng `P3-MCP-30`…`P3-MCP-34` theo luật canonical D-029 (ID là **chuỗi đầy đủ**). Owner xác nhận cách hiểu này chứ? | `MINI_SPEC_INDEX.md`, D-029 | `unconfirmed` | không chặn — **không ID lịch sử nào bị đổi**, không ID nào trùng |
 
@@ -49,6 +44,11 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 | Q-18 | Thời hạn lưu giữ dữ liệu | Retention policy v1: source/output 30 ngày theo **lần truy cập cuối**, trung gian 7 ngày, xem thử 24 giờ, audit 365 ngày, sổ mức dùng 24 tháng, dấu vết đã xoá 30 ngày; Phase 1.1 **chỉ có bản thử, không xoá** | D-031 |
 | Q-19 | Câu chữ tiếng Việt | Dùng bản owner duyệt; nội dung xác nhận quyền **lên phiên bản 2**; CTA ưu tiên "Làm sạch vùng nhận diện" | D-032 |
 | Q-20 | Câu cảnh báo về dấu hiệu nhận diện vô hình bị cắt trong prompt Phase 1.1 | Owner cung cấp bộ câu chữ canonical ở bản vá Q-20; câu phạm vi và câu xác nhận quyền **giữ nguyên** (đã khớp từng chữ từ Phase 1.1); thêm câu về dữ liệu còn sót và dựng lại cấu trúc hộp thoại | D-033 |
+| Q-P3-01 | Giới hạn duration / size / định dạng video Phase 3 | **Đã có sẵn trong repo, Phase 3 dùng đúng, không tự mở rộng**: 199 MB · 599 giây · ≤ 3840×3840 · MP4/MOV/WebM | D-018 |
+| Q-P3-02 | Codec/container proxy và export mà pipeline **thật sự** làm được | **Đo bằng `ffprobe` trên byte thật**: container `mov,mp4,m4a,3gp,3g2,mj2` (họ MP4) · video `h264` · audio `aac` — **giống nhau cho nguồn, kết quả và proxy**. Không lấy từ tài liệu quảng cáo | D-056 |
+| Q-P3-03 | Dung sai lệch thời lượng audio | **`0,25` giây, có cơ sở đo được**. 12 lượt render: `mask`/`blur`/`crop` (mọi tỉ lệ) lệch **đúng 0.000000s** vì dùng `-c:a copy`; chỉ đường **proxy** (mã hoá lại) lệch `0.021995s`. Dung sai ≈ **11 lần** biên độ lớn nhất. Có test ghim cả hai con số | D-056 |
+| Q-P3-06 | Việc dọn dữ liệu / lưu giữ đã chạy thật lần nào chưa | **CHƯA, và không có đường nào để chạy**: `source_files` có **0** bản `deleted_at`, **0** bản `scheduled_for_deletion`, và `retention.ts` **không gọi `deleteObject()`** ở bất kỳ đâu. Đây là câu trả lời **phủ định có bằng chứng**, không phải "chưa biết" | D-056 |
+| Q-P3-07 | Provider AI nào được phép gọi, ở môi trường nào | **Phase 3 KHÔNG gọi provider AI nào.** Đo được: **0** provider tự khai `usesAiModel = true`; `/healthz` khai `productionAiProcessingEnabled: false` với 2 provider production (đều tất định). Việc **chọn** provider AI vẫn là quyết định của owner — xem Q-06 | D-056 |
 | Q-02 | Queue/worker runtime nào cho video | **Hàng đợi nằm trên PostgreSQL** bằng `FOR UPDATE SKIP LOCKED`, worker là vai thứ ba của cùng ảnh Docker (`MEDIACLEAR_ROLE=worker`). Không thêm Redis: cơ sở dữ liệu đã có sẵn và Vibe Host không có Redis. **Video vẫn chưa xử lý được** — đó là Q-06, không phải Q-02 | D-042 |
 | Q-14 | Auth provider/IdP cụ thể cho production | **Tự làm**: email + mật khẩu băm bằng `scrypt` (có sẵn trong Node, không native module), phiên lưu bảng `sessions` trong PostgreSQL nên **sống sót khởi động lại**. Không dùng vendor ngoài | D-039 |
 | Q-22 | Ô tick ghi "xác nhận nội dung trên" trong khi hệ thống chỉ version hoá một câu | **Không** version hoá phần ngữ cảnh và **không** tạo statement v3. Thay vào đó ô tick hiển thị thẳng chính câu được ký (`rights.attestation.v2.statement`); tiêu đề mục, câu phạm vi hỗ trợ và hai câu cảnh báo được ghi rõ là **ngữ cảnh**, không lưu làm bằng chứng | D-035 |

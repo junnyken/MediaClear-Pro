@@ -8,7 +8,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ffmpegAvailable, makeProxy, probeVideo, renderVideo, PROXY_MAX_HEIGHT_PX } from '../src/media/ffmpeg.js';
-import { compareAudio } from '@mediaclear/contracts';
+import { AUDIO_DURATION_TOLERANCE_SECONDS, compareAudio } from '@mediaclear/contracts';
 import { FIXTURES } from './helpers.js';
 
 const load = (name: string): Promise<Buffer> => readFile(join(FIXTURES, name));
@@ -145,6 +145,42 @@ describe.skipIf(!hasFfmpeg)('P3 — render giu audio', () => {
     const source = await load('video-with-audio.mp4');
     await expect(renderVideo(source, { mode: 'crop', regions: [], cropAspect: 'khong-phai-ti-le' })).rejects.toThrow();
   }, 120_000);
+});
+
+describe.skipIf(!hasFfmpeg)('P3 — dung sai audio co co so DO DUOC (Q-P3-03)', () => {
+  /*
+   * Ban dau `0,25s` chi la mot con so agent tu dat. Do that tren 12 luot render cho ket qua ro:
+   *
+   *   mask / blur / crop (moi ti le)  -> lech DUNG 0.000000s
+   *   proxy (ma hoa lai audio)        -> lech 0.021995s
+   *
+   * Ly do khac nhau: duong render dung `-c:a copy` (SAO CHEP nguyen luong tieng) nen khong the
+   * lech; duong proxy MA HOA LAI nen co sai so lam tron khung cuoi. Dung sai chi co y nghia voi
+   * duong ma hoa lai — va 0,25s la khoang 11 lan bien do do duoc.
+   */
+  it('duong `-c:a copy` lech DUNG 0 giay - khong phai "trong dung sai" ma la BANG KHONG', async () => {
+    const source = await load('video-with-audio.mp4');
+    const before = await probeVideo(source);
+    for (const opts of [
+      { mode: 'mask' as const, regions: [region(0.1, 0.1, 0.3, 0.2)] },
+      { mode: 'blur' as const, regions: [region(0.1, 0.1, 0.3, 0.2)] },
+      { mode: 'crop' as const, regions: [], cropAspect: '9:16' },
+    ]) {
+      const out = await renderVideo(source, opts);
+      const drift = Math.abs((before.audio.durationSeconds ?? 0) - (out.probe.audio.durationSeconds ?? 0));
+      expect(drift, `che do ${opts.mode} lam lech thoi luong tieng`).toBe(0);
+    }
+  }, 240_000);
+
+  it('duong proxy MA HOA LAI audio nen co lech, nhung nam SAU trong dung sai', async () => {
+    const source = await load('video-with-audio.mp4');
+    const before = await probeVideo(source);
+    const proxy = await makeProxy(source, 120);
+    const drift = Math.abs((before.audio.durationSeconds ?? 0) - (proxy.probe.audio.durationSeconds ?? 0));
+    expect(drift).toBeGreaterThan(0);
+    // He so an toan: dung sai phai rong hon bien do do duoc it nhat 5 lan.
+    expect(drift * 5).toBeLessThan(AUDIO_DURATION_TOLERANCE_SECONDS);
+  }, 180_000);
 });
 
 describe.skipIf(!hasFfmpeg)('P3 — ban proxy de xem truoc', () => {

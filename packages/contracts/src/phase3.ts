@@ -77,11 +77,19 @@ export const AUDIO_TRACK_SCHEMA = object({
 export type AudioTrack = Infer<typeof AUDIO_TRACK_SCHEMA>;
 
 /**
- * Dung sai thoi luong audio sau khi render (Q-P3-03).
+ * Dung sai thoi luong audio sau khi render (Q-P3-03) — CO CO SO DO DUOC.
  *
- * 0,25 giay: du rong de khong bao dong gia vi cach ffmpeg lam tron khung hinh cuoi, du hep de
- * bat duoc truong hop audio bi cat that. Day la GIA TRI MAC DINH cua agent, chua duoc owner duyet
- * — doi mot hang so la xong.
+ * Do that tren 12 luot render (2 video x {mask, blur, crop 9:16, crop 16:9, crop 1:1, proxy}):
+ *
+ *   mask / blur / crop (moi ti le)  -> lech DUNG 0.000000 giay
+ *   proxy (ma hoa lai audio)        -> lech 0.021995 giay
+ *
+ * Ly do khac nhau: duong render dung `-c:a copy` (SAO CHEP nguyen luong tieng) nen khong the
+ * lech; chi duong proxy MA HOA LAI moi co sai so lam tron khung cuoi.
+ *
+ * 0,25 giay = khoang **11 lan** bien do lon nhat do duoc. Du rong de khong bao dong gia, du hep
+ * de bat duoc audio bi cat that (mot doan tieng bi mat luon tinh bang phan muoi giay tro len).
+ * Co test ghim ca hai con so; doi hang so nay la doi mot cho.
  */
 export const AUDIO_DURATION_TOLERANCE_SECONDS = 0.25;
 
