@@ -59,9 +59,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const secret = env.MEDIACLEAR_UPLOAD_SECRET ?? '';
   return {
     dataDir: env.MEDIACLEAR_DATA_DIR ?? join(tmpdir(), 'mediaclear-data'),
-    databaseUrl: env.MEDIACLEAR_DATABASE_URL && env.MEDIACLEAR_DATABASE_URL.length > 0
-      ? env.MEDIACLEAR_DATABASE_URL
-      : null,
+    databaseUrl: readDatabaseUrl(env),
     s3: readS3Config(env),
     uploadSecret: secret.length > 0 ? secret : randomBytes(32).toString('hex'),
     uploadSecretProvided: secret.length > 0,
@@ -77,6 +75,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
       : null,
     environment,
   };
+}
+
+/**
+ * P2-MCP-26: chuoi ket noi PostgreSQL.
+ *
+ * Uu tien bien RIENG cua he thong (`MEDIACLEAR_DATABASE_URL`), roi moi den `DATABASE_URL` -
+ * ten ma hau het nen tang trien khai TU TIEM khi gan mot co so du lieu vao ung dung.
+ * Khong doc tiep cac ten khac (POSTGRES_URL, DB_URL...) du chung cung duoc tiem: cang nhieu
+ * nguon cang de roi vao tinh huong hai bien tro ve hai co so du lieu khac nhau.
+ */
+function readDatabaseUrl(env: NodeJS.ProcessEnv): string | null {
+  for (const key of ['MEDIACLEAR_DATABASE_URL', 'DATABASE_URL'] as const) {
+    const value = env[key];
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return null;
 }
 
 /**
