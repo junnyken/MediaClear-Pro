@@ -1,6 +1,6 @@
 # OPEN_QUESTIONS — MediaClear Pro
 
-Cập nhật: **2026-09-16** (sau `P2-MCP-35` — hết Phase 2; Q-02 đã chốt và đã hiện thực).
+Cập nhật: **2026-09-16** (mở Phase 3 — thêm `Q-P3-01`…`Q-P3-09`).
 
 Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã chốt chuyển xuống mục "Đã giải quyết" và
 **không** còn xuất hiện ở bảng đang mở.
@@ -19,6 +19,16 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 
 | Q-23 | Kho object dùng chung cho bản online: dùng Cloudflare R2 hay nhà cung cấp S3 nào? | `P2-MCP-24`, `DEPLOYMENT.md` | `unknown` | **Chặn deploy worker VÀ chặn go-live.** Bản online đang chạy `local-fs-phase1`: tệp nằm trên đĩa container nên **mất mỗi lần deploy lại**, và worker ở container khác **không thấy tệp nguồn** |
 | Q-24 | ~20 nhãn câu chữ cho loại sự kiện ở trang Nhật ký (`processing_job_completed`, `output_download_url_issued`…) — ai viết? | `P2-MCP-33`, giao diện | `unknown` | không chặn — hiện hiện nguyên chuỗi tiếng Anh `snake_case`. DEV **không tự chế** câu chữ |
+
+| Q-P3-01 | Giới hạn duration / size / định dạng video cho Phase 3 | MCP-03, `media-limits.ts` | **đã có trong repo** | không chặn — **199 MB · 599 giây · ≤ 3840×3840 · MP4/MOV/WebM** (D-018). Phase 3 **dùng đúng** giới hạn này, **không** tự mở rộng |
+| Q-P3-02 | Codec/container nào cho proxy và export mà pipeline **thật sự** làm được? | `P3-MCP-30`, `P3-MCP-34` | `unknown` | không chặn — phải **đo bằng `ffmpeg` thật** rồi mới ghi. Không lấy từ tài liệu quảng cáo |
+| Q-P3-03 | Tolerance cho lệch thời lượng audio sau render là bao nhiêu? | `P3-MCP-33` | `unconfirmed` | không chặn — agent đặt mặc định và ghi rõ trong quyết định; owner đổi được bằng một hằng số |
+| Q-P3-04 | Preset nào đã có bằng chứng **platform-specific** (TikTok/Reels/Shorts)? | `P3-MCP-34` | `unknown` | không chặn — **hiện KHÔNG có bằng chứng nào**. Preset chỉ được khai `verified` ở phần pipeline tự đo được; phần tuân thủ nền tảng phải là `unknown` |
+| Q-P3-05 | Kho object dùng chung (Q-23) đã xác minh online chưa? | `Q-23`, `DEPLOYMENT.md` | **`blocked`** | **chặn mọi xác minh online** của Phase 3. Xem `Q-23` |
+| Q-P3-06 | Việc dọn dữ liệu / lưu giữ đã chạy thật lần nào chưa? | `P1.1-MCP-18` | `unknown` | chặn go-live, **không** chặn Phase 3 — tới nay **chưa xoá tệp nào**, chỉ có bản thử đếm |
+| Q-P3-07 | Provider AI nào được phép gọi, ở môi trường nào? | Q-06, `PROVIDER_BENCHMARK.md` | `unknown` | không chặn — Phase 3 **không** gọi provider AI nào. Dùng bản tất định + provider giả cho test |
+| Q-P3-08 | Khoá câu chữ nào của Phase 3 đã được owner duyệt? | i18n | `unknown` | không chặn — **chưa khoá nào**, kể cả ~30 khoá của Phase 2 (xem Q-11) |
+| Q-P3-09 | Đề bài đặt tên `MCP-30`…`MCP-34` trong khi repo đã có `P2-MCP-30`…`P2-MCP-34`. Agent dùng `P3-MCP-30`…`P3-MCP-34` theo luật canonical D-029 (ID là **chuỗi đầy đủ**). Owner xác nhận cách hiểu này chứ? | `MINI_SPEC_INDEX.md`, D-029 | `unconfirmed` | không chặn — **không ID lịch sử nào bị đổi**, không ID nào trùng |
 
 > Q-13 và Q-15 là **cách hiểu** của agent khi áp dụng owner decisions, đã ghi rõ trong `DECISIONS.md`
 > (D-018, D-020) thay vì tự đoán im lặng. Cả hai đều sửa được bằng một thay đổi nhỏ nếu owner muốn khác.

@@ -13,8 +13,19 @@ import { isTerminalJobState, type JobState } from './vocabulary.js';
 export const ALLOWED_TRANSITIONS: Readonly<Record<JobState, readonly JobState[]>> = {
   uploaded: ['validating', 'cancelled'],
   validating: ['queued', 'blocked', 'failed', 'cancelled'],
-  queued: ['processing', 'blocked', 'cancelled'],
-  processing: ['review_required', 'completed', 'failed', 'cancelled'],
+  /*
+   * P3: them `queued -> failed` va `processing -> blocked` theo de bai Phase 3.
+   *
+   * `queued -> failed`: mot job co the hong TRUOC khi worker kip nhan (vd tep nguon bien mat khoi
+   * kho). Truoc day duong duy nhat la `blocked`, ma `blocked` mang nghia "chinh sach/phu thuoc
+   * chan" chu khong phai "xu ly that bai" - hai thu khac nhau, va gop chung lam nguoi doc hieu sai
+   * nguyen nhan.
+   *
+   * `processing -> blocked`: dang chay ma phat hien phu thuoc khong san sang (kho luu tru khong
+   * toi duoc, provider khong dung duoc) thi do la `blocked`, khong phai `failed`.
+   */
+  queued: ['processing', 'blocked', 'failed', 'cancelled'],
+  processing: ['review_required', 'completed', 'failed', 'blocked', 'cancelled'],
   review_required: ['processing', 'completed', 'failed', 'cancelled'],
   completed: [],
   failed: [],

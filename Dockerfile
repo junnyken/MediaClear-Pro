@@ -37,6 +37,12 @@ ENV NODE_ENV=production
 ENV MEDIACLEAR_DEV_AUTH=0
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
+# ffmpeg cho toan bo Phase 3 (P3-MCP-30…34). KHONG co no thi worker nhan job video roi hong NGAY:
+# `sharp` chi lam duoc anh. Cai o chang CHAY chu khong phai chang build, vi worker la thu can no.
+RUN apt-get update \
+ && apt-get install --no-install-recommends -y ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app ./
 
 # Khong chay bang root.

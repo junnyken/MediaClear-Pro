@@ -15,6 +15,8 @@ export * from './storage-adapters/in-memory-adapter.js';
 export * from './preview.js';
 export * from './provenance.js';
 export * from './openapi.js';
+export * as schema from './schema.js';
+export * from './phase3.js';
 export * from './usage.js';
 export * from './usage-reservation.js';
 export * from './retention.js';
