@@ -78,8 +78,12 @@ trình/container riêng** đọc được tệp do API ghi. Không tự tạo bu
 
 ## 12. Câu chữ
 
-**`unknown` (Q-P3-08).** Phase 3 thêm 5 khoá nhãn preset (`preset.*`), **chưa khoá nào được owner
-duyệt** — cộng với ~30 khoá chưa duyệt của Phase 2 (Q-11).
+**Đã rà (`Q-P3-08` đóng, `D-059`).** Owner giao agent rà; agent đã rà **77 khoá** thêm từ `170b244`
+bằng **5 phép kiểm chạy được** — xem `docs/WORDING_REVIEW_P3.md`. Tìm và sửa **1 lỗi thật** (lọt
+thuật ngữ `C2PA` ra màn hình người dùng), mở rộng phép chắn thuật ngữ, có đối chứng âm.
+
+**Vẫn còn nguyên**: câu chữ **xác nhận quyền** (`Q-11`) — có sức nặng pháp lý, cần người chịu trách
+nhiệm đọc và duyệt; agent **không thay thế được**. `Rights Statement v1/v2` không bị đụng vào.
 
 ## 13. Lệnh kiểm và số test
 
@@ -176,9 +180,10 @@ cấp kho object dùng chung**. Đây là chặn **bên ngoài Phase 3**, không
 họ MP4 · `h264` · `aac`) · `Q-P3-03` (dung sai audio có cơ sở) · `Q-P3-06` (**chưa** dọn dữ liệu lần
 nào, và **không có** lệnh xoá nào trong mã) · `Q-P3-07` (**0** provider dùng AI).
 
-**Bốn câu còn mở, mỗi câu có lý do cụ thể**: `Q-P3-04` cần dữ liệu **từ chính nền tảng** ·
-`Q-P3-05` cần **kho object của owner** · `Q-P3-08` và `Q-P3-09` là **quyết định của owner**.
-Không câu nào mở vì chưa ai đi tìm.
+**`Q-P3-08` và `Q-P3-09` nay đã chốt** (`D-059`): owner giao agent rà câu chữ và xác nhận quy ước ID.
+
+**Hai câu còn mở, mỗi câu có lý do cụ thể**: `Q-P3-04` cần dữ liệu **từ chính nền tảng** ·
+`Q-P3-05` cần **kho object của owner**. Không câu nào mở vì chưa ai đi tìm.
 
 ## 18. Gate này KHÔNG phải GO_LIVE
 

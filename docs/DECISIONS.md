@@ -1156,3 +1156,42 @@ nay là một bảng số liệu chứ không phải một câu cảnh báo mơ 
   lời gọi: mọi trang trả `200`, biên nhận/cách xử lý/tiếng/nút quay lại tệp gốc đều hiện đúng,
   **console sạch**.
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-059 — Rà soát câu chữ Phase 2 + Phase 3, và chốt quy ước ID `P3-`
+
+**A. `Q-P3-08` — câu chữ.** Owner giao agent rà 77 khoá thêm từ `170b244`. Chi tiết ở
+`docs/WORDING_REVIEW_P3.md`.
+
+- Rà bằng **năm phép kiểm chạy được** trên toàn bộ 77 khoá, không đọc bằng mắt rồi kết luận.
+- **Một lỗi thật**: `provenance.limitation.no_c2pa_reader` để lọt `C2PA / Content Credentials` ra
+  màn hình. Tên chuẩn chính xác với người trong nghề nhưng **không mang thông tin gì** cho người
+  dùng cuối, và làm câu khó đọc nên người ta bỏ qua đúng phần quan trọng nhất — *"phần này chưa được
+  kiểm tra"*. Đã viết lại bằng lời thường.
+- **Mở rộng phép chắn** (`i18n.test.ts`): danh sách thuật ngữ cấm nay thêm `C2PA`,
+  `Content Credentials`, `checksum`, `codec`, `proxy`, `token`, `SHA-256`, `JSON`, `API`. Đối chứng
+  âm đã chạy.
+- **0** câu khai quá năng lực · **0** thiếu bản dịch · 2 chuỗi trùng đều **cố ý** (cùng khái niệm ở
+  hai màn hình thì phải cùng từ).
+- **Giới hạn của việc rà này, nói thẳng**: agent rà được **tính rõ ràng, nhất quán và trung thực**
+  của câu chữ giao diện. Agent **không thay thế được** người chịu trách nhiệm pháp lý. Vì vậy
+  `rights.attestation.*` / `policy.*` **không nằm trong đợt này** — đó là `Q-11`, **vẫn mở**, và
+  `Rights Statement v1/v2` **không bị đụng vào**.
+- **Còn một mục cần owner quyết**: dùng tên thương hiệu (`TikTok`/`Reels`/`Shorts`) làm nhãn preset
+  có thể bị hiểu là cam kết tương thích. Hiện đã có câu đính chính ngay bên cạnh; nếu owner muốn bỏ
+  hẳn tên thương hiệu thì đổi 5 khoá là xong.
+
+**B. `Q-P3-09` — quy ước ID.** Owner **xác nhận**: Phase 3 dùng `P3-MCP-30` … `P3-MCP-34`.
+
+Theo luật canonical `D-029`, ID là **chuỗi đầy đủ** chứ không phải con số cuối, nên `P3-MCP-30` và
+`P2-MCP-30` là **hai ID khác nhau và không bao giờ đụng nhau**. **Không ID lịch sử nào bị đổi**, không
+tài liệu cũ nào bị đánh số lại. Quy ước *"phase sau bắt đầu từ số kế tiếp"* chỉ là **trợ giúp cho
+người đọc lướt**, không phải ràng buộc kỹ thuật — và đề bài Phase 3 đặt tên `MCP-30…34` nên giữ đúng
+số của đề bài là cách đọc trung thực nhất với **cả hai** ràng buộc.
+
+Phép kiểm định dạng canonical ID cũng đã được sửa trong Phase 3 vì nó **ghim cứng** danh sách phase
+`0|1|1.1|2` — cùng dạng lỗi với `ApiRouteStatus` (`D-046`): *"các giá trị **có thể** có"* bị định
+nghĩa bằng *"các giá trị **đang** có"*.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

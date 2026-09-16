@@ -1,6 +1,6 @@
 # OPEN_QUESTIONS — MediaClear Pro
 
-Cập nhật: **2026-09-16** (đóng Phase 3 — `Q-P3-01/02/03/06/07` đã trả lời **bằng đo**; còn `Q-P3-04/05/08/09`).
+Cập nhật: **2026-09-17** (owner chốt `Q-P3-08` và `Q-P3-09`; còn `Q-P3-04` và `Q-P3-05`).
 
 Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã chốt chuyển xuống mục "Đã giải quyết" và
 **không** còn xuất hiện ở bảng đang mở.
@@ -22,8 +22,6 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 
 | Q-P3-04 | Preset nào đã có bằng chứng **platform-specific** (TikTok/Reels/Shorts)? | `P3-MCP-34` | `unknown` | không chặn — **đã thu hẹp**: phần pipeline tự sinh (tỉ lệ 9:16/16:9/1:1, `h264`, `aac`, MP4) **đã đo được và có test**. Phần **chưa** có bằng chứng là *nền tảng có chấp nhận tệp hay không* — thứ này **không đo được từ repo**, phải hỏi chính nền tảng. Vì vậy mọi preset giữ `partially_verified`, `maxDuration`/`maxFileSize` = `null` |
 | Q-P3-05 | Kho object dùng chung (Q-23) đã xác minh online chưa? | `Q-23`, `DEPLOYMENT.md` | **`blocked`** | **đo lại 2026-09-16**: `/healthz` bản online vẫn khai `storage: local-fs-phase1`, `production: false`. **Chặn mọi xác minh online** của Phase 3 |
-| Q-P3-08 | Khoá câu chữ nào của Phase 3 đã được owner duyệt? | i18n | `unknown` | không chặn — **chưa khoá nào**, kể cả ~30 khoá của Phase 2 (xem Q-11) |
-| Q-P3-09 | Đề bài đặt tên `MCP-30`…`MCP-34` trong khi repo đã có `P2-MCP-30`…`P2-MCP-34`. Agent dùng `P3-MCP-30`…`P3-MCP-34` theo luật canonical D-029 (ID là **chuỗi đầy đủ**). Owner xác nhận cách hiểu này chứ? | `MINI_SPEC_INDEX.md`, D-029 | `unconfirmed` | không chặn — **không ID lịch sử nào bị đổi**, không ID nào trùng |
 
 > Q-13 và Q-15 là **cách hiểu** của agent khi áp dụng owner decisions, đã ghi rõ trong `DECISIONS.md`
 > (D-018, D-020) thay vì tự đoán im lặng. Cả hai đều sửa được bằng một thay đổi nhỏ nếu owner muốn khác.
@@ -44,6 +42,8 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 | Q-18 | Thời hạn lưu giữ dữ liệu | Retention policy v1: source/output 30 ngày theo **lần truy cập cuối**, trung gian 7 ngày, xem thử 24 giờ, audit 365 ngày, sổ mức dùng 24 tháng, dấu vết đã xoá 30 ngày; Phase 1.1 **chỉ có bản thử, không xoá** | D-031 |
 | Q-19 | Câu chữ tiếng Việt | Dùng bản owner duyệt; nội dung xác nhận quyền **lên phiên bản 2**; CTA ưu tiên "Làm sạch vùng nhận diện" | D-032 |
 | Q-20 | Câu cảnh báo về dấu hiệu nhận diện vô hình bị cắt trong prompt Phase 1.1 | Owner cung cấp bộ câu chữ canonical ở bản vá Q-20; câu phạm vi và câu xác nhận quyền **giữ nguyên** (đã khớp từng chữ từ Phase 1.1); thêm câu về dữ liệu còn sót và dựng lại cấu trúc hộp thoại | D-033 |
+| Q-P3-08 | Khoá câu chữ nào của Phase 3 đã được owner duyệt | **Owner giao agent rà, agent đã rà 77 khoá bằng 5 phép kiểm chạy được** (`docs/WORDING_REVIEW_P3.md`). Tìm và sửa **1 lỗi thật** (lọt thuật ngữ `C2PA` ra màn hình); mở rộng phép chắn thuật ngữ + đối chứng âm. **KHÔNG bao gồm** câu chữ xác nhận quyền — đó là `Q-11`, cần người chịu trách nhiệm pháp lý, **vẫn mở** | D-059 |
+| Q-P3-09 | Quy ước ID `P3-MCP-30…34` | **Owner xác nhận.** ID canonical là **chuỗi đầy đủ** (D-029) nên `P3-MCP-30` ≠ `P2-MCP-30`; không ID lịch sử nào bị đổi | D-059 |
 | Q-P3-01 | Giới hạn duration / size / định dạng video Phase 3 | **Đã có sẵn trong repo, Phase 3 dùng đúng, không tự mở rộng**: 199 MB · 599 giây · ≤ 3840×3840 · MP4/MOV/WebM | D-018 |
 | Q-P3-02 | Codec/container proxy và export mà pipeline **thật sự** làm được | **Đo bằng `ffprobe` trên byte thật**: container `mov,mp4,m4a,3gp,3g2,mj2` (họ MP4) · video `h264` · audio `aac` — **giống nhau cho nguồn, kết quả và proxy**. Không lấy từ tài liệu quảng cáo | D-056 |
 | Q-P3-03 | Dung sai lệch thời lượng audio | **`0,25` giây, có cơ sở đo được**. 12 lượt render: `mask`/`blur`/`crop` (mọi tỉ lệ) lệch **đúng 0.000000s** vì dùng `-c:a copy`; chỉ đường **proxy** (mã hoá lại) lệch `0.021995s`. Dung sai ≈ **11 lần** biên độ lớn nhất. Có test ghim cả hai con số | D-056 |

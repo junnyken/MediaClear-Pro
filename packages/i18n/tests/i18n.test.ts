@@ -36,7 +36,13 @@ describe('i18n foundation', () => {
   });
 
   it('wording tieng Viet khong ro ri thuat ngu ky thuat cho nguoi dung cuoi', () => {
-    const jargon = /inpaint|mask|provenance|metadata|watermark|endpoint|payload/i;
+    /*
+     * Danh sach nay duoc MO RONG o P3 (D-059) sau khi ra soat 77 khoa moi: chuoi
+     * `provenance.limitation.no_c2pa_reader` da de lot `C2PA / Content Credentials` ra man hinh
+     * nguoi dung — dung ten chuan thi chinh xac voi nguoi trong nghe, nhung voi nguoi dung cuoi no
+     * khong mang thong tin gi. Ten chuan thuoc ve TAI LIEU, khong thuoc ve giao dien.
+     */
+    const jargon = /inpaint|mask|provenance|metadata|watermark|endpoint|payload|C2PA|Content Credentials|checksum|codec|proxy|token|SHA-?256|JSON|API\b/i;
     const offenders = Object.entries(MESSAGES.vi)
       .filter(([, value]) => jargon.test(value))
       .map(([key]) => key);

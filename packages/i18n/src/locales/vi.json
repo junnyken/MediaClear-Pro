@@ -291,7 +291,7 @@
   "presence.present": "Có",
   "presence.absent": "Không có",
   "presence.unknown": "Chưa đo được",
-  "provenance.limitation.no_c2pa_reader": "Chưa có công cụ đọc dấu vết AI (C2PA / Content Credentials) trong tệp. Phần này chưa được kiểm tra.",
+  "provenance.limitation.no_c2pa_reader": "Hệ thống chưa có cách đọc dấu hiệu cho biết tệp do AI tạo ra. Phần này chưa được kiểm tra.",
   "preset.tiktok_vertical": "TikTok (dọc 9:16)",
   "preset.reels_vertical": "Reels (dọc 9:16)",
   "preset.shorts_vertical": "Shorts (dọc 9:16)",
