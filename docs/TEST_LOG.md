@@ -1581,3 +1581,111 @@ output_download_url_issued | output | out_5c61a9eef13941de89fcb0edb8cf1e7c
 - Chưa có tải hàng loạt, chưa đặt tên tệp khi tải về.
 - Dấu vết ghi lúc **phát URL**: một URL đã phát mà không ai dùng vẫn được đếm. API không nhìn thấy
   lượt tải thật vì kho phục vụ byte trực tiếp.
+
+---
+
+## 2026-09-16 (lần 18) — Phase 2: đo dấu vết nguồn gốc + biên nhận
+
+MINI-SPEC `P2-MCP-30` · quyết định `D-045` (kèm `D-044`). Nền: `ae690cb`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **49 tệp · 501 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+### 2. Lỗi hợp đồng Phase 0 chặn đường — phải sửa trước mới làm tiếp được
+
+Chi tiết ở `D-044`. Tóm tắt: `evaluatePreservation()` gộp `'unknown'` với `'absent'`, nên **đo thật**
+cho ra:
+
+```
+ai=unknown cả hai phía        -> {"result":"preserved","evidenceStatus":"verified"}
+ai trước=unknown, sau=absent  -> {"result":"preserved","evidenceStatus":"verified"}
+```
+
+Dòng thứ hai nặng nhất: bộ đo **đã thấy dấu vết AI biến mất**, hệ thống vẫn đóng dấu *"đã kiểm chứng:
+giữ nguyên"*. Hệ thống không đọc được C2PA nên bộ đo thật **luôn** trả `'unknown'` — nối thẳng vào thì
+**mọi biên nhận** sẽ mang một lời khai không có cơ sở. Owner duyệt sửa; thêm 5 test cho các ca
+`'unknown'` trước đây không ca nào được kiểm. Ba test cũ liên quan **vẫn đạt**.
+
+### 3. Fixture cũ làm phép kiểm bảo toàn thành vô nghĩa
+
+`sample.png` **không có metadata nào** (exif 0, icc 0, xmp 0, iptc 0). Kiểm "có bảo toàn metadata
+không" trên nó thì luôn đạt mà chẳng chứng minh gì. Tạo `sample-with-exif.png` (EXIF 244 byte).
+
+Đối chứng âm đo được — bỏ `.withMetadata()` thì EXIF **bị xoá sạch**:
+
+```
+PNG nguồn      -> exif: 236 byte
+PNG sau xử lý  -> exif: 236 byte
+ĐỐI CHỨNG ÂM   -> exif: KHÔNG - bị xoá
+```
+
+Phép thử **có thể đỏ**, nên nó có giá trị.
+
+### 4. Phát hiện thật: công cụ TỰ THÊM metadata vào tệp người dùng
+
+```
+NGUỒN   exif: 0   | icc: 0
+KẾT QUẢ exif: 180 | icc: 480
+```
+
+`.withMetadata()` của libvips **thêm** hồ sơ màu ICC 480 byte và khối EXIF 180 byte vào tệp kết quả
+**dù tệp gốc không có gì**. Với ảnh không metadata, biên nhận ghi `trước=absent, sau=present` — **cả
+hai đều đúng** về sự thật của từng tệp, và chênh lệch chính là thông tin người dùng cần biết: công cụ
+đã thêm thứ vào tệp của họ.
+
+Ban đầu tôi viết test kỳ vọng `sau=absent` và nó đỏ. **Test sai, sản phẩm đúng.** Đã sửa test thành
+ghim lại hành vi thật kèm con số, để lần sau nó đổi thì đỏ.
+
+`evidenceStatus` vẫn `'unknown'`, **không** phải `'preserved'` — hệ thống không nhận vơ đã bảo toàn
+một thứ vốn không tồn tại.
+
+### 5. Hai số ma trong test cũ
+
+- `p2-migrate` ghim `toHaveLength(5)` cho số migration bị bỏ qua ở lần chạy hai. Thêm `0006` là đỏ, vì
+  một lý do **không liên quan** tới tính chất đang kiểm. Sửa: suy ra từ thư mục
+  (`expect(out.skipped).toHaveLength(all.length)`), tính chất cần giữ là *"lần hai bỏ qua TẤT CẢ"*.
+- Tên test *"đọc đúng hai migration của repo"* đã sai từ lâu (có 5, rồi 6). Đổi thành *"TẤT CẢ"*.
+
+Và một lần guardrail bắt tôi lần nữa: thêm route `mcp: 'P2-MCP-30'` mà quên hàng trong
+`MINI_SPEC_INDEX.md` → test đỏ đúng chỗ.
+
+### 6. Kiểm chứng live — đọc biên nhận thật
+
+```
+ 8. trang thai sau khi worker chay: completed
+11. TAI THAT: 5481 byte · sha256 bc5c40e73f9e80fd...
+    khop checksum he thong khai : true
+12. DOI CHUNG AM - duong tai cua asset tra tep nguon: true
+
+13. BIEN NHAN:
+    thao tac                    : blur
+    bang chung tong the         : unknown
+    metadata goc  TRUOC / SAU   : present / present
+    dau vet AI    TRUOC / SAU   : unknown / unknown
+    gioi han tu khai            : Chua co bo doc C2PA / Content Credentials.
+                                  Dau vet AI trong tep KHONG duoc kiem tra.
+    tra cuu duoc ban ghi do     : true
+    KHONG dong dau "verified"   : true
+14. EXIF tren tep VUA TAI VE: 240 byte - CON
+```
+
+Dòng 13 là điều quan trọng nhất của cả mục này: biên nhận **nói thật là chưa đo được** dấu vết AI, kèm
+lý do, thay vì đóng dấu "đã kiểm chứng". Dòng 14 đo trên **chính tệp vừa tải về**, không phải trên
+buffer trong bộ nhớ.
+
+Migration `0006` tự chạy khi API khởi động: `schema_migrations` có đủ `0001 … 0006`.
+
+### 7. Giới hạn của lần kiểm này
+
+- **Không đọc được C2PA / Content Credentials** (Q-12 còn mở) — giới hạn lớn nhất. Phần "dấu vết AI"
+  của **mọi** biên nhận hiện là `unknown`.
+- **Video chưa đo được metadata**.
+- **Công cụ thêm hồ sơ màu ICC vào tệp kết quả, và chưa nói điều đó với người dùng trên giao diện.**
+- **Chưa có giao diện xem biên nhận** — mới có route, chưa ai bấm thật.
+- `providerRunIds` luôn rỗng vì bản tất định chạy trong tiến trình.

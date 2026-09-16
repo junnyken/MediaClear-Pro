@@ -12,6 +12,8 @@ import type {
   IsoTimestamp,
   OutputAsset,
   ProcessingJob,
+  ProcessingReceipt,
+  ProvenanceRecord,
   Project,
   RightsAttestation,
   SourceFile,
@@ -132,4 +134,4 @@ export interface PageQuery {
 }
 
 export type { RetentionState };
-export type { Asset, AuditEvent, ProcessingJob, Project, RightsAttestation, UsageLedgerEntry, User, Workspace, WorkspaceMembership };
+export type { Asset, AuditEvent, ProcessingJob, ProcessingReceipt, ProvenanceRecord, Project, RightsAttestation, UsageLedgerEntry, User, Workspace, WorkspaceMembership };

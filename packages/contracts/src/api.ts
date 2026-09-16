@@ -89,6 +89,19 @@ export interface JobOutputDownloadResponse {
   byteSize: number;
 }
 
+/**
+ * P2-MCP-30: bien nhan kem CA hai ban ghi do.
+ *
+ * Tra ve ban ghi day du chu khong chi id: mot bien nhan tro toi hai id ma nguoi doc khong tra
+ * cuu duoc thi khong phai bang chung, chi la mot loi hua.
+ */
+export interface JobReceiptResponse {
+  receipt: ProcessingReceipt;
+  provenanceBefore: ProvenanceRecord;
+  /** null khi chua do lai duoc sau khi xu ly. */
+  provenanceAfter: ProvenanceRecord | null;
+}
+
 export interface UsageSummaryResponse {
   workspaceId: string;
   imageUnitsCommitted: number;
@@ -164,7 +177,7 @@ export const API_ROUTES = [
   // --- Van chua hien thuc: khong co xu ly media production trong Phase 1 ---
   { method: 'POST', path: '/v1/jobs/:jobId/estimate', status: 'planned', mcp: 'P0-MCP-07' },
   { method: 'POST', path: '/v1/jobs/:jobId/preview', status: 'planned', mcp: 'P0-MCP-07' },
-  { method: 'GET', path: '/v1/jobs/:jobId/receipt', status: 'planned', mcp: 'P0-MCP-05' },
+  { method: 'GET', path: '/v1/jobs/:jobId/receipt', status: 'implemented', mcp: 'P2-MCP-30' },
 ] as const;
 
 export type ApiRoute = (typeof API_ROUTES)[number];

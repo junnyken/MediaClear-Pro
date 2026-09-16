@@ -7,7 +7,7 @@
  * van vo hinh voi nguoi dung. Lay duoc tep da lam sach chinh la san pham.
  */
 import { ERROR_CODES, apiError } from '@mediaclear/contracts';
-import type { JobOutputDownloadResponse, JobOutputResponse } from '@mediaclear/contracts';
+import type { JobOutputDownloadResponse, JobOutputResponse, JobReceiptResponse } from '@mediaclear/contracts';
 import type { AppContext } from '../app-context.js';
 import { ensurePermission, type Actor } from './access.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
@@ -99,4 +99,38 @@ export async function createJobOutputDownloadUrl(
     checksumSha256: output.checksumSha256,
     byteSize: output.byteSize,
   });
+}
+
+/**
+ * Bien nhan mot luot xu ly (P2-MCP-30).
+ *
+ * Tra ve CA hai ban ghi do kem theo, khong chi id: mot bien nhan tro toi hai id ma nguoi doc
+ * khong tra cuu duoc thi khong phai bang chung, chi la mot loi hua.
+ */
+export async function getJobReceipt(
+  ctx: AppContext,
+  actor: Actor,
+  jobId: string,
+): Promise<ServiceResult<JobReceiptResponse>> {
+  const allowed = await ensurePermission(ctx, actor, {
+    resourceWorkspaceId: actor.workspace.id,
+    resourceType: 'job',
+    resourceId: jobId,
+    permission: 'job.read',
+  });
+  if (!allowed.ok) return fail(allowed.error);
+
+  const job = await ctx.persistence.jobs.findById(actor.workspace.id, jobId);
+  if (!job) return fail(apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'job' }));
+
+  const receipt = await ctx.persistence.receipts.findByJob(actor.workspace.id, jobId);
+  if (!receipt) return fail(apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'receipt' }));
+
+  const before = await ctx.persistence.provenance.findById(actor.workspace.id, receipt.provenanceBeforeId);
+  const after = receipt.provenanceAfterId
+    ? await ctx.persistence.provenance.findById(actor.workspace.id, receipt.provenanceAfterId)
+    : null;
+  if (!before) return fail(apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'provenance' }));
+
+  return ok({ receipt, provenanceBefore: before, provenanceAfter: after });
 }

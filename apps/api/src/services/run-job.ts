@@ -14,17 +14,23 @@
 import { createHash } from 'node:crypto';
 import {
   ERROR_CODES,
+  INVISIBLE_WATERMARK_DISCLAIMER_KEY,
+  PRESERVATION_DEFAULTS,
   apiError,
   canTransition,
+  evaluatePreservation,
   storageKeyFor,
   type ApiError,
   type CleanupOperation,
   type ProcessingJob,
+  type ProvenanceProbe,
+  type ProvenanceRecord,
 } from '@mediaclear/contracts';
 import type { AppContext } from '../app-context.js';
 import { DeterministicImageProvider } from '../providers/deterministic-image.js';
 import { newId } from '../ids.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
+import { probeProvenance } from '../media/provenance-probe.js';
 
 /** Toan bo anh - dung khi nguoi dung khong chon vung nao. */
 const WHOLE_IMAGE = { x: 0, y: 0, width: 1, height: 1, startSeconds: null, endSeconds: null };
@@ -111,6 +117,13 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
     }
 
     const bytes = await ctx.storage.getObject({ bucket: ctx.bucket, key: source.storageKey });
+
+    /*
+     * P2-MCP-30: do dau vet nguon goc TRUOC khi dong vao byte. Do sau khi xu ly thi khong con
+     * gi de so sanh - va mot bien nhan khong co so do truoc thi khong chung minh duoc dieu gi.
+     */
+    const probeBefore = await probeProvenance(bytes, job.mediaType);
+
     const regions = job.request.regions.length > 0 ? job.request.regions : [WHOLE_IMAGE];
     const processed = await provider.process(bytes, operation, regions);
 
@@ -145,6 +158,13 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
     }
     await ctx.persistence.outputs.markValidated(workspaceId, output.id);
 
+    /*
+     * Do LAI tren chinh byte vua doc ve tu kho, khong phai tren buffer con trong bo nho: bien
+     * nhan phai noi ve tep NGUOI DUNG SE NHAN, khong phai tep he thong dinh ghi.
+     */
+    const probeAfter = await probeProvenance(readBack, job.mediaType);
+    const receiptId = await writeReceipt(ctx, current, operation, output.id, probeBefore, probeAfter);
+
     current = { ...current, state: 'completed', outputAssetId: output.id, updatedAt: now() };
     await ctx.persistence.jobs.update(current);
 
@@ -160,6 +180,7 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
       detail: {
         operation,
         outputAssetId: output.id,
+        receiptId,
         byteSize: processed.byteSize,
         widthPx: processed.widthPx,
         heightPx: processed.heightPx,
@@ -173,6 +194,59 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
       : ERROR_CODES.MCP_PROVIDER_SUBMIT_FAILED;
     return await failJob(ctx, current, apiError(code));
   }
+}
+
+/**
+ * Ghi hai ban ghi do va mot bien nhan (P2-MCP-30).
+ *
+ * `evidenceStatus` KHONG do ham nay tu dat - no den tu `evaluatePreservation()` cua hop dong,
+ * va sau D-044 ham do tra 'unknown' khi phep do khong chay duoc. He thong chua co bo doc C2PA
+ * (Q-12), nen tren thuc te bien nhan hien noi "chua do duoc dau vet AI" - dung su that.
+ */
+async function writeReceipt(
+  ctx: AppContext,
+  job: ProcessingJob,
+  operation: CleanupOperation,
+  outputAssetId: string,
+  probeBefore: ProvenanceProbe,
+  probeAfter: ProvenanceProbe,
+): Promise<string> {
+  const now = ctx.now().toISOString();
+  const outcome = evaluatePreservation(probeBefore, probeAfter, true);
+
+  const record = async (probe: ProvenanceProbe): Promise<ProvenanceRecord> =>
+    ctx.persistence.provenance.create({
+      id: newId('prv'),
+      workspaceId: job.workspaceId,
+      originalMetadataPresence: probe.originalMetadataPresence,
+      aiProvenancePresence: probe.aiProvenancePresence,
+      preservationRequested: PRESERVATION_DEFAULTS.preserveOriginalMetadata,
+      preservationAttempted: true,
+      preservationResult: outcome.result,
+      limitationNote: probe.detectorLimitationNote,
+      evidenceStatus: outcome.evidenceStatus,
+      recordedAt: now,
+    });
+
+  const before = await record(probeBefore);
+  const after = await record(probeAfter);
+
+  const receipt = await ctx.persistence.receipts.create({
+    id: newId('rcp'),
+    workspaceId: job.workspaceId,
+    jobId: job.id,
+    sourceAssetId: job.assetId,
+    outputAssetId,
+    operations: [operation],
+    // Ban tat dinh chay TRONG tien trinh nay, khong goi provider ngoai nao => khong co run id.
+    providerRunIds: [],
+    provenanceBeforeId: before.id,
+    provenanceAfterId: after.id,
+    invisibleWatermarkDisclaimerKey: INVISIBLE_WATERMARK_DISCLAIMER_KEY,
+    evidenceStatus: outcome.evidenceStatus,
+    createdAt: now,
+  });
+  return receipt.id;
 }
 
 /** Dua job ve `failed` va HOAN TRA khoan giu muc dung - khong tinh tien cho viec khong ra ket qua. */

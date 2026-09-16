@@ -37,14 +37,19 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Câu chữ owner duyệt + phiên bản 2 của nội dung xác nhận | `policy.ts`, `packages/i18n/` | 11 test câu chữ; live: lời khai v1 bị từ chối là `stale` |
 | Worker tự nhận và chạy job (PostgreSQL `FOR UPDATE SKIP LOCKED`) | `worker/job-worker.ts`, `persistence/postgres.ts` | 8 test, trong đó 3 worker song song trên PG thật chỉ một bên nhận được; live: route nội bộ TẮT, job tạo qua API nằm `queued` 5 s rồi tự tới `completed` trong 1 s sau khi bật worker |
 | Tải bản kết quả về (tách hẳn khỏi đường tải tệp nguồn) | `services/outputs.ts`, `app/jobs/[jobId]/page.tsx` | 8 test, có đối chứng âm "đường tải asset vẫn trả tệp nguồn"; live: tải thật 5421 byte, sha256 khớp đúng số hệ thống khai |
+| Đo dấu vết nguồn gốc trên byte thật + biên nhận xử lý | `media/provenance-probe.ts`, `db/migrations/0006_*.sql` | 10 test; live: EXIF 240 byte còn nguyên trên tệp vừa tải về, biên nhận tự khai `unknown` về dấu vết AI thay vì `verified` |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
 Auth provider production · Preview render ·
-Ước tính chi phí · Biên nhận xử lý · Phân trang audit · Resumable upload · OpenAPI ·
+Ước tính chi phí · Phân trang audit · Resumable upload · OpenAPI ·
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
 **giao diện hiển thị hạn lưu giữ của tệp**.
 
+> **Đã ra khỏi mục này (P2-MCP-30, D-045): biên nhận xử lý.** Trước đó `ProcessingReceipt` là **bất
+> khả thi về cấu trúc** — nó bắt buộc có `provenanceBeforeId` mà repo không có bảng provenance nào.
+> Nay đo thật trên byte trước/sau và ghi biên nhận. **Chưa có giao diện xem biên nhận.**
+>
 > **Đã ra khỏi mục này (P2-MCP-29, D-043): lấy bản kết quả về.** Trước đó tệp đã xử lý xong nằm
 > trong kho mà **không đường nào dẫn tới nó**. Nay có `GET /v1/jobs/:jobId/output` và
 > `…/output/download-url`, giao diện hiện thẻ kết quả kèm nút tải. **Câu chữ mới chưa được owner duyệt.**

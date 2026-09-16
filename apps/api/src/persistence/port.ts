@@ -11,7 +11,9 @@ import type {
   Page,
   PageQuery,
   ProcessingJob,
+  ProcessingReceipt,
   Project,
+  ProvenanceRecord,
   RightsAttestation,
   OutputAssetRecord,
   SessionRecord,
@@ -119,6 +121,21 @@ export interface PersistencePort {
     findById(workspaceId: string, id: string): Promise<OutputAssetRecord | null>;
     /** Dat `validated` sau khi DA do lai byte that (bat bien I-2). */
     markValidated(workspaceId: string, id: string): Promise<OutputAssetRecord>;
+  };
+
+  /**
+   * P2-MCP-30. Ban ghi provenance la ket qua DO THAT tren byte, khong phai loi khai cua client.
+   * Chi co `create` va `findById`: mot phep do da chay xong thi khong duoc sua - sua no la sua
+   * bang chung.
+   */
+  provenance: {
+    create(record: ProvenanceRecord): Promise<ProvenanceRecord>;
+    findById(workspaceId: string, id: string): Promise<ProvenanceRecord | null>;
+  };
+
+  receipts: {
+    create(receipt: ProcessingReceipt): Promise<ProcessingReceipt>;
+    findByJob(workspaceId: string, jobId: string): Promise<ProcessingReceipt | null>;
   };
 
   usage: {

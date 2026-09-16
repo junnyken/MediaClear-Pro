@@ -16,6 +16,8 @@ import type {
   Project,
   RightsAttestation,
   OutputAssetRecord,
+  ProcessingReceipt,
+  ProvenanceRecord,
   SessionRecord,
   SourceFileRecord,
   UsageLedgerEntry,
@@ -79,6 +81,8 @@ export class InMemoryPersistence implements PersistencePort {
   private readonly passwordRows = new Map<string, string>();
   private readonly sessionRows: SessionRecord[] = [];
   private readonly outputRows: OutputAssetRecord[] = [];
+  private readonly provenanceRows: ProvenanceRecord[] = [];
+  private readonly receiptRows: ProcessingReceipt[] = [];
 
   readonly users = {
     findById: async (id: string): Promise<User | null> => this.userRows.get(id) ?? null,
@@ -277,6 +281,28 @@ export class InMemoryPersistence implements PersistencePort {
       this.outputRows[index] = next;
       return next;
     },
+  };
+
+  readonly provenance = {
+    create: async (record: ProvenanceRecord): Promise<ProvenanceRecord> => {
+      this.provenanceRows.push(record);
+      return record;
+    },
+    findById: async (workspaceId: string, id: string): Promise<ProvenanceRecord | null> =>
+      this.provenanceRows.find((r) => r.workspaceId === workspaceId && r.id === id) ?? null,
+  };
+
+  readonly receipts = {
+    create: async (receipt: ProcessingReceipt): Promise<ProcessingReceipt> => {
+      if (this.receiptRows.some((r) => r.jobId === receipt.jobId)) {
+        // Khop rang buoc UNIQUE (job_id): moi job dung mot bien nhan.
+        throw new Error(ERROR_CODES.MCP_STATE_INVALID_TRANSITION);
+      }
+      this.receiptRows.push(receipt);
+      return receipt;
+    },
+    findByJob: async (workspaceId: string, jobId: string): Promise<ProcessingReceipt | null> =>
+      this.receiptRows.find((r) => r.workspaceId === workspaceId && r.jobId === jobId) ?? null,
   };
 
   readonly usage = {

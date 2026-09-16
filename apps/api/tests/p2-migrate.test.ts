@@ -21,7 +21,7 @@ const URL = process.env.MEDIACLEAR_TEST_DATABASE_URL;
 const REPO_MIGRATIONS = join(import.meta.dirname, '../../../db/migrations');
 
 describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
-  it('doc dung hai migration cua repo, theo thu tu ten tep', async () => {
+  it('doc dung TAT CA migration cua repo, theo thu tu ten tep', async () => {
     const files = await readMigrations(REPO_MIGRATIONS);
     expect(files.map((f) => f.name)).toEqual([
       '0001_phase1_init.sql',
@@ -29,12 +29,13 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0003_phase2_persistence_gaps.sql',
       '0004_phase2_password_auth_sessions.sql',
       '0005_phase2_output_assets.sql',
+      '0006_phase2_provenance_receipts.sql',
     ]);
   });
 
   it('nhan ra migration DA PHAT HANH tu mo giao dich rieng', async () => {
     const files = await readMigrations(REPO_MIGRATIONS);
-    // Ca hai tep cua repo deu boc `BEGIN; … COMMIT;` => trinh chay khong duoc boc them.
+    // Moi tep cua repo deu boc `BEGIN; … COMMIT;` => trinh chay khong duoc boc them.
     expect(files.every((f) => f.selfTransacting)).toBe(true);
     expect(opensOwnTransaction('-- chu thich\n\nBEGIN;\nSELECT 1;')).toBe(true);
     expect(opensOwnTransaction('CREATE TABLE t (id text);')).toBe(false);
@@ -48,6 +49,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0003_phase2_persistence_gaps',
       '0004_phase2_password_auth_sessions',
       '0005_phase2_output_assets',
+      '0006_phase2_provenance_receipts',
     ]);
   });
 
@@ -80,7 +82,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     return p;
   }
 
-  it('chay lan dau: ap dung ca hai migration cua repo', async () => {
+  it('chay lan dau: ap dung TAT CA migration cua repo', async () => {
     const p = await freshPool();
     const out = await runMigrations(p, REPO_MIGRATIONS);
     expect(out.applied).toEqual([
@@ -89,6 +91,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
       '0003_phase2_persistence_gaps.sql',
       '0004_phase2_password_auth_sessions.sql',
       '0005_phase2_output_assets.sql',
+      '0006_phase2_provenance_receipts.sql',
     ]);
     expect(out.skipped).toEqual([]);
 
@@ -104,7 +107,9 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     expect(names).toContain('schema_migration_checksums');
     expect(names).toContain('sessions');
     expect(names).toContain('output_assets');
-    expect(names.length).toBeGreaterThanOrEqual(15); // 13 bang nghiep vu + 2 so
+    expect(names).toContain('provenance_records');
+    expect(names).toContain('processing_receipts');
+    expect(names.length).toBeGreaterThanOrEqual(17); // 15 bang nghiep vu + 2 so
 
     // 0003 vá dung ba cho luoc do THIEU so voi kieu mien - kiem cot that su co mat.
     const cols = await p.query<{ table_name: string; column_name: string }>(
@@ -126,7 +131,12 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     const p2 = await freshPool();
     const out = await runMigrations(p2, REPO_MIGRATIONS);
     expect(out.applied, 'lan hai khong duoc ap dung lai gi').toEqual([]);
-    expect(out.skipped).toHaveLength(5);
+    /*
+     * Suy ra tu thu muc, KHONG ghim so. Tinh chat can giu la "lan hai bo qua TAT CA" - ghim
+     * con so khien moi migration moi lam test do vi mot ly do khong lien quan gi den tinh chat do.
+     */
+    const all = await readMigrations(REPO_MIGRATIONS);
+    expect(out.skipped).toHaveLength(all.length);
     await p2.end();
   });
 

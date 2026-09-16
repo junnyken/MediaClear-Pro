@@ -759,3 +759,37 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   ý định gốc còn nguyên. Hệ quả nhìn thấy được: biên nhận sẽ nói *"chưa đo được dấu vết AI"* thay vì
   *"đã kiểm chứng"*, cho tới khi Q-12 (thư viện đọc C2PA) được chốt.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-045 — Đo dấu vết nguồn gốc trên byte thật và ghi biên nhận (P2-MCP-30)
+
+- **Context**: `ProcessingReceipt` bắt buộc có `provenanceBeforeId` (không nhận null), nhưng repo
+  **không có bảng provenance nào** và **không chỗ nào ghi provenance** — biên nhận là bất khả thi về
+  mặt cấu trúc, đúng dạng lỗi `output_assets` từng mắc trước D-041.
+- **Decision**:
+  1. **Bộ đo chạy trên byte thật** (`libvips-metadata-v1`): đọc EXIF/ICC/XMP/IPTC để kết luận
+     `originalMetadataPresence`. `aiProvenancePresence` **luôn `'unknown'`** vì hệ thống không có bộ
+     đọc C2PA (Q-12). Trả `'absent'` ở đây là bịa ra một phép đo chưa từng chạy.
+  2. **Đo TRƯỚC khi động vào byte**, và **đo lại trên byte đọc về từ kho** — không phải trên buffer
+     trong bộ nhớ. Biên nhận phải nói về **tệp người dùng sẽ nhận**.
+  3. **Tệp hỏng ⇒ `'unknown'`**, không phải `'absent'`: phép đo thất bại không phải bằng chứng.
+  4. **Ràng buộc D-044 đặt luôn ở tầng dữ liệu** (`provenance_unknown_never_verified`): logic đã sửa ở
+     hợp đồng, ràng buộc này chặn thêm một lần ở chỗ không đi vòng được.
+  5. **Biên nhận trả CẢ hai bản ghi đo**, không chỉ id: một biên nhận trỏ tới hai id mà người đọc
+     không tra cứu được thì không phải bằng chứng.
+  6. **Provenance và biên nhận chỉ có `create` + `find`** — ghi xong không sửa, vì sửa nó là sửa bằng chứng.
+- **Phát hiện kèm theo (đo được, không suy đoán)**: `.withMetadata()` của libvips **tự thêm** hồ sơ màu
+  ICC (480 byte) và khối EXIF (180 byte) vào tệp kết quả **dù tệp gốc không có gì**
+  (`NGUON exif:0 icc:0` → `KET QUA exif:180 icc:480`). Với ảnh không metadata, biên nhận ghi
+  `trước=absent, sau=present` — **cả hai đều đúng**, và chênh lệch chính là thông tin người dùng cần
+  biết. `evidenceStatus` vẫn `'unknown'`, không nhận vơ là đã bảo toàn thứ vốn không tồn tại. Có test
+  ghim con số lại.
+- **Alternatives considered**: (a) suy ra provenance từ lời khai của client — loại, đó là cái contract
+  tồn tại để chống; (b) bỏ trường dấu vết AI khỏi biên nhận cho gọn — loại, im lặng khó hiểu hơn nói
+  "chưa đo được"; (c) chỉ đo một lần sau khi xử lý — loại, không có số trước thì không so sánh được gì.
+- **Consequences**: biên nhận đọc được qua API lần đầu tiên. Phần "dấu vết AI" của **mọi** biên nhận
+  hiện là `unknown` cho tới khi Q-12 được chốt — đúng sự thật. Video chưa đo được metadata.
+  `providerRunIds` luôn rỗng (bản tất định chạy trong tiến trình). **Chưa có giao diện xem biên nhận.**
+  Công cụ vẫn thêm hồ sơ màu vào tệp kết quả và **chưa nói điều đó với người dùng trên giao diện**.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

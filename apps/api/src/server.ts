@@ -44,7 +44,7 @@ import {
 import { createAttestation, getAttestation } from './services/attestations.js';
 import { runJob } from './services/run-job.js';
 import { cancelJob, createJob, getJob } from './services/jobs.js';
-import { createJobOutputDownloadUrl, getJobOutput } from './services/outputs.js';
+import { createJobOutputDownloadUrl, getJobOutput, getJobReceipt } from './services/outputs.js';
 import { expireReservations, getUsageSummary } from './services/usage.js';
 import { retentionDryRunReport, retentionForAsset } from './services/retention.js';
 import type { ServiceResult } from './services/result.js';
@@ -670,6 +670,12 @@ export function buildServer(options: BuildServerOptions = {}) {
     );
   });
 
+  app.get('/v1/jobs/:jobId/receipt', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.receipt_read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'job.receipt_read', actor, await getJobReceipt(ctx, actor, param(request, 'jobId')));
+  });
+
   app.get('/v1/usage', async (request, reply) => {
     const actor = await withActor(request, reply, 'usage.read', workspaceHeader(request));
     if (!actor) return reply;
@@ -773,7 +779,15 @@ export function buildServer(options: BuildServerOptions = {}) {
       const error = apiError(ERROR_CODES.MCP_NOT_IMPLEMENTED, { route: route.path });
       return sendError(request, reply, error, 'not_implemented');
     };
-    if (route.method === 'GET') app.get(route.path, handler);
+    /*
+     * `method` doc ra kieu `string` co chu dich. `API_ROUTES` la `as const`, nen khi trong bang
+     * khong con route 'planned' nao dung GET, TypeScript thu hep `route.method` xuong con
+     * 'POST' va bao so sanh voi 'GET' la vo nghia. Vong lap nay phai tong quat: lan sau co mot
+     * route GET moi o trang thai 'planned' thi no van phai tra 501 dung cach, chu khong phai
+     * sua lai cho nay.
+     */
+    const method: string = route.method;
+    if (method === 'GET') app.get(route.path, handler);
     else app.post(route.path, handler);
   }
 

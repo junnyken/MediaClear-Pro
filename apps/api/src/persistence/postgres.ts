@@ -24,6 +24,8 @@ import type {
   Project,
   RightsAttestation,
   OutputAssetRecord,
+  ProcessingReceipt,
+  ProvenanceRecord,
   SessionRecord,
   SourceFileRecord,
   UsageLedgerEntry,
@@ -576,6 +578,63 @@ export class PostgresPersistence implements PersistencePort {
     },
   };
 
+  readonly provenance = {
+    create: async (record: ProvenanceRecord): Promise<ProvenanceRecord> => {
+      await this.q(
+        `INSERT INTO provenance_records
+           (id, workspace_id, original_metadata_presence, ai_provenance_presence,
+            preservation_requested, preservation_attempted, preservation_result,
+            limitation_note, evidence_status, recorded_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          record.id, record.workspaceId, record.originalMetadataPresence, record.aiProvenancePresence,
+          record.preservationRequested, record.preservationAttempted, record.preservationResult,
+          record.limitationNote, record.evidenceStatus, record.recordedAt,
+        ],
+      );
+      return record;
+    },
+    findById: async (workspaceId: string, id: string): Promise<ProvenanceRecord | null> => {
+      const rows = await this.q<ProvenanceRow>(
+        'SELECT * FROM provenance_records WHERE workspace_id = $1 AND id = $2',
+        [workspaceId, id],
+      );
+      return rows[0] ? toProvenance(rows[0]) : null;
+    },
+  };
+
+  readonly receipts = {
+    create: async (receipt: ProcessingReceipt): Promise<ProcessingReceipt> => {
+      try {
+        await this.q(
+          `INSERT INTO processing_receipts
+             (id, workspace_id, job_id, source_asset_id, output_asset_id, operations,
+              provider_run_ids, provenance_before_id, provenance_after_id,
+              invisible_watermark_disclaimer_key, evidence_status, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [
+            receipt.id, receipt.workspaceId, receipt.jobId, receipt.sourceAssetId, receipt.outputAssetId,
+            JSON.stringify(receipt.operations), JSON.stringify(receipt.providerRunIds),
+            receipt.provenanceBeforeId, receipt.provenanceAfterId,
+            receipt.invisibleWatermarkDisclaimerKey, receipt.evidenceStatus, receipt.createdAt,
+          ],
+        );
+      } catch (error) {
+        // UNIQUE (job_id): moi job dung mot bien nhan.
+        if (isUniqueViolation(error)) throw new Error(ERROR_CODES.MCP_STATE_INVALID_TRANSITION);
+        throw error;
+      }
+      return receipt;
+    },
+    findByJob: async (workspaceId: string, jobId: string): Promise<ProcessingReceipt | null> => {
+      const rows = await this.q<ReceiptRow>(
+        'SELECT * FROM processing_receipts WHERE workspace_id = $1 AND job_id = $2',
+        [workspaceId, jobId],
+      );
+      return rows[0] ? toReceipt(rows[0]) : null;
+    },
+  };
+
   readonly usage = {
     append: async (entry: UsageLedgerEntry): Promise<UsageLedgerEntry> => {
       // Khoa idempotency la duy nhat trong so - day la cai chan double-charge o tang du lieu.
@@ -652,6 +711,19 @@ type OutputRow = {
   checksum_sha256: string; validated: boolean; created_at: Date;
 };
 
+type ProvenanceRow = {
+  id: string; workspace_id: string; original_metadata_presence: string; ai_provenance_presence: string;
+  preservation_requested: boolean; preservation_attempted: boolean; preservation_result: string;
+  limitation_note: string | null; evidence_status: string; recorded_at: Date;
+};
+
+type ReceiptRow = {
+  id: string; workspace_id: string; job_id: string; source_asset_id: string;
+  output_asset_id: string | null; operations: unknown; provider_run_ids: unknown;
+  provenance_before_id: string; provenance_after_id: string | null;
+  invisible_watermark_disclaimer_key: string; evidence_status: string; created_at: Date;
+};
+
 type SessionRow = {
   id: string; user_id: string; token_hash: string;
   created_at: Date; expires_at: Date; revoked_at: Date | null;
@@ -725,6 +797,38 @@ function toOutput(r: OutputRow): OutputAssetRecord {
     id: r.id, workspaceId: r.workspace_id, jobId: r.job_id, sourceAssetId: r.source_asset_id,
     storageKey: r.storage_key, mimeType: r.mime_type, byteSize: numRequired(r.byte_size),
     checksumSha256: r.checksum_sha256, validated: r.validated, createdAt: isoRequired(r.created_at),
+  };
+}
+
+function toProvenance(r: ProvenanceRow): ProvenanceRecord {
+  return {
+    id: r.id,
+    workspaceId: r.workspace_id,
+    originalMetadataPresence: r.original_metadata_presence as ProvenanceRecord['originalMetadataPresence'],
+    aiProvenancePresence: r.ai_provenance_presence as ProvenanceRecord['aiProvenancePresence'],
+    preservationRequested: r.preservation_requested,
+    preservationAttempted: r.preservation_attempted,
+    preservationResult: r.preservation_result as ProvenanceRecord['preservationResult'],
+    limitationNote: r.limitation_note,
+    evidenceStatus: r.evidence_status as ProvenanceRecord['evidenceStatus'],
+    recordedAt: isoRequired(r.recorded_at),
+  };
+}
+
+function toReceipt(r: ReceiptRow): ProcessingReceipt {
+  return {
+    id: r.id,
+    workspaceId: r.workspace_id,
+    jobId: r.job_id,
+    sourceAssetId: r.source_asset_id,
+    outputAssetId: r.output_asset_id,
+    operations: (Array.isArray(r.operations) ? r.operations : []) as ProcessingReceipt['operations'],
+    providerRunIds: (Array.isArray(r.provider_run_ids) ? r.provider_run_ids : []) as ProcessingReceipt['providerRunIds'],
+    provenanceBeforeId: r.provenance_before_id,
+    provenanceAfterId: r.provenance_after_id,
+    invisibleWatermarkDisclaimerKey: r.invisible_watermark_disclaimer_key,
+    evidenceStatus: r.evidence_status as ProcessingReceipt['evidenceStatus'],
+    createdAt: isoRequired(r.created_at),
   };
 }
 
