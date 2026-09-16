@@ -1939,3 +1939,70 @@ cùng tài khoản đó) → bấm tiếp trên giao diện.
 - **Toàn bộ câu chữ mới của `P2-MCP-29/31/33` chưa được owner duyệt.**
 - Chưa bấm trên màn hình nhỏ; **chưa kiểm bằng trình đọc màn hình**.
 - Nút "Xem thêm mục cũ hơn" ở trang Nhật ký **chưa được bấm thật** — dữ liệu chưa đủ một trang.
+
+---
+
+## 2026-09-16 (lần 22) — Phase 2: tài liệu OpenAPI sinh từ bảng route
+
+MINI-SPEC `P2-MCP-34` · quyết định `D-049`. Nền: `d3d5118`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **52 tệp · 536 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+### 2. Điều tài liệu này CỐ Ý không làm
+
+Nó **không** mô tả schema thân request/response cho từng route. Đây là lựa chọn, không phải bỏ sót.
+
+Lý do đến thẳng từ lỗi lần 20: kiểu của giao diện và kiểu của máy chủ là **hai khai báo rời nhau**,
+nên cả hai đều "xanh" trong khi thực tế lệch. Viết ra 38 schema mà **không có gì kiểm chứng** chúng
+là lặp lại đúng sai lầm đó ở quy mô lớn hơn — và lần này người đọc là **client bên ngoài**, những
+người không có cách nào kiểm lại.
+
+Tài liệu khai thứ **kiểm chứng được**: đường dẫn, phương thức, trạng thái hiện thực, yêu cầu xác
+thực, vỏ bọc chung của phản hồi, và **toàn bộ 48 mã lỗi**. Giới hạn này được nói thẳng trong
+`info.description` của chính tài liệu, không giấu trong mini-spec.
+
+### 3. Phép thử chính là CHIỀU NGƯỢC LẠI
+
+Kiểm "mọi route trong bảng có trong tài liệu" là chuyện dễ — tài liệu **sinh ra từ** bảng đó nên nó
+gần như không thể sai. Phép thử có giá trị là chiều ngược: **không đường nào trong tài liệu mà server
+thật không có**, hỏi bằng `app.hasRoute()` trên Fastify thật.
+
+**Đối chứng âm đã chạy.** Thêm tạm `/v1/duong-khong-ton-tai` vào bảng route:
+
+```
+EXIT_KHI_CO_DUONG_MA=1
+× P2-MCP-34 — tai lieu OpenAPI > CHIEU NGUOC LAI: khong duong nao trong tai lieu ma server that khong co
+```
+
+Phép thử **có thể đỏ**. Đã khôi phục ngay.
+
+### 4. Kiểm chứng live
+
+```
+openapi      : 3.1.0
+so duong dan : 34
+so ma loi    : 48
+healthz co doi dang nhap khong: False
+job co doi dang nhap khong    : True
+vi du tom tat : Da hien thuc va co test HTTP that. (P2-MCP-29)
+```
+
+34 đường dẫn cho 38 mục trong bảng — chênh lệch là **đúng**: một số đường dẫn có hai phương thức
+(`GET` và `POST` trên cùng path). Mỗi route tự mang MINI-SPEC của nó trong `tags` và `summary`, nên
+truy ngược được từ tài liệu về quyết định thiết kế.
+
+### 5. Giới hạn của lần kiểm này
+
+- **Không có schema thân request/response** (cố ý — xem mục 2). Client vẫn phải đọc `docs/API.md`
+  hoặc mã nguồn để biết hình dạng dữ liệu.
+- Chưa mô tả tham số truy vấn (`cursor`, `limit`) của route phân trang.
+- Chưa mô tả header `x-workspace-id` mà hầu hết route cần.
+- **Chưa chạy qua bộ xác thực OpenAPI chuẩn** — mới kiểm hình dạng và tính khớp với server.
+- Chưa có trang đọc tài liệu (Swagger UI / Redoc).

@@ -14,6 +14,7 @@ export * from './storage.js';
 export * from './storage-adapters/in-memory-adapter.js';
 export * from './preview.js';
 export * from './provenance.js';
+export * from './openapi.js';
 export * from './usage.js';
 export * from './usage-reservation.js';
 export * from './retention.js';

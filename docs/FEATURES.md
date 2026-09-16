@@ -41,10 +41,11 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Ước tính mức dùng + xem trước trên bản proxy | `services/outputs.ts`, `services/preview.ts` | 11 test, trong đó 4 phép đo "không xảy ra điều gì"; live: xem trước chạy thật mà số bút toán mức dùng 1→1 |
 | Phân trang nhật ký kiểm toán (con trỏ, mới nhất trước) | `persistence/{in-memory,postgres}.ts`, `app/activity/page.tsx` | 14 test trên cả hai adapter + đối chứng âm bỏ khoá phụ; live: 3 trang ra đúng tập hợp như đọc một lần |
 | Giao diện: xem trước · biên nhận · hạn lưu giữ | `app/jobs/[jobId]/page.tsx`, `app/assets/[assetId]/page.tsx` | bấm tay trên Chrome thật: xem trước render ảnh, mức dùng không đổi, tải về ra đúng một tệp; 4 lỗi tìm được mà 528 test không bắt |
+| Tài liệu OpenAPI sinh từ bảng route | `packages/contracts/src/openapi.ts` | 8 test gồm phép đối chiếu NGƯỢC với Fastify thật + đối chứng âm; live: 34 đường dẫn, 48 mã lỗi |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
-Resumable upload · OpenAPI ·
+Resumable upload ·
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
 **nhãn câu chữ cho loại sự kiện ở trang Nhật ký** (chờ owner/BA duyệt).
 

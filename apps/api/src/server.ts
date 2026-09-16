@@ -14,6 +14,7 @@
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import {
   API_ROUTES,
+  buildOpenApiDocument,
   type ApiRouteStatus,
   ERROR_CODES,
   MAX_FILE_SIZE_BYTES,
@@ -456,6 +457,17 @@ export function buildServer(options: BuildServerOptions = {}) {
     const payload = body(request);
     const result = await addMember(ctx, actor, { email: payload.email, role: payload.role });
     return respond(request, reply, 'workspace.members.add', actor, result, result.ok ? result.data.id : null);
+  });
+
+  /*
+   * P2-MCP-34: tai lieu OpenAPI, SINH tu bang route chu khong viet tay.
+   *
+   * Tra THANG tai lieu, khong boc trong `{ok, data}`: cong cu doc OpenAPI mong doi tai lieu o
+   * muc goc cua phan hoi. Day la ngoai le CO CHU DICH voi quy uoc vo boc, giong `/healthz`.
+   */
+  app.get('/openapi.json', async (request, reply) => {
+    log(request, reply, { operation: 'openapi.read' });
+    return reply.send(buildOpenApiDocument());
   });
 
   app.get('/v1/workspaces/:workspaceId/audit-events', async (request, reply) => {

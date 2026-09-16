@@ -892,3 +892,29 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   tiếng Anh `snake_case`** — chờ câu chữ được duyệt. Toàn bộ câu chữ mới của `P2-MCP-29/31/33` **chưa
   được owner duyệt**. Chưa bấm trên màn hình nhỏ, chưa kiểm bằng trình đọc màn hình.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-049 — Tài liệu OpenAPI sinh từ bảng route, và cố ý không khai schema không kiểm được (P2-MCP-34)
+
+- **Context**: không có tài liệu API nào máy đọc được. `docs/API.md` là bảng cho người đọc.
+- **Decision**:
+  1. **Sinh từ `API_ROUTES`, không viết tay.** Tài liệu viết tay sẽ trôi khỏi mã nguồn, và tài liệu
+     mô tả một API **khác** với API thật thì **tệ hơn không có tài liệu** — người đọc tin nó.
+  2. **CỐ Ý không mô tả schema riêng cho từng route.** Hiện không có gì kiểm chứng được những schema
+     đó; viết ra là khai một thứ không ai đo — đúng lỗi `D-047` vừa vấp (kiểu giao diện và kiểu máy
+     chủ là hai khai báo rời nhau nên cả hai đều "xanh" trong khi thực tế lệch). Tài liệu khai thứ
+     **kiểm chứng được**: đường dẫn, phương thức, trạng thái, yêu cầu xác thực, vỏ bọc chung, và toàn
+     bộ danh mục mã lỗi. Giới hạn này được nói thẳng trong `info.description` của chính tài liệu.
+  3. **Route `planned` vẫn xuất hiện**, kèm câu nói rõ nó trả 501 — giấu đi sẽ khiến người đọc tưởng
+     đường đó không tồn tại.
+  4. **Trả ở mức gốc, không bọc `{ok, data}`**: công cụ đọc OpenAPI mong đợi thế. Ngoại lệ có chủ đích
+     với quy ước vỏ bọc, giống `/healthz`.
+- **Alternatives considered**: (a) viết tay schema đầy đủ cho 38 route — loại, không ai kiểm được,
+  và nó sẽ trôi; (b) dùng `@fastify/swagger` sinh từ JSON Schema của từng route — hoãn, sẽ tốt hơn
+  nhưng đòi khai lại schema cho toàn bộ route trước đã; (c) giấu route `planned` — loại, xem (3).
+- **Consequences**: client ngoài đọc được danh sách đường dẫn và danh mục lỗi. **Không có schema thân
+  request/response** — client vẫn phải đọc `docs/API.md` hoặc mã nguồn. Chưa có trang đọc tài liệu,
+  chưa mô tả tham số truy vấn (`cursor`/`limit`) lẫn header `x-workspace-id`. Tài liệu chưa qua bộ
+  xác thực OpenAPI chuẩn.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

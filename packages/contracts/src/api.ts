@@ -142,6 +142,7 @@ export interface UsageSummaryResponse {
 export const API_ROUTES = [
   { method: 'GET', path: '/', status: 'implemented', mcp: 'P0-MCP-00' },
   { method: 'GET', path: '/healthz', status: 'implemented', mcp: 'P0-MCP-00' },
+  { method: 'GET', path: '/openapi.json', status: 'implemented', mcp: 'P2-MCP-34' },
 
   // --- MCP-10 Auth & workspace boundary ---
   { method: 'POST', path: '/v1/auth/dev-session', status: 'dev_only', mcp: 'P1-MCP-10' },
