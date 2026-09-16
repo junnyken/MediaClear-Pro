@@ -22,7 +22,14 @@ export const STORAGE_TARGET = {
 /** Media binary KHONG bao gio nam trong PostgreSQL. */
 export const MEDIA_BINARY_IN_DATABASE = false;
 
-export type StorageClass = 'source' | 'output' | 'preview';
+/**
+ * `staging` (P2-MCP-35): cho cac manh cua mot luot tai len chua hoan tat.
+ *
+ * Manh la thu TAM. Chung duoc phep ghi de (tai lai mot manh hong la chuyen binh thuong) va bi
+ * XOA sau khi ghep xong. Chung KHONG BAO GIO la `source`: chi ban da ghep, da do va da kiem
+ * moi duoc ghi vao khoa `source`, va khoa do van bat bien nhu cu (I-1).
+ */
+export type StorageClass = 'source' | 'output' | 'preview' | 'staging';
 
 export interface StorageObjectRef {
   bucket: string;
@@ -84,7 +91,7 @@ export function storageKeyFor(
 }
 
 function asStorageClass(part: string | undefined): StorageClass | null {
-  return part === 'source' || part === 'output' || part === 'preview' ? part : null;
+  return part === 'source' || part === 'output' || part === 'preview' || part === 'staging' ? part : null;
 }
 
 /**

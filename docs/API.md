@@ -33,6 +33,10 @@
 | POST | `/v1/projects/:projectId/assets/upload-intent` | implemented | P1-MCP-15 |
 | PUT | `/v1/storage/upload/:uploadToken` | implemented | P1-MCP-15 |
 | GET | `/v1/assets/:assetId/download-url` | implemented | P1-MCP-15 |
+| POST | `/v1/source-files/:sourceFileId/upload-session` | implemented | P2-MCP-35 |
+| GET | `/v1/upload-sessions/:sessionId` | implemented | P2-MCP-35 |
+| PUT | `/v1/upload-sessions/:sessionId/chunks/:chunkIndex` | implemented | P2-MCP-35 |
+| POST | `/v1/upload-sessions/:sessionId/complete` | implemented | P2-MCP-35 |
 | GET | `/v1/storage/download/:downloadToken` | implemented | P1-MCP-15 |
 | POST | `/v1/assets/:assetId/validate` | implemented | P1-MCP-12 |
 | POST | `/v1/assets/:assetId/rights-attestation` | implemented | P1-MCP-13 |

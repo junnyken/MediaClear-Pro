@@ -918,3 +918,36 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   chưa mô tả tham số truy vấn (`cursor`/`limit`) lẫn header `x-workspace-id`. Tài liệu chưa qua bộ
   xác thực OpenAPI chuẩn.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-050 — Tải lên nhiều mảnh, nối lại được, và mảnh không bao giờ chạm lớp `source` (P2-MCP-35)
+
+- **Context**: một lượt tải lên là **một request `PUT` duy nhất**. Mất kết nối giữa chừng là mất toàn
+  bộ. Với trần 199 MB trên đường truyền kém, đó là chuyện **thường xuyên**, không phải ca hiếm.
+- **Decision**:
+  1. **Lớp lưu trữ mới `staging`** cho các mảnh. Mảnh là thứ **tạm**: ghi đè được (tải lại một mảnh
+     hỏng là bình thường) và bị xoá sau khi ghép. Chúng **không bao giờ** là `source`, nên
+     `assertWritableKey` vẫn bảo vệ I-1 nguyên vẹn.
+  2. **`receivedChunks` là thứ duy nhất làm cho "nối lại" có thật.** Không có nó, client không biết
+     tải tiếp từ đâu và "nối lại được" chỉ là một cái tên.
+  3. **`recordChunk` phải NGUYÊN TỬ** — trên PostgreSQL là **một câu lệnh** `UPDATE … jsonb_agg(...)`.
+     Hai mảnh gửi song song mà đọc-sửa-ghi thì một trong hai **biến mất khỏi danh sách** và lượt tải
+     lên "thiếu mảnh" mà không ai biết vì sao. Cùng họ với `FOR UPDATE SKIP LOCKED` của D-042.
+  4. **Kiểm cỡ mảnh ngay lúc nhận**, không đợi tới lúc ghép: một mảnh thiếu byte sẽ làm tệp ghép ra
+     sai, và nó chỉ lộ ở bước đo cuối cùng — lúc đã tốn công tải hết mọi thứ.
+  5. **Đo lại tổng số byte trước khi ghi vào `source`**: ghi bừa vào khoá đó là **không sửa được**.
+  6. **Xoá mảnh SAU KHI đã ghi và đã đánh dấu xong.** Xoá trước thì một sự cố giữa chừng làm mất **cả
+     mảnh lẫn tệp gốc**. Xoá thất bại **không** làm lượt tải lên thất bại.
+  7. **Mở lại phiên đã có ⇒ trả nguyên trạng thái**, không tạo phiên mới, không xoá mảnh đã gửi — đây
+     chính là đường client dùng sau khi mất kết nối.
+- **Alternatives considered**: (a) dùng `multipart upload` của S3 — tốt hơn hẳn về bộ nhớ nhưng đòi
+  thêm phương thức vào cổng lưu trữ và **không chạy được trên adapter đĩa local**, nên hoãn; (b) ghi
+  nối tiếp vào một object tạm — loại, không phải kho nào cũng cho ghi nối; (c) giữ mảnh trong cơ sở
+  dữ liệu — loại, đó là việc của kho.
+- **Consequences**: đứt giữa chừng rồi nối lại cho ra tệp **khớp từng byte**. **Ghép trong bộ nhớ**
+  (`Buffer.concat`) — chịu được với trần 199 MB nhưng là đỉnh bộ nhớ thật mỗi lượt và **chưa đo dưới
+  tải**. **Chưa có việc dọn phiên quá hạn**: phiên hết hạn bị từ chối nhưng **không ai xoá mảnh thừa**.
+  **Chưa có checksum cho từng mảnh** — một mảnh hỏng đúng cỡ sẽ lọt tới bước đo cuối. **Chưa nối vào
+  giao diện**; giao diện vẫn dùng đường tải lên một lần.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

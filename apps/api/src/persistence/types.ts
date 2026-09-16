@@ -108,6 +108,31 @@ export interface SessionRecord {
   revokedAt: IsoTimestamp | null;
 }
 
+/**
+ * P2-MCP-35: mot luot tai len nhieu manh.
+ *
+ * `receivedChunks` la thu DUY NHAT cho phep "tai tiep tu cho dut" - khong co no thi mat ket noi
+ * nghia la lam lai tu dau. Luu chi so chu khong luu co, vi co manh suy ra duoc tu
+ * `chunkSizeBytes` va `declaredByteSize`.
+ */
+export interface UploadSessionRecord {
+  id: Id;
+  workspaceId: Id;
+  projectId: Id;
+  assetId: Id;
+  sourceFileId: Id;
+  /** Khoa CUOI CUNG cua tep nguon. Manh khong ghi vao day. */
+  storageKey: string;
+  contentType: string;
+  declaredByteSize: number;
+  chunkSizeBytes: number;
+  totalChunks: number;
+  receivedChunks: number[];
+  state: 'open' | 'completed' | 'aborted';
+  createdAt: IsoTimestamp;
+  expiresAt: IsoTimestamp;
+}
+
 /** P2-MCP-27: ban ket qua da luu. Cung hinh dang voi `OutputAsset` cua contract. */
 export type OutputAssetRecord = OutputAsset;
 

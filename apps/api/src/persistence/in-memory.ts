@@ -20,6 +20,7 @@ import type {
   ProvenanceRecord,
   SessionRecord,
   SourceFileRecord,
+  UploadSessionRecord,
   UsageLedgerEntry,
   User,
   ValidationRecord,
@@ -111,6 +112,7 @@ export class InMemoryPersistence implements PersistencePort {
   private readonly outputRows: OutputAssetRecord[] = [];
   private readonly provenanceRows: ProvenanceRecord[] = [];
   private readonly receiptRows: ProcessingReceipt[] = [];
+  private readonly uploadSessionRows: UploadSessionRecord[] = [];
 
   readonly users = {
     findById: async (id: string): Promise<User | null> => this.userRows.get(id) ?? null,
@@ -308,6 +310,38 @@ export class InMemoryPersistence implements PersistencePort {
       const next = { ...row, validated: true };
       this.outputRows[index] = next;
       return next;
+    },
+  };
+
+  readonly uploadSessions = {
+    create: async (session: UploadSessionRecord): Promise<UploadSessionRecord> => {
+      if (this.uploadSessionRows.some((r) => r.sourceFileId === session.sourceFileId)) {
+        throw new Error(ERROR_CODES.MCP_STATE_INVALID_TRANSITION);
+      }
+      this.uploadSessionRows.push({ ...session, receivedChunks: [...session.receivedChunks] });
+      return session;
+    },
+    findById: async (workspaceId: string, id: string): Promise<UploadSessionRecord | null> => {
+      const row = this.uploadSessionRows.find((r) => r.workspaceId === workspaceId && r.id === id);
+      return row ? { ...row, receivedChunks: [...row.receivedChunks] } : null;
+    },
+    findBySourceFile: async (workspaceId: string, sourceFileId: string): Promise<UploadSessionRecord | null> => {
+      const row = this.uploadSessionRows.find((r) => r.workspaceId === workspaceId && r.sourceFileId === sourceFileId);
+      return row ? { ...row, receivedChunks: [...row.receivedChunks] } : null;
+    },
+    recordChunk: async (workspaceId: string, id: string, chunkIndex: number): Promise<UploadSessionRecord> => {
+      const row = this.uploadSessionRows.find((r) => r.workspaceId === workspaceId && r.id === id);
+      if (!row) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      // Ghi trung mot manh KHONG phai loi: tai lai mot manh la chuyen binh thuong.
+      if (!row.receivedChunks.includes(chunkIndex)) row.receivedChunks.push(chunkIndex);
+      row.receivedChunks.sort((a, b) => a - b);
+      return { ...row, receivedChunks: [...row.receivedChunks] };
+    },
+    setState: async (workspaceId: string, id: string, state: UploadSessionRecord['state']): Promise<UploadSessionRecord> => {
+      const row = this.uploadSessionRows.find((r) => r.workspaceId === workspaceId && r.id === id);
+      if (!row) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      row.state = state;
+      return { ...row, receivedChunks: [...row.receivedChunks] };
     },
   };
 

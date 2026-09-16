@@ -42,12 +42,14 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Phân trang nhật ký kiểm toán (con trỏ, mới nhất trước) | `persistence/{in-memory,postgres}.ts`, `app/activity/page.tsx` | 14 test trên cả hai adapter + đối chứng âm bỏ khoá phụ; live: 3 trang ra đúng tập hợp như đọc một lần |
 | Giao diện: xem trước · biên nhận · hạn lưu giữ | `app/jobs/[jobId]/page.tsx`, `app/assets/[assetId]/page.tsx` | bấm tay trên Chrome thật: xem trước render ảnh, mức dùng không đổi, tải về ra đúng một tệp; 4 lỗi tìm được mà 528 test không bắt |
 | Tài liệu OpenAPI sinh từ bảng route | `packages/contracts/src/openapi.ts` | 8 test gồm phép đối chiếu NGƯỢC với Fastify thật + đối chứng âm; live: 34 đường dẫn, 48 mã lỗi |
+| Tải lên nhiều mảnh, nối lại được sau khi mất kết nối | `services/resumable-upload.ts`, `db/migrations/0007_*.sql` | 11 test gồm mô phỏng đứt kết nối; live: đứt ở 14/29 mảnh rồi nối lại, tệp ghép khớp từng byte |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
-Resumable upload ·
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
-**nhãn câu chữ cho loại sự kiện ở trang Nhật ký** (chờ owner/BA duyệt).
+**worker dọn phiên tải lên quá hạn** (P2-MCP-35 để lại mảnh thừa) ·
+**nhãn câu chữ cho loại sự kiện ở trang Nhật ký** (chờ owner/BA duyệt) ·
+**giao diện dùng đường tải lên nối lại được** (mới có API).
 
 > Sửa một mục khai sai: *"Auth provider production"* vẫn nằm ở đây trong khi `P2-MCP-25` đã làm xong
 > từ trước. Bản online tự khai `identityProvider: password-phase2, production: true`. Bảng này nói sai

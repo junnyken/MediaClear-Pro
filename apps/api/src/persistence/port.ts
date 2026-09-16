@@ -18,6 +18,7 @@ import type {
   OutputAssetRecord,
   SessionRecord,
   SourceFileRecord,
+  UploadSessionRecord,
   UsageLedgerEntry,
   User,
   ValidationRecord,
@@ -128,6 +129,18 @@ export interface PersistencePort {
    * Chi co `create` va `findById`: mot phep do da chay xong thi khong duoc sua - sua no la sua
    * bang chung.
    */
+  /**
+   * P2-MCP-35. `recordChunk` phai NGUYEN TU: hai manh gui song song ma doc-sua-ghi thi mot
+   * trong hai se bien mat khoi danh sach, va luot tai len se "thieu manh" ma khong ai biet vi sao.
+   */
+  uploadSessions: {
+    create(session: UploadSessionRecord): Promise<UploadSessionRecord>;
+    findById(workspaceId: string, id: string): Promise<UploadSessionRecord | null>;
+    findBySourceFile(workspaceId: string, sourceFileId: string): Promise<UploadSessionRecord | null>;
+    recordChunk(workspaceId: string, id: string, chunkIndex: number): Promise<UploadSessionRecord>;
+    setState(workspaceId: string, id: string, state: UploadSessionRecord['state']): Promise<UploadSessionRecord>;
+  };
+
   provenance: {
     create(record: ProvenanceRecord): Promise<ProvenanceRecord>;
     findById(workspaceId: string, id: string): Promise<ProvenanceRecord | null>;

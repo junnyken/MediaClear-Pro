@@ -28,6 +28,7 @@ import type {
   ProvenanceRecord,
   SessionRecord,
   SourceFileRecord,
+  UploadSessionRecord,
   UsageLedgerEntry,
   User,
   ValidationRecord,
@@ -586,6 +587,72 @@ export class PostgresPersistence implements PersistencePort {
     },
   };
 
+  readonly uploadSessions = {
+    create: async (session: UploadSessionRecord): Promise<UploadSessionRecord> => {
+      try {
+        await this.q(
+          `INSERT INTO upload_sessions
+             (id, workspace_id, project_id, asset_id, source_file_id, storage_key, content_type,
+              declared_byte_size, chunk_size_bytes, total_chunks, received_chunks, state, created_at, expires_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14)`,
+          [
+            session.id, session.workspaceId, session.projectId, session.assetId, session.sourceFileId,
+            session.storageKey, session.contentType, session.declaredByteSize, session.chunkSizeBytes,
+            session.totalChunks, JSON.stringify(session.receivedChunks), session.state,
+            session.createdAt, session.expiresAt,
+          ],
+        );
+      } catch (error) {
+        if (isUniqueViolation(error)) throw new Error(ERROR_CODES.MCP_STATE_INVALID_TRANSITION);
+        throw error;
+      }
+      return session;
+    },
+    findById: async (workspaceId: string, id: string): Promise<UploadSessionRecord | null> => {
+      const rows = await this.q<UploadSessionRow>(
+        'SELECT * FROM upload_sessions WHERE workspace_id = $1 AND id = $2',
+        [workspaceId, id],
+      );
+      return rows[0] ? toUploadSession(rows[0]) : null;
+    },
+    findBySourceFile: async (workspaceId: string, sourceFileId: string): Promise<UploadSessionRecord | null> => {
+      const rows = await this.q<UploadSessionRow>(
+        'SELECT * FROM upload_sessions WHERE workspace_id = $1 AND source_file_id = $2',
+        [workspaceId, sourceFileId],
+      );
+      return rows[0] ? toUploadSession(rows[0]) : null;
+    },
+    recordChunk: async (workspaceId: string, id: string, chunkIndex: number): Promise<UploadSessionRecord> => {
+      /*
+       * Gop trong MOT cau lenh, khong doc-sua-ghi. Hai manh gui song song ma doc-sua-ghi thi mot
+       * trong hai se bien mat khoi danh sach, va luot tai len se "thieu manh" ma khong ai biet
+       * vi sao. `- to_jsonb(...)` truoc khi noi vao => ghi trung mot manh khong sinh ban sao.
+       */
+      const rows = await this.q<UploadSessionRow>(
+        `UPDATE upload_sessions
+            SET received_chunks = (
+                  SELECT COALESCE(jsonb_agg(v ORDER BY (v::text)::int), '[]'::jsonb)
+                    FROM jsonb_array_elements(
+                           (received_chunks - to_jsonb($3::int)::text) || jsonb_build_array($3::int)
+                         ) AS v
+                )
+          WHERE workspace_id = $1 AND id = $2
+        RETURNING *`,
+        [workspaceId, id, chunkIndex],
+      );
+      if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      return toUploadSession(rows[0]);
+    },
+    setState: async (workspaceId: string, id: string, state: UploadSessionRecord['state']): Promise<UploadSessionRecord> => {
+      const rows = await this.q<UploadSessionRow>(
+        'UPDATE upload_sessions SET state = $3 WHERE workspace_id = $1 AND id = $2 RETURNING *',
+        [workspaceId, id, state],
+      );
+      if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      return toUploadSession(rows[0]);
+    },
+  };
+
   readonly provenance = {
     create: async (record: ProvenanceRecord): Promise<ProvenanceRecord> => {
       await this.q(
@@ -724,6 +791,13 @@ type OutputRow = {
   checksum_sha256: string; validated: boolean; created_at: Date;
 };
 
+type UploadSessionRow = {
+  id: string; workspace_id: string; project_id: string; asset_id: string; source_file_id: string;
+  storage_key: string; content_type: string; declared_byte_size: string | number;
+  chunk_size_bytes: number; total_chunks: number; received_chunks: unknown;
+  state: string; created_at: Date; expires_at: Date;
+};
+
 type ProvenanceRow = {
   id: string; workspace_id: string; original_metadata_presence: string; ai_provenance_presence: string;
   preservation_requested: boolean; preservation_attempted: boolean; preservation_result: string;
@@ -810,6 +884,25 @@ function toOutput(r: OutputRow): OutputAssetRecord {
     id: r.id, workspaceId: r.workspace_id, jobId: r.job_id, sourceAssetId: r.source_asset_id,
     storageKey: r.storage_key, mimeType: r.mime_type, byteSize: numRequired(r.byte_size),
     checksumSha256: r.checksum_sha256, validated: r.validated, createdAt: isoRequired(r.created_at),
+  };
+}
+
+function toUploadSession(r: UploadSessionRow): UploadSessionRecord {
+  return {
+    id: r.id,
+    workspaceId: r.workspace_id,
+    projectId: r.project_id,
+    assetId: r.asset_id,
+    sourceFileId: r.source_file_id,
+    storageKey: r.storage_key,
+    contentType: r.content_type,
+    declaredByteSize: numRequired(r.declared_byte_size),
+    chunkSizeBytes: r.chunk_size_bytes,
+    totalChunks: r.total_chunks,
+    receivedChunks: Array.isArray(r.received_chunks) ? (r.received_chunks as number[]) : [],
+    state: r.state as UploadSessionRecord['state'],
+    createdAt: isoRequired(r.created_at),
+    expiresAt: isoRequired(r.expires_at),
   };
 }
 

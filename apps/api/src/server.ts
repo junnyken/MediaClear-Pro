@@ -48,6 +48,12 @@ import { runJob } from './services/run-job.js';
 import { cancelJob, createJob, getJob } from './services/jobs.js';
 import { createJobOutputDownloadUrl, estimateJob, getJobOutput, getJobReceipt } from './services/outputs.js';
 import { previewJob } from './services/preview.js';
+import {
+  completeUploadSession,
+  getUploadSession,
+  openUploadSession,
+  putUploadChunk,
+} from './services/resumable-upload.js';
 import { expireReservations, getUsageSummary } from './services/usage.js';
 import { retentionDryRunReport, retentionForAsset } from './services/retention.js';
 import type { ServiceResult } from './services/result.js';
@@ -581,6 +587,60 @@ export function buildServer(options: BuildServerOptions = {}) {
       .header('content-type', contentType)
       .header('content-disposition', `attachment; filename="${filename}"`)
       .send(bytes);
+  });
+
+  /* ------------------------------------ P2-MCP-35: tai len noi lai duoc --- */
+
+  app.post('/v1/source-files/:sourceFileId/upload-session', async (request, reply) => {
+    const actor = await withActor(request, reply, 'upload.session_open', workspaceHeader(request));
+    if (!actor) return reply;
+    const payload = body(request);
+    const chunkSizeBytes = typeof payload.chunkSizeBytes === 'number' ? payload.chunkSizeBytes : undefined;
+    return respond(
+      request,
+      reply,
+      'upload.session_open',
+      actor,
+      await openUploadSession(ctx, actor, param(request, 'sourceFileId'), chunkSizeBytes),
+    );
+  });
+
+  app.get('/v1/upload-sessions/:sessionId', async (request, reply) => {
+    const actor = await withActor(request, reply, 'upload.session_read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'upload.session_read', actor, await getUploadSession(ctx, actor, param(request, 'sessionId')));
+  });
+
+  /*
+   * Nhan BYTE THO cua mot manh. Dung chung bo phan tich nhi phan voi duong tai len mot lan
+   * (`PUT /v1/storage/upload/:token`), nen `content-type` tuy y cung doc duoc.
+   */
+  app.put('/v1/upload-sessions/:sessionId/chunks/:chunkIndex', async (request, reply) => {
+    const actor = await withActor(request, reply, 'upload.chunk_put', workspaceHeader(request));
+    if (!actor) return reply;
+    const raw = request.body;
+    if (!Buffer.isBuffer(raw)) {
+      return sendError(request, reply, apiError(ERROR_CODES.MCP_VAL_EMPTY_FILE), 'upload.chunk_put', actor);
+    }
+    const index = Number(param(request, 'chunkIndex'));
+    return respond(
+      request,
+      reply,
+      'upload.chunk_put',
+      actor,
+      await putUploadChunk(ctx, actor, param(request, 'sessionId'), index, raw),
+    );
+  });
+
+  app.post('/v1/upload-sessions/:sessionId/complete', async (request, reply) => {
+    const actor = await withActor(request, reply, 'upload.session_complete', workspaceHeader(request));
+    if (!actor) return reply;
+    const result = await completeUploadSession(ctx, actor, param(request, 'sessionId'));
+    if (!result.ok) return sendError(request, reply, result.error, 'upload.session_complete', actor);
+    return sendOk(request, reply, result.data, 'upload.session_complete', {
+      actor,
+      subjectId: result.data.assetId,
+    });
   });
 
   app.get('/v1/assets/:assetId/download-url', async (request, reply) => {

@@ -168,6 +168,13 @@ export const API_ROUTES = [
   { method: 'POST', path: '/v1/projects/:projectId/assets/upload-intent', status: 'implemented', mcp: 'P1-MCP-15' },
   { method: 'PUT', path: '/v1/storage/upload/:uploadToken', status: 'implemented', mcp: 'P1-MCP-15' },
   { method: 'GET', path: '/v1/assets/:assetId/download-url', status: 'implemented', mcp: 'P1-MCP-15' },
+
+  // --- P2-MCP-35: tai len noi lai duoc. Mot request PUT duy nhat khong song noi voi tep lon
+  //     tren duong truyen keu - mat ket noi la mat toan bo.
+  { method: 'POST', path: '/v1/source-files/:sourceFileId/upload-session', status: 'implemented', mcp: 'P2-MCP-35' },
+  { method: 'GET', path: '/v1/upload-sessions/:sessionId', status: 'implemented', mcp: 'P2-MCP-35' },
+  { method: 'PUT', path: '/v1/upload-sessions/:sessionId/chunks/:chunkIndex', status: 'implemented', mcp: 'P2-MCP-35' },
+  { method: 'POST', path: '/v1/upload-sessions/:sessionId/complete', status: 'implemented', mcp: 'P2-MCP-35' },
   { method: 'GET', path: '/v1/storage/download/:downloadToken', status: 'implemented', mcp: 'P1-MCP-15' },
 
   // --- MCP-12 Media intake validation ---

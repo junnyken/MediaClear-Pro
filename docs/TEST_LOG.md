@@ -2006,3 +2006,68 @@ truy ngược được từ tài liệu về quyết định thiết kế.
 - Chưa mô tả header `x-workspace-id` mà hầu hết route cần.
 - **Chưa chạy qua bộ xác thực OpenAPI chuẩn** — mới kiểm hình dạng và tính khớp với server.
 - Chưa có trang đọc tài liệu (Swagger UI / Redoc).
+
+---
+
+## 2026-09-16 (lần 23) — Phase 2: tải lên nối lại được
+
+MINI-SPEC `P2-MCP-35` · quyết định `D-050`. Nền: `6c7bb8e`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **53 tệp · 547 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+### 2. Phép thử chính là MÔ PHỎNG ĐỨT KẾT NỐI
+
+Chỉ kiểm "gửi đủ mảnh thì ghép được" **không chứng minh được gì** về khả năng nối lại — mà đó là lý
+do tồn tại của cả mục này. Phép thử thật: gửi nửa chừng → **bỏ dở** → hỏi lại server xem nó có những
+mảnh nào → gửi tiếp **đúng** phần còn thiếu.
+
+### 3. Kiểm chứng live trên PostgreSQL + MinIO thật
+
+```
+tep goc: 1893814 byte · sha256 9cfad5bb5da7e582...
+phien: ups_2424844553e79b339055b7951aea25f4 · 29 manh, moi manh 65536 byte
+=== MAT KET NOI sau 14/29 manh ===
+client hoi lai: server dang co 14 manh
+ghep khi chua du manh -> bi tu choi: missing_chunks (co liet ke manh thieu)
+ghep xong: 1893814 byte · sha256 9cfad5bb5da7e582...
+KHOP TUNG BYTE voi ban goc: true
+tep ghep ra qua duoc buoc kiem tra: true
+```
+
+Lần chạy đầu, server trả đúng danh sách mảnh thiếu: `"missing":"14,15,16,17,18,19,20,21,22,23"` —
+**nói rõ thiếu gì**, không phải một lỗi chung chung. (Lượt đó script của tôi vỡ vì `JSON.parse` một
+chuỗi có tiền tố — lỗi của tôi, không phải của sản phẩm.)
+
+Migration `0007` tự chạy khi API khởi động: `schema_migrations` có đủ `0001 … 0007`.
+
+### 4. Mười một phép thử
+
+| Test | Chặn điều gì |
+|---|---|
+| **đứt giữa chừng → hỏi lại → gửi tiếp phần thiếu** | "nối lại" chỉ là cái tên |
+| chưa đủ mảnh ⇒ từ chối, **nói rõ thiếu mảnh nào** | báo lỗi chung chung |
+| **tệp ghép ra khớp TỪNG BYTE** (đọc lại từ kho) | chỉ khớp kích thước |
+| gửi lại một mảnh không sinh bản sao | danh sách phình, ghép sai |
+| mảnh **sai kích thước** bị từ chối **ngay** | lỗi chỉ lộ ở bước cuối |
+| **ghép hai lần bị chặn** | vỡ I-1 |
+| **tệp gốc vẫn `pending`** sau khi đã gửi mảnh | mảnh rò vào lớp `source` |
+| mở lại phiên đã có giữ nguyên mảnh đã gửi | mất tiến độ khi nối lại |
+
+### 5. Giới hạn của lần kiểm này
+
+- **Ghép trong bộ nhớ** (`Buffer.concat` toàn bộ tệp). Với trần 199 MB là chịu được, nhưng đây là
+  đỉnh bộ nhớ thật cho **mỗi** lượt ghép và **chưa đo dưới tải**. Lần này chỉ ghép 1,9 MB.
+- **Chưa có việc dọn phiên quá hạn.** Cột `expires_at` có và phiên hết hạn bị từ chối, nhưng **không
+  ai xoá mảnh thừa** — chúng nằm lại trong kho.
+- **Chưa có checksum cho từng mảnh** — hiện chỉ kiểm cỡ; một mảnh hỏng **đúng cỡ** sẽ lọt tới bước đo
+  lại cuối cùng.
+- **Chưa nối vào giao diện** — mới có API; giao diện vẫn dùng đường tải lên một lần.
+- Chưa có `abort` để client chủ động huỷ phiên.
+- **Chưa thử với tệp gần trần 199 MB**, và chưa thử gửi nhiều mảnh **song song**.
