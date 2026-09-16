@@ -6,6 +6,12 @@
  * nay LUON that bai vi phien nam trong bo nho tien trinh.
  */
 import { afterAll, describe, expect, it } from 'vitest';
+
+/**
+ * Moi ca tao mot schema RIENG roi chay TOAN BO migration, cong scrypt co tinh cham de chong do
+ * mat khau. 5 giay mac dinh cua vitest khong du - va noi han o day dung hon la lam scrypt yeu di.
+ */
+const PG_TIMEOUT_MS = 30_000;
 import { Pool } from 'pg';
 import { join } from 'node:path';
 import { ERROR_CODES } from '@mediaclear/contracts';
@@ -21,7 +27,7 @@ const TTL = 3600;
 const PASS = 'mat-khau-du-dai-1';
 
 function suite(label: string, make: () => Promise<PersistencePort>): void {
-  describe(`PasswordIdentityProvider — ${label}`, () => {
+  describe(`PasswordIdentityProvider — ${label}`, { timeout: PG_TIMEOUT_MS }, () => {
     it('dang ky roi dang nhap lai duoc', async () => {
       const db = await make();
       const auth = new PasswordIdentityProvider(db, TTL);

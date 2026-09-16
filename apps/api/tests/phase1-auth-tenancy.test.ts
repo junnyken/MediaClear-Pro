@@ -14,7 +14,9 @@ describe('MCP-10 auth & workspace boundary', () => {
     expect(body.identityProvider.production).toBe(false);
     expect(body.storage.production).toBe(false);
     expect(body.persistence.durability).toBe('ephemeral');
-    expect(body.productionProviders).toBe(0);
+    // P2-MCP-27: co 1 provider production (ban tat dinh bang libvips), nhung KHONG phai AI.
+    // Dieu can giu nguyen la dong duoi: he thong khong duoc tu nhan la da bat xu ly AI.
+    expect(body.productionProviders).toBe(1);
     expect(body.limits.maxVideoDurationSeconds).toBe(599);
     await app.close();
   });

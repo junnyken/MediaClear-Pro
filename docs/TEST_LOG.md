@@ -1247,3 +1247,86 @@ báo cáo lỗi giả.
 - URL công khai, đăng ký mở, **chưa có giới hạn tần suất và chưa khoá sau N lần sai mật khẩu**.
 - Chưa có sao lưu, chưa theo dõi, chưa đo tải.
 - Chưa có xử lý AI — không job nào tới `completed`.
+
+---
+
+## 2026-09-16 (lần 15) — Phase 2: xử lý ảnh tất định, job tới `completed`
+
+MINI-SPEC `P2-MCP-27` · quyết định `D-041`. Nền: `de0e6dd`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **46 tệp · 470 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+`git diff --check`: sạch.
+
+### 2. 23 test đỏ — và vì sao gần hết là ĐÚNG
+
+Đăng ký provider production đầu tiên làm đỏ 23 test. Không phải test hỏng: **hành vi hệ thống thật sự
+đổi**, và các test cũ đang khoá cứng hiện trạng "chưa có provider nào".
+
+| Test cũ khẳng định | Sự thật mới |
+|---|---|
+| `listProduction()` rỗng | Có **1** provider production — nhưng **không phải AI**. Sửa thành `listProductionAi()` rỗng, đúng ý định gốc của R-8 |
+| `/healthz` → `productionProviders: 0` | Nay `1`. Điều phải giữ là dòng dưới: `productionAiProcessingEnabled` vẫn `false` |
+| Job xin `visible_logo_cleanup` → nhận, nằm `queued` | Nay **chặn ngay** với `MCP_PROVIDER_CAPABILITY_UNSUPPORTED`. Nói ngay "chưa làm được" tốt hơn giữ mức dùng cho một việc không bao giờ chạy |
+| Bằng chứng năng lực `unknown` | Với `blur` (tất định) là `unconfirmed` — nhánh khác |
+
+Mặc định của test helper đổi từ `visible_logo_cleanup` sang `blur`: các test đó kiểm **vòng đời job /
+mức dùng / idempotency**, không kiểm AI, nên phải dùng thao tác hệ thống thật sự làm được.
+
+3 lỗi còn lại là **quá hạn 5 giây** (mỗi ca tạo schema mới + chạy 5 migration + scrypt cố tình chậm) —
+đã nới lên 30s cho tệp đó. Nới hạn đúng hơn là làm scrypt yếu đi.
+
+### 3. Hai bẫy khi viết test — cả hai đều làm kết quả sai mà nhìn mã thì hợp lý
+
+1. **`sharp(...).extract(box).stats()` trả thống kê của ảnh ĐẦU VÀO**, bỏ qua `extract()`. Tôi đang đo
+   cả ảnh mỗi lần mà tưởng đang đo một ô. Phải ghi ô ra buffer **trước** rồi mới đo.
+2. **Làm mờ một vùng màu đồng nhất cho ra đúng màu đó.** Ảnh mẫu nửa đỏ nửa xanh khiến phép kiểm
+   "blur có tác dụng không" luôn thất bại — không phải do provider sai. Đổi sang ảnh có **sọc mảnh**
+   thì blur làm độ lệch chuẩn giảm quá 3 lần.
+
+### 4. Live verification — job tới `completed` lần đầu tiên
+
+API chạy với PostgreSQL + MinIO. Migration `0005` áp dụng lúc khởi động (`ap dung 1, bo qua 4`).
+`/healthz`: `35 route · 1 provider production · AI: false`.
+
+Luồng đầy đủ qua HTTP: đăng ký → workspace → dự án → tải ảnh 240×160 → kiểm tệp → xác nhận quyền →
+tạo job `blur` vùng `(0,0)-(0.5,0.5)` → **chạy job**:
+
+```json
+{ "jobId": "job_0381abed…", "state": "completed",
+  "outputAssetId": "out_c40a4078…", "error": null }
+```
+
+Đọc **thẳng từ MinIO**, không qua API:
+
+| Phép đo | Kết quả |
+|---|---|
+| Số bản kết quả trong kho | `1` |
+| Khoá | `…/output/out_c40a4078….png` — **lớp `output`**, khác hẳn tệp gốc |
+| Là ảnh thật | `240×160` PNG, 64893 byte |
+| **Vùng bị làm mờ** so với ảnh gốc | **đã đổi** |
+| **Vùng không được chọn** so với ảnh gốc | **lệch 0.00 — giống hệt từng byte** |
+| Tệp gốc | còn nguyên |
+
+**Một chi tiết thật, không phải lỗi:** ảnh kết quả có **4 kênh** (thêm alpha) còn ảnh gốc 3 kênh, do
+phép ghép. Lần đo đầu tôi so byte thô giữa hai ảnh khác số kênh và kết luận nhầm rằng vùng giữ nguyên
+cũng bị đổi. Chuẩn hoá về RGB rồi đo lại mới ra con số đúng.
+
+Độ lệch ở vùng làm mờ chỉ `0.90`/kênh vì ảnh mẫu là **dải màu mượt** — blur gần như không đổi ảnh
+mượt. Đó là lý do test đơn vị dùng ảnh **có sọc**, nơi blur làm mất chi tiết rõ rệt.
+
+### 5. Giới hạn
+
+- **Chỉ ảnh.** Video chưa làm được gì.
+- **Chỉ `crop` / `blur` / `brand_overlay`.** Thao tác cần AI vẫn chưa làm được — Q-06 còn mở phần AI,
+  Q-07 (media mẫu benchmark) chưa có.
+- `brand_overlay` phủ **mảng màu đặc**, chưa nhận logo thay thế.
+- **Chưa có worker tự chạy** — hiện phải gọi route nội bộ (`P2-MCP-28`).
+- Chưa đo hiệu năng trên ảnh lớn, chưa giới hạn kích thước đầu vào cho xử lý.

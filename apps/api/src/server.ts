@@ -39,6 +39,7 @@ import {
   validateAsset,
 } from './services/assets.js';
 import { createAttestation, getAttestation } from './services/attestations.js';
+import { runJob } from './services/run-job.js';
 import { cancelJob, createJob, getJob } from './services/jobs.js';
 import { expireReservations, getUsageSummary } from './services/usage.js';
 import { retentionDryRunReport, retentionForAsset } from './services/retention.js';
@@ -243,8 +244,13 @@ export function buildServer(options: BuildServerOptions = {}) {
     const data = {
       ok: true,
       phase: PHASE,
-      /** Khong bao gio bat trong Phase 1. */
-      productionAiProcessingEnabled: PRODUCTION_AI_PROCESSING_ENABLED,
+      /*
+       * P2-MCP-27: SUY RA tu registry, khong doc hang so cung nua.
+       * Tu khi co provider TAT DINH, "co provider production" khong con dong nghia voi
+       * "da bat xu ly AI". Dong nay phai noi dung mot dieu: co mo hinh AI nao dang chay khong.
+       */
+      productionAiProcessingEnabled:
+        PRODUCTION_AI_PROCESSING_ENABLED || ctx.providers.listProductionAi().length > 0,
       routes: API_ROUTES.length,
       implementedRoutes: API_ROUTES.filter((r) => r.status === 'implemented').length,
       plannedRoutes: API_ROUTES.filter((r) => r.status === 'planned').length,
@@ -680,6 +686,33 @@ export function buildServer(options: BuildServerOptions = {}) {
     const result = await expireReservations(ctx, { dryRun });
     return sendOk(request, reply, result, 'internal.usage_expire', {
       usageOperation: dryRun ? null : 'release',
+    });
+  });
+
+  /**
+   * P2-MCP-27: chay mot job da `queued`.
+   *
+   * De o duong NOI BO (tat mac dinh) thay vi chay dong bo luc tao job: worker cua P2-MCP-28
+   * se goi dung ham `runJob` nay, nen khong phai viet lai logic o hai cho.
+   */
+  app.post('/v1/internal/jobs/run', async (request, reply) => {
+    const denied = internalDenied(request, reply, 'internal.job_run');
+    if (denied) return denied;
+    const payload = body(request);
+    const workspaceId = typeof payload.workspaceId === 'string' ? payload.workspaceId : '';
+    const jobId = typeof payload.jobId === 'string' ? payload.jobId : '';
+    if (workspaceId.length === 0 || jobId.length === 0) {
+      return sendError(
+        request,
+        reply,
+        apiError(ERROR_CODES.MCP_VAL_REQUEST_INVALID, { field: 'jobId' }),
+        'internal.job_run',
+      );
+    }
+    const outcome = await runJob(ctx, workspaceId, jobId);
+    return sendOk(request, reply, outcome, 'internal.job_run', {
+      subjectId: outcome.jobId,
+      usageOperation: outcome.state === 'completed' ? 'commit' : null,
     });
   });
 

@@ -19,6 +19,8 @@ import type {
 export class NoopContractProvider implements MediaProcessingProvider {
   readonly id = 'noop-contract';
   readonly isProductionProvider = false;
+  /** Mock hop dong: khong xu ly gi, cang khong goi AI. */
+  readonly usesAiModel = false;
 
   capabilities(): ProviderCapability[] {
     return [

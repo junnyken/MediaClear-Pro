@@ -50,6 +50,7 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
 | `P2-MCP-24` | — | Phase 2 | S3-Compatible Object Storage Adapter | `docs/mini-specs/phase-2/P2-MCP-24.md` | completed |
 | `P2-MCP-25` | — | Phase 2 | Password Authentication & Durable Sessions | `docs/mini-specs/phase-2/P2-MCP-25.md` | completed |
 | `P2-MCP-26` | — | Phase 2 | Deployable Container & Runtime Configuration | `docs/mini-specs/phase-2/P2-MCP-26.md` | completed |
+| `P2-MCP-27` | — | Phase 2 | Deterministic Image Processing | `docs/mini-specs/phase-2/P2-MCP-27.md` | completed |
 
 ## Điểm mơ hồ duy nhất còn lại
 
@@ -60,10 +61,10 @@ theo thư mục chứa nó. Từ Phase 1.1 trở đi, mọi tham chiếu mới p
 ## ID đã dùng — không được tái sử dụng
 
 `MCP-00` … `MCP-15` (cả hai phase), `P0-MCP-00` … `P0-MCP-10`, `P1-MCP-10` … `P1-MCP-15`,
-`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`, `P2-MCP-23`, `P2-MCP-24`, `P2-MCP-25`, `P2-MCP-26`.
+`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`, `P2-MCP-23`, `P2-MCP-24`, `P2-MCP-25`, `P2-MCP-26`, `P2-MCP-27`.
 
 > Lưu ý: số `20` đã dùng bởi `P1.1-Q20-MCP-20`, số `21` bởi `P1.1-Q21-MCP-21`, số `22` bởi
-> `P1.1-Q22-MCP-22`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-23`** (đã dùng; tiếp theo là `P2-MCP-27`).
+> `P1.1-Q22-MCP-22`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-23`** (đã dùng; tiếp theo là `P2-MCP-28`).
 >
 > **Quy ước đánh số (D-036):** số cuối chạy theo **số hiệu câu hỏi**, không theo thứ tự hoàn thành —
 > Q-21 → `...-MCP-21`, Q-22 → `...-MCP-22`. Vì vậy `P1.1-Q21-MCP-21` mang số nhỏ hơn dù hoàn thành

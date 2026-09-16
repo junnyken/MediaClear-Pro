@@ -91,6 +91,14 @@ export interface MediaProcessingProvider {
   id: string;
   /** false = KHONG duoc dung cho traffic that (vd mock trong test). */
   readonly isProductionProvider: boolean;
+  /**
+   * P2-MCP-27: provider nay co goi MO HINH AI khong.
+   *
+   * Tach khoi `isProductionProvider` vi tu khi co ban xu ly TAT DINH, hai khai niem nay khong
+   * con trung nhau: mot provider co the phuc vu traffic that ma KHONG dung AI nao.
+   * Gop chung lai se khien `/healthz` bao "da bat xu ly AI" trong khi khong he co AI.
+   */
+  readonly usesAiModel: boolean;
   capabilities(): ProviderCapability[];
   estimate(input: ProviderEstimateInput): ProviderEstimate;
   submit(input: ProviderJobInput): Promise<ProviderJobReference>;
@@ -159,6 +167,11 @@ export class ProviderRegistry {
 
   get(id: string): MediaProcessingProvider | null {
     return this.providers.get(id) ?? null;
+  }
+
+  /** Provider production CO DUNG AI. Rong = he thong dang chay hoan toan bang thao tac tat dinh. */
+  listProductionAi(): MediaProcessingProvider[] {
+    return this.listProduction().filter((p) => p.usesAiModel);
   }
 
   /** Chi tra provider production - chan mock lot vao runtime that. */

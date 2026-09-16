@@ -617,3 +617,36 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
 - **Consequences**: deploy được lên bất kỳ nền tảng nào nhận Dockerfile. Mất tối ưu tĩnh của Next.
   **Vibe Host không có S3** nên chạy ở đó object storage là đĩa container, **mất khi redeploy**.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-041 — Xử lý ảnh tất định bằng libvips, tách "production" khỏi "dùng AI" (P2-MCP-27)
+
+- **Context**: Từ Phase 1 tới nay **không job nào tới `completed`**. Ba thứ cùng thiếu: không provider
+  production nào được đăng ký; **không có bảng lưu kết quả** (ràng buộc
+  `CHECK (state <> 'completed' OR output_asset_id IS NOT NULL)` khiến `completed` là bất khả thi);
+  và không có hàm nào đưa job đi tiếp từ `queued`. Owner chốt Q-06: **làm thao tác tất định trước**.
+- **Decision**:
+  1. `DeterministicImageProvider` dùng **libvips (sharp)**: `crop` · `blur` · `brand_overlay` trên ảnh.
+     Không gọi mô hình AI nào, không tốn tiền mỗi lần chạy, kết quả **lặp lại được**.
+  2. **Tách `usesAiModel` khỏi `isProductionProvider`.** Hai khái niệm này vốn trùng nhau nên
+     `/healthz` suy ra "đã bật xử lý AI" từ việc có provider production. Nay không còn trùng: provider
+     tất định phục vụ traffic thật mà **không có AI**. Gộp chung sẽ khiến hệ thống **báo đã bật AI
+     trong khi không hề có AI**.
+  3. **Lưu `regions`** (migration `0005`). Trước đây vùng người dùng chọn bị **kiểm rồi vứt đi** —
+     `ProcessingJobRequest` không có chỗ lưu, nên lựa chọn của họ biến mất trong im lặng.
+  4. Bảng `output_assets`, `UNIQUE (job_id)`: mỗi job đúng một bản kết quả. Chạy lại = job **mới** (D-005).
+  5. `runJob` là **hàm riêng**, không nằm trong route — worker của `P2-MCP-28` sẽ gọi đúng hàm này.
+     Trigger hiện tại là route **nội bộ**, tắt mặc định.
+  6. Thứ tự bắt buộc: `queued → processing → xử lý → lưu → ĐỌC LẠI và đo lại → completed → tính mức
+     dùng`. Đọc lại trước khi báo xong là **bất biến I-2**.
+  7. **Hệ quả hành vi**: job xin thao tác **cần AI** nay bị **chặn ngay** thay vì nằm `queued` vĩnh
+     viễn. Đây là cải thiện: nói ngay "chưa làm được" tốt hơn nhận một việc không bao giờ chạy và giữ
+     mức dùng của người ta.
+- **Alternatives considered**: (a) chạy đồng bộ ngay khi tạo job — loại, worker sẽ phải chép lại logic;
+  (b) xử lý toàn ảnh, bỏ qua `regions` — loại, đó là âm thầm bỏ lựa chọn của người dùng; (c) để
+  `isProductionProvider` kiêm luôn nghĩa "có AI" — loại, xem (2).
+- **Consequences**: job **tới `completed`** với kết quả thật — lần đầu tiên. `sharp` là native module,
+  nhưng có bản dựng sẵn cho linux-x64/glibc nên **đã kiểm build Docker thành công**. Ảnh kết quả có
+  **4 kênh** (thêm alpha) do phép ghép, trong khi ảnh gốc 3 kênh — khác biệt có thật, đã ghi lại.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

@@ -22,6 +22,7 @@ import { LocalFsStorageAdapter } from './storage/local-fs-adapter.js';
 import { S3CompatibleStorageAdapter } from './storage/s3-adapter.js';
 import type { TicketResult, UploadTicketPayload } from './storage/upload-ticket.js';
 import { HeaderMediaProbe } from './media/header-probe.js';
+import { DeterministicImageProvider } from './providers/deterministic-image.js';
 import type { MediaProbeAdapter } from './media/probe.js';
 
 /**
@@ -112,6 +113,12 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
    * Khong provider production nao duoc dang ky truoc khi co benchmark evidence (Q-06).
    */
   providers.register(new NoopContractProvider());
+  /*
+   * P2-MCP-27 (owner decision Q-06): provider TAT DINH, xu ly anh that bang libvips.
+   * Day la provider PRODUCTION dau tien duoc dang ky - nhung no KHONG phai AI: chi lam
+   * crop/blur/brand_overlay tren anh. Cac thao tac can AI van tu khai khong lam duoc.
+   */
+  providers.register(new DeterministicImageProvider());
 
   return {
     config,

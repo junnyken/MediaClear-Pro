@@ -23,6 +23,7 @@ import type {
   ProcessingJob,
   Project,
   RightsAttestation,
+  OutputAssetRecord,
   SessionRecord,
   SourceFileRecord,
   UsageLedgerEntry,
@@ -462,10 +463,10 @@ export class PostgresPersistence implements PersistencePort {
       await this.q(
         `INSERT INTO processing_jobs (
            id, workspace_id, project_id, asset_id, source_file_id, media_type, state,
-           operations, preserve_original_metadata, preserve_ai_provenance, preset_id,
+           operations, regions, preserve_original_metadata, preserve_ai_provenance, preset_id,
            output_asset_id, reason_code, block_reason_kind, idempotency_key, attempt_count,
            created_at, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         jobValues(job),
       );
       return job;
@@ -489,7 +490,8 @@ export class PostgresPersistence implements PersistencePort {
       // PostgreSQL khong suy duoc kieu va bao "could not determine data type".
       const rows = await this.q<JobRow>(
         `UPDATE processing_jobs SET
-           state = $3, operations = $4, preserve_original_metadata = $5, preserve_ai_provenance = $6,
+           state = $3, operations = $4, regions = $13::jsonb,
+           preserve_original_metadata = $5, preserve_ai_provenance = $6,
            preset_id = $7, output_asset_id = $8, reason_code = $9, block_reason_kind = $10,
            attempt_count = $11, updated_at = $12
          WHERE id = $1 AND workspace_id = $2
@@ -498,7 +500,7 @@ export class PostgresPersistence implements PersistencePort {
           job.id, job.workspaceId, job.state, job.request.operations,
           job.request.preserveOriginalMetadata, job.request.preserveAiProvenance,
           job.request.presetId, job.outputAssetId, job.reasonCode, job.blockReasonKind,
-          job.attemptCount, job.updatedAt,
+          job.attemptCount, job.updatedAt, JSON.stringify(job.request.regions ?? []),
         ],
       );
       if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
@@ -507,6 +509,50 @@ export class PostgresPersistence implements PersistencePort {
   };
 
   /* ------------------------------------------------------------------ usage */
+
+  readonly outputs = {
+    create: async (output: OutputAssetRecord): Promise<OutputAssetRecord> => {
+      try {
+        await this.q(
+          `INSERT INTO output_assets
+             (id, workspace_id, job_id, source_asset_id, storage_key, mime_type, byte_size,
+              checksum_sha256, validated, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [
+            output.id, output.workspaceId, output.jobId, output.sourceAssetId, output.storageKey,
+            output.mimeType, output.byteSize, output.checksumSha256, output.validated, output.createdAt,
+          ],
+        );
+      } catch (error) {
+        // UNIQUE (job_id): moi job dung mot ban ket qua. Chay lai => job MOI (D-005).
+        if (isUniqueViolation(error)) throw new Error(ERROR_CODES.MCP_STATE_INVALID_TRANSITION);
+        throw error;
+      }
+      return output;
+    },
+    findByJob: async (workspaceId: string, jobId: string): Promise<OutputAssetRecord | null> => {
+      const rows = await this.q<OutputRow>(
+        'SELECT * FROM output_assets WHERE workspace_id = $1 AND job_id = $2',
+        [workspaceId, jobId],
+      );
+      return rows[0] ? toOutput(rows[0]) : null;
+    },
+    findById: async (workspaceId: string, id: string): Promise<OutputAssetRecord | null> => {
+      const rows = await this.q<OutputRow>(
+        'SELECT * FROM output_assets WHERE workspace_id = $1 AND id = $2',
+        [workspaceId, id],
+      );
+      return rows[0] ? toOutput(rows[0]) : null;
+    },
+    markValidated: async (workspaceId: string, id: string): Promise<OutputAssetRecord> => {
+      const rows = await this.q<OutputRow>(
+        'UPDATE output_assets SET validated = true WHERE workspace_id = $1 AND id = $2 RETURNING *',
+        [workspaceId, id],
+      );
+      if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      return toOutput(rows[0]);
+    },
+  };
 
   readonly usage = {
     append: async (entry: UsageLedgerEntry): Promise<UsageLedgerEntry> => {
@@ -578,6 +624,12 @@ export class PostgresPersistence implements PersistencePort {
 
 /* ====================================================================== rows */
 
+type OutputRow = {
+  id: string; workspace_id: string; job_id: string; source_asset_id: string;
+  storage_key: string; mime_type: string; byte_size: string | number;
+  checksum_sha256: string; validated: boolean; created_at: Date;
+};
+
 type SessionRow = {
   id: string; user_id: string; token_hash: string;
   created_at: Date; expires_at: Date; revoked_at: Date | null;
@@ -614,7 +666,8 @@ type AttestationRow = {
 
 type JobRow = {
   id: string; workspace_id: string; project_id: string; asset_id: string; source_file_id: string;
-  media_type: string; state: string; operations: string[]; preserve_original_metadata: boolean;
+  media_type: string; state: string; operations: string[]; regions: unknown;
+  preserve_original_metadata: boolean;
   preserve_ai_provenance: boolean; preset_id: string | null; output_asset_id: string | null;
   reason_code: string | null; block_reason_kind: string | null; idempotency_key: string;
   attempt_count: number; created_at: Date; updated_at: Date;
@@ -643,6 +696,14 @@ function numRequired(value: string | number): number {
   const out = num(value);
   if (out === null) throw new Error('mong doi so nhung nhan duoc null');
   return out;
+}
+
+function toOutput(r: OutputRow): OutputAssetRecord {
+  return {
+    id: r.id, workspaceId: r.workspace_id, jobId: r.job_id, sourceAssetId: r.source_asset_id,
+    storageKey: r.storage_key, mimeType: r.mime_type, byteSize: numRequired(r.byte_size),
+    checksumSha256: r.checksum_sha256, validated: r.validated, createdAt: isoRequired(r.created_at),
+  };
 }
 
 function toSession(r: SessionRow): SessionRecord {
@@ -740,7 +801,8 @@ function toAttestation(r: AttestationRow): RightsAttestation {
 function jobValues(job: ProcessingJob): unknown[] {
   return [
     job.id, job.workspaceId, job.projectId, job.assetId, job.sourceFileId, job.mediaType, job.state,
-    job.request.operations, job.request.preserveOriginalMetadata, job.request.preserveAiProvenance,
+    job.request.operations, JSON.stringify(job.request.regions ?? []),
+    job.request.preserveOriginalMetadata, job.request.preserveAiProvenance,
     job.request.presetId, job.outputAssetId, job.reasonCode, job.blockReasonKind,
     job.idempotencyKey, job.attemptCount, job.createdAt, job.updatedAt,
   ];
@@ -753,6 +815,7 @@ function toJob(r: JobRow): ProcessingJob {
     state: r.state as ProcessingJob['state'],
     request: {
       operations: r.operations as ProcessingJob['request']['operations'],
+      regions: (Array.isArray(r.regions) ? r.regions : []) as ProcessingJob['request']['regions'],
       preserveOriginalMetadata: r.preserve_original_metadata as true,
       preserveAiProvenance: r.preserve_ai_provenance as true,
       presetId: r.preset_id,

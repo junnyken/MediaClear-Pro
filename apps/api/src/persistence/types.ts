@@ -10,6 +10,7 @@ import type {
   AuditEvent,
   Id,
   IsoTimestamp,
+  OutputAsset,
   ProcessingJob,
   Project,
   RightsAttestation,
@@ -104,6 +105,9 @@ export interface SessionRecord {
   expiresAt: IsoTimestamp;
   revokedAt: IsoTimestamp | null;
 }
+
+/** P2-MCP-27: ban ket qua da luu. Cung hinh dang voi `OutputAsset` cua contract. */
+export type OutputAssetRecord = OutputAsset;
 
 export type ValidationState = 'not_validated' | 'passed' | 'failed';
 

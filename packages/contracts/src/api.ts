@@ -131,6 +131,7 @@ export const API_ROUTES = [
   { method: 'GET', path: '/v1/assets/:assetId/retention', status: 'implemented', mcp: 'P1.1-MCP-18' },
   { method: 'POST', path: '/v1/internal/usage-reservations/expire', status: 'internal', mcp: 'P1.1-MCP-17' },
   { method: 'POST', path: '/v1/internal/retention/dry-run', status: 'internal', mcp: 'P1.1-MCP-18' },
+  { method: 'POST', path: '/v1/internal/jobs/run', status: 'internal', mcp: 'P2-MCP-27' },
 
   // --- Van chua hien thuc: khong co xu ly media production trong Phase 1 ---
   { method: 'POST', path: '/v1/jobs/:jobId/estimate', status: 'planned', mcp: 'P0-MCP-07' },

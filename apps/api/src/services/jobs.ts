@@ -173,6 +173,8 @@ export async function createJob(
     state: 'uploaded',
     request: {
       operations: parsed.operations,
+      // P2-MCP-27: LUU vung nguoi dung chon. Truoc day kiem xong roi vut di.
+      regions: parsed.regions,
       preserveOriginalMetadata: true,
       preserveAiProvenance: true,
       presetId: parsed.presetId,

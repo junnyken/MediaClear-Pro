@@ -150,7 +150,10 @@ describe('Hoi quy Phase 1', () => {
     const job = await createJob(app, owner, ws, uploaded.assetId);
     expect(job.body.data.job.state).not.toBe('completed');
     expect(job.body.data.job.outputAssetId).toBeNull();
-    expect(ctx.providers.listProduction()).toHaveLength(0);
+    // P2-MCP-27: nay DA co provider production (ban tat dinh), nhung KHONG co provider AI nao.
+    // Y dinh cua R-8 van nguyen: khong duoc sinh ra output "verified" gia.
+    expect(ctx.providers.listProductionAi()).toHaveLength(0);
+    expect(ctx.providers.listProduction().every((p) => p.usesAiModel === false)).toBe(true);
     await app.close();
   });
 

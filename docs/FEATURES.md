@@ -43,6 +43,10 @@ Auth provider production · Queue/worker · Preview render ·
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
 **giao diện hiển thị hạn lưu giữ của tệp**.
 
+> **Đã ra khỏi mục này (P2-MCP-27, D-041): xử lý ảnh THẬT.** Job nay đi tới `completed` với kết quả
+> thật — `crop`/`blur`/`brand_overlay` trên ảnh, chạy bằng libvips, **không dùng AI**. Video và các
+> thao tác cần AI vẫn chưa làm được.
+>
 > **Đã ra khỏi mục này (P2-MCP-24, D-038): adapter object storage S3-compatible.** Chạy thật trên
 > MinIO, tự khai `production: true`. Bật bằng `MEDIACLEAR_S3_*`; thiếu cấu hình thì vẫn ghi đĩa local.
 > **Chưa kiểm trên Cloudflare R2 thật.**

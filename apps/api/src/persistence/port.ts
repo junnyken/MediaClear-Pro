@@ -13,6 +13,7 @@ import type {
   ProcessingJob,
   Project,
   RightsAttestation,
+  OutputAssetRecord,
   SessionRecord,
   SourceFileRecord,
   UsageLedgerEntry,
@@ -100,6 +101,15 @@ export interface PersistencePort {
     findById(workspaceId: string, id: string): Promise<ProcessingJob | null>;
     findByIdempotencyKey(workspaceId: string, key: string): Promise<ProcessingJob | null>;
     update(job: ProcessingJob): Promise<ProcessingJob>;
+  };
+
+  /** P2-MCP-27: ban ket qua. Moi job dung mot ban - chay lai la job MOI (D-005). */
+  outputs: {
+    create(output: OutputAssetRecord): Promise<OutputAssetRecord>;
+    findByJob(workspaceId: string, jobId: string): Promise<OutputAssetRecord | null>;
+    findById(workspaceId: string, id: string): Promise<OutputAssetRecord | null>;
+    /** Dat `validated` sau khi DA do lai byte that (bat bien I-2). */
+    markValidated(workspaceId: string, id: string): Promise<OutputAssetRecord>;
   };
 
   usage: {

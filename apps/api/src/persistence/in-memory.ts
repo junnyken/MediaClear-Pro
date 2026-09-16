@@ -15,6 +15,7 @@ import type {
   ProcessingJob,
   Project,
   RightsAttestation,
+  OutputAssetRecord,
   SessionRecord,
   SourceFileRecord,
   UsageLedgerEntry,
@@ -77,6 +78,7 @@ export class InMemoryPersistence implements PersistencePort {
   private readonly auditRows: AuditEvent[] = [];
   private readonly passwordRows = new Map<string, string>();
   private readonly sessionRows: SessionRecord[] = [];
+  private readonly outputRows: OutputAssetRecord[] = [];
 
   readonly users = {
     findById: async (id: string): Promise<User | null> => this.userRows.get(id) ?? null,
@@ -236,6 +238,29 @@ export class InMemoryPersistence implements PersistencePort {
       if (index < 0) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
       this.jobRows[index] = job;
       return job;
+    },
+  };
+
+  readonly outputs = {
+    create: async (output: OutputAssetRecord): Promise<OutputAssetRecord> => {
+      if (this.outputRows.some((o) => o.jobId === output.jobId)) {
+        // Khop rang buoc UNIQUE (job_id) cua luoc do: moi job dung mot ban ket qua.
+        throw new Error(ERROR_CODES.MCP_STATE_INVALID_TRANSITION);
+      }
+      this.outputRows.push(output);
+      return output;
+    },
+    findByJob: async (workspaceId: string, jobId: string): Promise<OutputAssetRecord | null> =>
+      this.outputRows.find((o) => o.workspaceId === workspaceId && o.jobId === jobId) ?? null,
+    findById: async (workspaceId: string, id: string): Promise<OutputAssetRecord | null> =>
+      this.outputRows.find((o) => o.workspaceId === workspaceId && o.id === id) ?? null,
+    markValidated: async (workspaceId: string, id: string): Promise<OutputAssetRecord> => {
+      const index = this.outputRows.findIndex((o) => o.workspaceId === workspaceId && o.id === id);
+      const row = this.outputRows[index];
+      if (!row) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      const next = { ...row, validated: true };
+      this.outputRows[index] = next;
+      return next;
     },
   };
 

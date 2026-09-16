@@ -77,6 +77,9 @@ export const AUDIT_EVENTS = {
   PROCESSING_JOB_CREATED: 'processing_job_created',
   PROCESSING_JOB_BLOCKED: 'processing_job_blocked',
   PROCESSING_JOB_CANCELLED: 'processing_job_cancelled',
+  /** P2-MCP-27: job that su chay xong va ket qua DA duoc do lai. */
+  PROCESSING_JOB_COMPLETED: 'processing_job_completed',
+  PROCESSING_JOB_FAILED: 'processing_job_failed',
   USAGE_RESERVED: 'usage_reserved',
   USAGE_RELEASED: 'usage_released',
   /** P1.1: reservation qua han 30 phut va duoc hoan tra tu dong. */

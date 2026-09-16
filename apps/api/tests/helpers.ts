@@ -146,7 +146,13 @@ export async function createJob(
     url: `/v1/assets/${assetId}/jobs`,
     headers: auth(token, workspaceId),
     payload: {
-      operations: options.operations ?? ['visible_logo_cleanup'],
+      /*
+       * P2-MCP-27: mac dinh la `blur` - thao tac he thong THAT SU lam duoc.
+       * Truoc day mac dinh la `visible_logo_cleanup`; tu khi co provider production, thao tac
+       * can AI bi CHAN ngay luc tao job (dung, va co test rieng cho no). Cac test o day kiem
+       * vong doi job / muc dung / idempotency chu khong kiem AI, nen phai dung thao tac chay duoc.
+       */
+      operations: options.operations ?? ['blur'],
       regions: [{ x: 0.1, y: 0.1, width: 0.2, height: 0.2, startSeconds: null, endSeconds: null }],
       presetId: null,
       idempotencyKey: options.idempotencyKey ?? `idem-${Math.random().toString(36).slice(2)}`,

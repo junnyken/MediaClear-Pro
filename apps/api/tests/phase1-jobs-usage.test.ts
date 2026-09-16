@@ -85,7 +85,9 @@ describe('MCP-14 cong tao job', () => {
     expect(result.status).toBe(200);
     expect(result.body.data.job.state).toBe('queued');
     expect(result.body.data.productionProcessingEnabled).toBe(false);
-    expect(result.body.data.providerCapability).toBe('unknown');
+    // P2-MCP-27: `blur` la thao tac TAT DINH, khong can provider AI => nhanh fallback,
+    // bang chung `unconfirmed` (chua chay job nay lan nao) chu khong phai `unknown`.
+    expect(result.body.data.providerCapability).toBe('unconfirmed');
     expect(result.body.data.usage).toMatchObject({ unitType: 'image_unit', quantity: 1, state: 'reserved' });
     expect(JSON.stringify(result.body)).not.toContain('completed');
     await app.close();

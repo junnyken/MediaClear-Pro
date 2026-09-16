@@ -43,6 +43,7 @@
 | GET | `/v1/assets/:assetId/retention` | implemented | P1.1-MCP-18 |
 | POST | `/v1/internal/usage-reservations/expire` | internal | P1.1-MCP-17 |
 | POST | `/v1/internal/retention/dry-run` | internal | P1.1-MCP-18 |
+| POST | `/v1/internal/jobs/run` | internal | P2-MCP-27 |
 | POST | `/v1/jobs/:jobId/estimate` | planned | P0-MCP-07 |
 | POST | `/v1/jobs/:jobId/preview` | planned | P0-MCP-07 |
 | GET | `/v1/jobs/:jobId/receipt` | planned | P0-MCP-05 |

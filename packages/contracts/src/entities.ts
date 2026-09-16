@@ -19,6 +19,7 @@ import type {
   Presence,
   PreservationResult,
 } from './vocabulary.js';
+import type { NormalizedRegion } from './provider.js';
 import type { WorkspaceRole } from './tenancy.js';
 import type { BlockReasonKind } from './policy.js';
 
@@ -95,6 +96,12 @@ export interface SourceFile {
 
 export interface ProcessingJobRequest {
   operations: CleanupOperation[];
+  /**
+   * P2-MCP-27: vung can xu ly, toa do chuan hoa 0..1.
+   * Rong = ap dung toan bo anh. Truoc day truong nay khong ton tai nen vung nguoi dung chon
+   * bi kiem xong roi vut di.
+   */
+  regions: NormalizedRegion[];
   /** Mac dinh ON, MVP khong cho tat (guardrail 6, 7). */
   preserveOriginalMetadata: true;
   preserveAiProvenance: true;
