@@ -47,8 +47,8 @@
 | GET | `/v1/jobs/:jobId/output` | implemented | P2-MCP-29 |
 | GET | `/v1/jobs/:jobId/output/download-url` | implemented | P2-MCP-29 |
 | GET | `/v1/jobs/:jobId/receipt` | implemented | P2-MCP-30 |
-| POST | `/v1/jobs/:jobId/estimate` | planned | P0-MCP-07 |
-| POST | `/v1/jobs/:jobId/preview` | planned | P0-MCP-07 |
+| POST | `/v1/jobs/:jobId/estimate` | implemented | P2-MCP-31 |
+| POST | `/v1/jobs/:jobId/preview` | implemented | P2-MCP-31 |
 
 
 Ý nghĩa `Status`:

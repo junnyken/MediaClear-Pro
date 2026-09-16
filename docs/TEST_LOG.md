@@ -1689,3 +1689,91 @@ Migration `0006` tự chạy khi API khởi động: `schema_migrations` có đ�
 - **Công cụ thêm hồ sơ màu ICC vào tệp kết quả, và chưa nói điều đó với người dùng trên giao diện.**
 - **Chưa có giao diện xem biên nhận** — mới có route, chưa ai bấm thật.
 - `providerRunIds` luôn rỗng vì bản tất định chạy trong tiến trình.
+
+---
+
+## 2026-09-16 (lần 19) — Phase 2: ước tính chi phí + xem trước (hết route 501)
+
+MINI-SPEC `P2-MCP-31` · quyết định `D-046`. Nền: `fd84e20`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **50 tệp · 512 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+### 2. Mốc: không route nào còn trả 501
+
+`/healthz` trên bản đã build: `routes=37 implemented=33 planned=0`. Đây là hai route 501 cuối cùng.
+
+**Con số `0` này làm lộ một lỗi mô hình hoá.** `ApiRouteStatus` vốn được khai bằng `ApiRoute['status']`
+— suy ra từ **chính bảng route**. Khi bảng không còn mục `'planned'` nào, kiểu đó **mất luôn** giá trị
+`'planned'`, và mọi phép so sánh với nó thành lỗi biên dịch:
+
+```
+error TS2367: This comparison appears to be unintentional because the types
+'"implemented" | "dev_only" | "internal"' and '"planned"' have no overlap.
+```
+
+Tức là *"các trạng thái **có thể** có"* đang bị định nghĩa bằng *"các trạng thái **đang** có"* — hai
+thứ khác nhau. Sửa: khai `API_ROUTE_STATUSES` riêng. Vòng lặp trả 501 **giữ lại** dù không chạy lần
+nào: xoá đi thì route `'planned'` tiếp theo sẽ lặng lẽ trả 404, tức nói sai rằng đường đó không tồn tại.
+Cùng lý do, `/healthz` vẫn **đếm** `plannedRoutes` chứ không ghi cứng `0`.
+
+### 3. R-11: giữ ý định, bỏ chi tiết đã lỗi thời
+
+Test hồi quy R-11 khẳng định *"preview chưa hiện thực nên trả 501"*. Nay preview chạy thật nên chi
+tiết đó sai — nhưng **ý định** của R-11, *"preview không được tính tiền"* (I-12), còn nguyên giá trị
+và nay **quan trọng hơn trước**, vì preview thực sự xử lý ảnh.
+
+Viết lại thành phép đo thật: đếm bút toán mức dùng **trước và sau** khi gọi preview trên một job
+**có thật**, chứ không phải job không tồn tại. Xoá test đi sẽ mất một bất biến; giữ nguyên sẽ khoá
+cứng hiện trạng cũ.
+
+### 4. Guardrail bắt tôi lần nữa
+
+Ca "ảnh cao hơn trần proxy" lần đầu tôi viết bằng cách **ghi đè** object `source` để đặt ảnh cao vào
+chỗ cũ. Tầng lưu trữ từ chối: `MCP_STORAGE_WRITE_DENIED` — đúng bất biến I-1, tệp nguồn không bao giờ
+được ghi đè. **Chặn đúng, test sai.** Đổi sang fixture cao thật `sample-tall.png` (400×1440).
+
+### 5. Mười một phép thử — hai cái quan trọng nhất là "KHÔNG xảy ra điều gì"
+
+Loại phép thử này dễ viết sai thành luôn xanh, nên mỗi ca đều đo **trước và sau**, không kiểm một lần.
+
+| Test | Chặn điều gì |
+|---|---|
+| ước tính trả `null`, **không phải `0`** | người dùng hiểu nhầm là miễn phí |
+| **số ước tính khớp số thực bị giữ** | báo một đằng trừ một nẻo |
+| preview trả ảnh **giải mã được** | base64 hỏng vẫn "trông đúng" |
+| **gọi preview 3 lần, số bút toán không đổi** | vỡ I-12 |
+| preview **không đổi trạng thái job**, **không tạo bản kết quả** | preview thành lượt chạy thật |
+| **checksum tệp nguồn nguyên vẹn** | vỡ I-5/I-1 |
+| ảnh 1440 px bị thu nhỏ ≤ 720 px | preview chạy trên độ phân giải gốc |
+
+### 6. Kiểm chứng live
+
+```
+ 8. UOC TINH: {"estimatedCostUsd":null,
+               "costEvidence":"no_price_list: chua chon provider production va chua do gia thuc te (Q-06, Q-07)",
+               "unitType":"image_unit","quantity":1}
+    estimatedCostUsd la null (khong phai 0): true
+ 9. XEM TRUOC: 240x160 · 5421 byte · thao tac blur · billable false
+10. so but toan muc dung TRUOC/SAU xem truoc: 1 / 1 => khong tinh tien: true
+11. trang thai job sau khi xem truoc: queued (phai van la queued)
+```
+
+Dòng 10 và 11 là nội dung thật của mục này: preview **chạy thật** mà mức dùng **không đổi** và job
+**không nhúc nhích**.
+
+### 7. Giới hạn của lần kiểm này
+
+- **Không có giá.** `estimatedCostUsd` còn `null` tới khi Q-06 (provider) và Q-07 (media mẫu) chốt.
+- **Preview chưa có giới hạn tần suất** — mỗi lượt vẫn tốn CPU thật dù không tính tiền. Phải chặn
+  trước khi mở ra ngoài.
+- **Chưa có giao diện xem trước, chưa có giao diện xem biên nhận** — mới có route, chưa ai bấm thật.
+- Ước tính chỉ dùng được **sau** khi job đã tạo, tức sau khi mức dùng đã bị giữ. Ước tính **trước**
+  khi tạo job — lúc người dùng còn quyết định được — chưa có đường nào.
+- Preview chỉ làm được thao tác tất định trên ảnh; video chưa có gì.

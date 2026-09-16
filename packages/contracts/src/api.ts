@@ -102,6 +102,25 @@ export interface JobReceiptResponse {
   provenanceAfter: ProvenanceRecord | null;
 }
 
+/**
+ * P2-MCP-31: ban xem truoc.
+ *
+ * `billable` va `providerJobBudget` nam trong response co chu dich: chung la loi TU KHAI cua he
+ * thong ve viec luot nay co bi tinh tien khong, kiem tra duoc tu ben ngoai.
+ */
+export interface JobPreviewResponse {
+  mode: 'proxy';
+  /** Luon false (I-12). */
+  billable: boolean;
+  providerJobBudget: 0 | 1;
+  operation: CleanupOperation;
+  widthPx: number;
+  heightPx: number;
+  byteSize: number;
+  /** Anh nhung thang trong response - KHONG luu vao kho, khong de lai rac. */
+  imageDataUri: string;
+}
+
 export interface UsageSummaryResponse {
   workspaceId: string;
   imageUnitsCommitted: number;
@@ -175,13 +194,23 @@ export const API_ROUTES = [
   { method: 'GET', path: '/v1/jobs/:jobId/output/download-url', status: 'implemented', mcp: 'P2-MCP-29' },
 
   // --- Van chua hien thuc: khong co xu ly media production trong Phase 1 ---
-  { method: 'POST', path: '/v1/jobs/:jobId/estimate', status: 'planned', mcp: 'P0-MCP-07' },
-  { method: 'POST', path: '/v1/jobs/:jobId/preview', status: 'planned', mcp: 'P0-MCP-07' },
+  { method: 'POST', path: '/v1/jobs/:jobId/estimate', status: 'implemented', mcp: 'P2-MCP-31' },
+  { method: 'POST', path: '/v1/jobs/:jobId/preview', status: 'implemented', mcp: 'P2-MCP-31' },
   { method: 'GET', path: '/v1/jobs/:jobId/receipt', status: 'implemented', mcp: 'P2-MCP-30' },
 ] as const;
 
 export type ApiRoute = (typeof API_ROUTES)[number];
-export type ApiRouteStatus = ApiRoute['status'];
+
+/**
+ * Tu vung trang thai route, khai RIENG chu khong suy ra tu `API_ROUTES`.
+ *
+ * Truoc day day la `ApiRoute['status']`. Hau qua lo ra o P2-MCP-31: khi bang khong con muc
+ * 'planned' nao, kieu nay MAT LUON gia tri 'planned', va moi phep so sanh voi no thanh loi bien
+ * dich. Tuc la "cac trang thai co the co" bi dinh nghia bang "cac trang thai dang co" - hai thu
+ * khac nhau. Mot route 'planned' moi phai them duoc vao bat cu luc nao ma khong pha gi.
+ */
+export const API_ROUTE_STATUSES = ['implemented', 'planned', 'dev_only', 'internal'] as const;
+export type ApiRouteStatus = (typeof API_ROUTE_STATUSES)[number];
 
 /** Phase 1: request/response contract cho cac route moi. */
 export interface DevSessionRequest {

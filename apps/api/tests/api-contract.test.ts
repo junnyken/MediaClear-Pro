@@ -7,7 +7,7 @@
  *  - route 'dev_only' chi song khi bat dev auth.
  */
 import { describe, expect, it } from 'vitest';
-import { API_ROUTES, ALL_ERROR_CODES, errorI18nKey, httpStatusFor } from '@mediaclear/contracts';
+import { API_ROUTES, ALL_ERROR_CODES, errorI18nKey, httpStatusFor, type ApiRouteStatus } from '@mediaclear/contracts';
 import { MESSAGES } from '@mediaclear/i18n';
 import { buildServer } from '../src/server.js';
 import { createAppContext } from '../src/app-context.js';
@@ -59,8 +59,15 @@ describe('Bang route khop server that', () => {
 
   it('route chua hien thuc van tra 501 voi ma loi on dinh, khong gia vo thanh cong', async () => {
     const app = buildServer();
-    const planned = API_ROUTES.filter((r) => r.status === 'planned');
-    expect(planned.length).toBeGreaterThan(0);
+    /*
+     * P2-MCP-31: bang route hien KHONG con muc 'planned' nao - moi route deu da hien thuc.
+     * Vong lap duoi day vi the khong chay lan nao, va do la dieu DUNG.
+     *
+     * Giu test lai chu khong xoa: khoanh khac co mot route 'planned' moi duoc them vao, no phai
+     * tra 501 dung cach ngay lap tuc. Bo `toBeGreaterThan(0)` vi so 0 nay la thanh tuu, khong
+     * phai loi.
+     */
+    const planned = API_ROUTES.filter((r) => (r.status as ApiRouteStatus) === 'planned');
     for (const route of planned) {
       const url = route.path.replace(/:([A-Za-z]+)/g, 'x-$1');
       const res = await app.inject({ method: route.method as 'GET' | 'POST', url });

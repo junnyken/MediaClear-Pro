@@ -6,8 +6,8 @@
  * download-url` luon tra tep NGUON (no tra theo `asset.sourceFileId`), nen ban da xu ly xong
  * van vo hinh voi nguoi dung. Lay duoc tep da lam sach chinh la san pham.
  */
-import { ERROR_CODES, apiError } from '@mediaclear/contracts';
-import type { JobOutputDownloadResponse, JobOutputResponse, JobReceiptResponse } from '@mediaclear/contracts';
+import { COST_EVIDENCE_NO_PRICE_LIST, ERROR_CODES, apiError, computeUsageQuantity } from '@mediaclear/contracts';
+import type { JobEstimateResponse, JobOutputDownloadResponse, JobOutputResponse, JobReceiptResponse } from '@mediaclear/contracts';
 import type { AppContext } from '../app-context.js';
 import { ensurePermission, type Actor } from './access.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
@@ -133,4 +133,54 @@ export async function getJobReceipt(
   if (!before) return fail(apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'provenance' }));
 
   return ok({ receipt, provenanceBefore: before, provenanceAfter: after });
+}
+
+/**
+ * Uoc tinh cho mot job (P2-MCP-31).
+ *
+ * SU THAT PHAI NOI: he thong CHUA co bang gia nao. Khong co provider AI nao duoc chon (Q-06 con
+ * mo phan AI), va chua co bo media mau de do gia thuc te (Q-07). Vi vay `estimatedCostUsd` LUON
+ * la null, kem `costEvidence` noi ro vi sao.
+ *
+ * Cai DO DUOC va co ich that su la SO DON VI se bi tru: 1 anh, hay N phut video. So nay tinh tu
+ * so do THAT tren byte (`measured`), khong phai tu loi khai cua client.
+ *
+ * Tra 0 o day se la noi doi theo huong nguy hiem nhat: nguoi dung se hieu la mien phi.
+ */
+export async function estimateJob(
+  ctx: AppContext,
+  actor: Actor,
+  jobId: string,
+): Promise<ServiceResult<JobEstimateResponse>> {
+  const allowed = await ensurePermission(ctx, actor, {
+    resourceWorkspaceId: actor.workspace.id,
+    resourceType: 'job',
+    resourceId: jobId,
+    permission: 'job.read',
+  });
+  if (!allowed.ok) return fail(allowed.error);
+
+  const job = await ctx.persistence.jobs.findById(actor.workspace.id, jobId);
+  if (!job) return fail(apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'job' }));
+
+  const record = await ctx.persistence.sourceFiles.findById(actor.workspace.id, job.sourceFileId);
+  if (!record) return fail(apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'source_file' }));
+
+  /*
+   * Dung CHINH ham ma `createJob` dung. Neu uoc tinh va so thuc tru di tinh bang hai duong khac
+   * nhau, som muon chung se lech - va nguoi dung se bi tru khac voi so da duoc bao truoc.
+   */
+  const quantity = computeUsageQuantity({
+    mediaType: job.mediaType,
+    durationSeconds: record.measured?.durationSeconds ?? null,
+  });
+  if (!quantity.ok) return fail(quantity.error);
+
+  return ok({
+    // null, KHONG phai 0: chua co bang gia thi khong co con so nao de dua ra.
+    estimatedCostUsd: null,
+    costEvidence: COST_EVIDENCE_NO_PRICE_LIST,
+    unitType: quantity.value.unitType,
+    quantity: quantity.value.quantity,
+  });
 }

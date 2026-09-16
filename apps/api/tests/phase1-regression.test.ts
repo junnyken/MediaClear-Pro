@@ -197,14 +197,40 @@ describe('Hoi quy Phase 1', () => {
     await app.close();
   });
 
-  it('R-11: preview chua duoc hien thuc nen khong the tinh tien (van tra 501)', async () => {
+  /*
+   * R-11 nguyen ban khang dinh preview tra 501. P2-MCP-31 da hien thuc preview, nen chi tiet do
+   * khong con dung. Nhung Y DINH cua R-11 - "preview KHONG duoc tinh tien" (I-12) - van nguyen
+   * gia tri va nay con quan trong hon, vi preview gio chay THAT. Giu y dinh, bo chi tiet.
+   *
+   * Kiem ca hai duong: job khong ton tai (khong duoc tao but toan tu hu khong) va job that
+   * (duong nguy hiem that su - co xu ly anh ma van khong duoc tinh tien).
+   */
+  it('R-11: preview KHONG BAO GIO tinh tien (I-12), du chay that', async () => {
     const { app, ctx } = await makeApp();
     const owner = await signIn(app, 'owner@matbao.com');
     const ws = await createWorkspace(app, owner, 'Studio');
-    const res = await app.inject({ method: 'POST', url: '/v1/jobs/job_bat-ky/preview', headers: auth(owner, ws) });
-    expect(res.statusCode).toBe(501);
-    expect(res.json().error.code).toBe('MCP_NOT_IMPLEMENTED');
+
+    const ghost = await app.inject({ method: 'POST', url: '/v1/jobs/job_bat-ky/preview', headers: auth(owner, ws) });
+    expect(ghost.statusCode).toBe(404);
     expect(await ctx.persistence.usage.listByWorkspace(ws)).toHaveLength(0);
+
+    const project = await createProject(app, owner, ws, 'Du an');
+    const uploaded = await uploadFixture(app, owner, ws, project, 'sample.png', {
+      mimeType: 'image/png',
+      mediaType: 'image',
+    });
+    await validateAsset(app, owner, ws, uploaded.assetId);
+    await attest(app, owner, ws, uploaded.assetId);
+    const created = await createJob(app, owner, ws, uploaded.assetId, { operations: ['blur'] });
+    const jobId = created.body.data.job.id as string;
+
+    const before = await ctx.persistence.usage.listByWorkspace(ws);
+    const real = await app.inject({ method: 'POST', url: `/v1/jobs/${jobId}/preview`, headers: auth(owner, ws) });
+    expect(real.statusCode).toBe(200);
+    expect(real.json().data.billable).toBe(false);
+
+    const after = await ctx.persistence.usage.listByWorkspace(ws);
+    expect(after.length, 'preview da tinh tien - vo I-12').toBe(before.length);
     await app.close();
   });
 

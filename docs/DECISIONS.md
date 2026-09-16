@@ -793,3 +793,37 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   `providerRunIds` luôn rỗng (bản tất định chạy trong tiến trình). **Chưa có giao diện xem biên nhận.**
   Công cụ vẫn thêm hồ sơ màu vào tệp kết quả và **chưa nói điều đó với người dùng trên giao diện**.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-046 — Ước tính không có giá vẫn phải trả lời thật, và preview không để lại rác (P2-MCP-31)
+
+- **Context**: hai route 501 cuối cùng. Sau mục này **không route nào trong bảng còn trả 501**.
+- **Decision**:
+  1. **`estimatedCostUsd` luôn `null`, không bao giờ `0`.** Chưa chọn provider AI (Q-06) và chưa có bộ
+     media mẫu để đo giá (Q-07) ⇒ không tồn tại bảng giá nào. `0` sẽ bị hiểu là **miễn phí** — nói dối
+     theo hướng nguy hiểm nhất. Kèm `costEvidence` nói rõ lý do. Hình dạng này **đã có sẵn trong hợp
+     đồng Phase 0**, chỉ chưa ai nối vào.
+  2. **Số đơn vị thì đo được thật** và có ích: tính từ `measured` trên byte, bằng **chính hàm**
+     `createJob` dùng. Hai đường tính khác nhau sớm muộn sẽ lệch, và người dùng bị trừ khác số đã báo.
+  3. **Preview KHÔNG lưu vào kho** — trả thẳng data URI. Một object không có luật lưu giữ nào áp lên
+     sẽ nằm đó mãi mãi; preview là thứ dùng một lần.
+  4. **Thu nhỏ TRƯỚC khi xử lý.** Xử lý ảnh gốc rồi mới thu nhỏ thì preview "miễn phí" vẫn tốn đúng
+     công suất một lượt thật — đúng thứ Q-03 muốn tránh.
+  5. **`billable` / `providerJobBudget` nằm trong response**: lời tự khai kiểm tra được từ bên ngoài.
+  6. **`ApiRouteStatus` khai riêng, không suy ra từ `API_ROUTES`.** Lỗi lộ ra ở mục này: khi bảng
+     không còn route `'planned'` nào, kiểu đó **mất luôn** giá trị `'planned'` và mọi phép so sánh
+     thành lỗi biên dịch — "các trạng thái **có thể** có" bị định nghĩa bằng "các trạng thái **đang**
+     có". Vòng lặp trả 501 được **giữ lại** dù không chạy lần nào: xoá đi thì route `'planned'` tiếp
+     theo sẽ lặng lẽ trả 404, tức là nói sai rằng đường đó không tồn tại.
+  7. **R-11 giữ ý định, bỏ chi tiết lỗi thời.** Test cũ khẳng định preview trả 501; nay preview chạy
+     thật nên chi tiết đó sai, nhưng ý định *"preview không được tính tiền"* còn nguyên giá trị và
+     **quan trọng hơn trước**. Viết lại thành phép đo bút toán trước/sau trên job thật.
+- **Alternatives considered**: (a) trả `estimatedCostUsd: 0` cho "gọn" — loại, xem (1); (b) lưu bản
+  preview vào kho để tải lại — loại, tạo object không ai dọn; (c) xoá vòng lặp 501 vì không còn dùng —
+  loại, xem (6); (d) xoá R-11 vì đã lỗi thời — loại, ý định của nó nay quan trọng hơn.
+- **Consequences**: `/healthz` nay khai `plannedRoutes: 0` — vẫn **đếm** chứ không ghi cứng 0, vì hằng
+  số sẽ nói dối ngay lần đầu có route `'planned'` mới. `estimatedCostUsd` còn `null` tới khi Q-06/Q-07
+  chốt. Preview **chưa có giới hạn tần suất** dù mỗi lượt tốn CPU thật. Ước tính chỉ dùng được **sau**
+  khi job đã tạo, tức sau khi mức dùng đã bị giữ — ước tính trước khi tạo job chưa có đường nào.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

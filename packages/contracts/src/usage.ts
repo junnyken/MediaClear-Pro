@@ -32,6 +32,16 @@ export type ReleaseReason = (typeof RELEASE_REASONS)[number];
  */
 export const VIDEO_ROUNDING_MODE = VIDEO_USAGE_ROUNDING;
 
+/**
+ * P2-MCP-31: ly do `estimatedCostUsd` la null.
+ *
+ * Day KHONG phai cho giu cho. Chua co provider AI nao duoc chon (Q-06 con mo phan AI) va chua co
+ * bo media mau de do gia thuc te (Q-07), nen khong ton tai bang gia nao de tinh ra mot con so.
+ * Tra 0 se bi hieu la mien phi - noi doi theo huong nguy hiem nhat.
+ */
+export const COST_EVIDENCE_NO_PRICE_LIST =
+  'no_price_list: chua chon provider production va chua do gia thuc te (Q-06, Q-07)';
+
 export interface UsageQuantityInput {
   mediaType: MediaType;
   /** Bat buoc cho video. null => khong tinh duoc, phai bao unknown. */

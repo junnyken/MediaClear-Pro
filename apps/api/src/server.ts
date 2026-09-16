@@ -14,6 +14,7 @@
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import {
   API_ROUTES,
+  type ApiRouteStatus,
   ERROR_CODES,
   MAX_FILE_SIZE_BYTES,
   MEDIA_LIMITS,
@@ -44,7 +45,8 @@ import {
 import { createAttestation, getAttestation } from './services/attestations.js';
 import { runJob } from './services/run-job.js';
 import { cancelJob, createJob, getJob } from './services/jobs.js';
-import { createJobOutputDownloadUrl, getJobOutput, getJobReceipt } from './services/outputs.js';
+import { createJobOutputDownloadUrl, estimateJob, getJobOutput, getJobReceipt } from './services/outputs.js';
+import { previewJob } from './services/preview.js';
 import { expireReservations, getUsageSummary } from './services/usage.js';
 import { retentionDryRunReport, retentionForAsset } from './services/retention.js';
 import type { ServiceResult } from './services/result.js';
@@ -257,7 +259,12 @@ export function buildServer(options: BuildServerOptions = {}) {
         PRODUCTION_AI_PROCESSING_ENABLED || ctx.providers.listProductionAi().length > 0,
       routes: API_ROUTES.length,
       implementedRoutes: API_ROUTES.filter((r) => r.status === 'implemented').length,
-      plannedRoutes: API_ROUTES.filter((r) => r.status === 'planned').length,
+      /*
+       * P2-MCP-31: hien tai con SO KHONG - khong route nao con tra 501. Van phai dem chu khong
+       * ghi cung 0: dem la loi tu khai kiem tra duoc, con hang so 0 se noi doi ngay lan dau co
+       * mot route 'planned' moi duoc them vao bang.
+       */
+      plannedRoutes: API_ROUTES.filter((r) => (r.status as ApiRouteStatus) === 'planned').length,
       // Tu khai ha tang that su dang dung - khong giau la dang chay do tam.
       identityProvider: { id: ctx.identity.id, production: ctx.identity.isProductionProvider },
       persistence: { id: ctx.persistence.id, durability: ctx.persistence.durability },
@@ -676,6 +683,22 @@ export function buildServer(options: BuildServerOptions = {}) {
     return respond(request, reply, 'job.receipt_read', actor, await getJobReceipt(ctx, actor, param(request, 'jobId')));
   });
 
+  app.post('/v1/jobs/:jobId/estimate', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.estimate', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'job.estimate', actor, await estimateJob(ctx, actor, param(request, 'jobId')));
+  });
+
+  /*
+   * Preview KHONG ghi so muc dung (I-12). `usageOperation` de null co chu dich: nhat ky request
+   * khong duoc ghi nham rang luot nay co dong vao muc dung cua ai do.
+   */
+  app.post('/v1/jobs/:jobId/preview', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.preview', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'job.preview', actor, await previewJob(ctx, actor, param(request, 'jobId')));
+  });
+
   app.get('/v1/usage', async (request, reply) => {
     const actor = await withActor(request, reply, 'usage.read', workspaceHeader(request));
     if (!actor) return reply;
@@ -773,21 +796,18 @@ export function buildServer(options: BuildServerOptions = {}) {
 
   /* ------------------------------------- route chua hien thuc: van 501 --- */
 
-  for (const route of API_ROUTES) {
+  /*
+   * P2-MCP-31: bang route hien KHONG con muc 'planned' nao, nen vong lap nay khong chay lan nao.
+   * Giu no lai co chu dich - xoa di thi route 'planned' tiep theo se lang le khong co handler va
+   * tra 404 thay vi 501, tuc la noi sai rang duong do khong ton tai.
+   */
+  for (const route of API_ROUTES as readonly { method: string; path: string; status: ApiRouteStatus }[]) {
     if (route.status !== 'planned') continue;
     const handler = async (request: FastifyRequest, reply: FastifyReply) => {
       const error = apiError(ERROR_CODES.MCP_NOT_IMPLEMENTED, { route: route.path });
       return sendError(request, reply, error, 'not_implemented');
     };
-    /*
-     * `method` doc ra kieu `string` co chu dich. `API_ROUTES` la `as const`, nen khi trong bang
-     * khong con route 'planned' nao dung GET, TypeScript thu hep `route.method` xuong con
-     * 'POST' va bao so sanh voi 'GET' la vo nghia. Vong lap nay phai tong quat: lan sau co mot
-     * route GET moi o trang thai 'planned' thi no van phai tra 501 dung cach, chu khong phai
-     * sua lai cho nay.
-     */
-    const method: string = route.method;
-    if (method === 'GET') app.get(route.path, handler);
+    if (route.method === 'GET') app.get(route.path, handler);
     else app.post(route.path, handler);
   }
 
