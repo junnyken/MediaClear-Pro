@@ -1,9 +1,12 @@
 /**
- * MediaClear Pro - API (Phase 1: SaaS Shell & Media Intake Foundation).
+ * MediaClear Pro - API (Phase 1 SaaS Shell, mo rong o Phase 2).
  *
  * SU THAT HIEN TAI:
  *  - Auth/workspace/project/asset/upload/validate/attestation/job boundary CHAY THAT.
- *  - KHONG co xu ly AI production: khong job nao dat 'completed', khong co output.
+ *  - Xu ly TAT DINH bang libvips chay that (crop/blur/brand_overlay tren anh): job dat
+ *    'completed', co ban ket qua, va nguoi dung tai ve duoc (P2-MCP-27/28/29).
+ *  - KHONG co xu ly bang mo hinh AI. `/healthz` khai rieng dieu nay o
+ *    `productionAiProcessingEnabled`, khong suy ra tu viec co provider production.
  *  - Route chua hien thuc van tra 501 MCP_NOT_IMPLEMENTED, khong gia vo thanh cong.
  *
  * Client-agnostic: khong co route rieng cho web hay Chrome Extension.
@@ -41,6 +44,7 @@ import {
 import { createAttestation, getAttestation } from './services/attestations.js';
 import { runJob } from './services/run-job.js';
 import { cancelJob, createJob, getJob } from './services/jobs.js';
+import { createJobOutputDownloadUrl, getJobOutput } from './services/outputs.js';
 import { expireReservations, getUsageSummary } from './services/usage.js';
 import { retentionDryRunReport, retentionForAsset } from './services/retention.js';
 import type { ServiceResult } from './services/result.js';
@@ -641,6 +645,29 @@ export function buildServer(options: BuildServerOptions = {}) {
       subjectId: result.data.job.id,
       usageOperation: result.data.usage.state === 'released' ? 'release' : null,
     });
+  });
+
+  /*
+   * P2-MCP-29. Hai route tach roi co chu dich: doc thong tin ban ket qua KHONG duoc keo theo
+   * viec ky mot URL tai ve. URL tai ve co han rat ngan, nen moi lan xem trang lai duc ra mot
+   * URL moi la vua thua vua kho theo dau vet ai that su tai tep ve.
+   */
+  app.get('/v1/jobs/:jobId/output', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.output_read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'job.output_read', actor, await getJobOutput(ctx, actor, param(request, 'jobId')));
+  });
+
+  app.get('/v1/jobs/:jobId/output/download-url', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.output_download', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(
+      request,
+      reply,
+      'job.output_download',
+      actor,
+      await createJobOutputDownloadUrl(ctx, actor, param(request, 'jobId')),
+    );
   });
 
   app.get('/v1/usage', async (request, reply) => {

@@ -80,6 +80,12 @@ export const AUDIT_EVENTS = {
   /** P2-MCP-27: job that su chay xong va ket qua DA duoc do lai. */
   PROCESSING_JOB_COMPLETED: 'processing_job_completed',
   PROCESSING_JOB_FAILED: 'processing_job_failed',
+  /**
+   * P2-MCP-29: mot URL tai ban ket qua da duoc phat. Ghi o luc PHAT URL chu khong phai luc
+   * tai xong - kho luu tru phuc vu byte truc tiep, API khong nhin thay luot tai do. Noi
+   * "da phat quyen tai" la dieu he thong biet chac; noi "da tai ve" thi khong.
+   */
+  OUTPUT_DOWNLOAD_URL_ISSUED: 'output_download_url_issued',
   USAGE_RESERVED: 'usage_reserved',
   USAGE_RELEASED: 'usage_released',
   /** P1.1: reservation qua han 30 phut va duoc hoan tra tu dong. */

@@ -66,6 +66,29 @@ export interface JobEstimateResponse {
   quantity: number;
 }
 
+/**
+ * P2-MCP-29: ban ket qua cua mot job.
+ *
+ * `validated` KHONG bao gio duoc suy ra - no la co that trong co so du lieu, dat sau khi
+ * doc lai byte va do lai (bat bien I-2). Chua `validated` thi khong phat URL tai ve.
+ */
+export interface JobOutputResponse {
+  outputAssetId: string;
+  mimeType: string;
+  byteSize: number;
+  checksumSha256: string;
+  validated: boolean;
+  createdAt: string;
+}
+
+export interface JobOutputDownloadResponse {
+  url: string;
+  expiresAt: string;
+  /** Lap lai de nguoi tai co the tu kiem tep minh nhan duoc, khong phai tin loi he thong. */
+  checksumSha256: string;
+  byteSize: number;
+}
+
 export interface UsageSummaryResponse {
   workspaceId: string;
   imageUnitsCommitted: number;
@@ -132,6 +155,11 @@ export const API_ROUTES = [
   { method: 'POST', path: '/v1/internal/usage-reservations/expire', status: 'internal', mcp: 'P1.1-MCP-17' },
   { method: 'POST', path: '/v1/internal/retention/dry-run', status: 'internal', mcp: 'P1.1-MCP-18' },
   { method: 'POST', path: '/v1/internal/jobs/run', status: 'internal', mcp: 'P2-MCP-27' },
+
+  // --- P2-MCP-29: lay ban ket qua ve. Truoc muc nay ket qua nam trong kho ma KHONG
+  //     duong nao dan toi no - tep da xu ly xong van vo hinh voi nguoi dung.
+  { method: 'GET', path: '/v1/jobs/:jobId/output', status: 'implemented', mcp: 'P2-MCP-29' },
+  { method: 'GET', path: '/v1/jobs/:jobId/output/download-url', status: 'implemented', mcp: 'P2-MCP-29' },
 
   // --- Van chua hien thuc: khong co xu ly media production trong Phase 1 ---
   { method: 'POST', path: '/v1/jobs/:jobId/estimate', status: 'planned', mcp: 'P0-MCP-07' },

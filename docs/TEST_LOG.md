@@ -1481,3 +1481,103 @@ Job mới tạo qua API (route nội bộ vẫn **tắt**) tới `completed` tro
   lấy được từ bảng điều khiển. Tôi **không** tạo website worker với cơ sở dữ liệu trống mà nền tảng
   tự cấp: nó sẽ hiện `online` và im lặng không xử lý gì — đúng loại lỗi tự-im-lặng dự án này cấm.
 - Hàng đợi **FIFO thuần**, chưa có ưu tiên.
+
+---
+
+## 2026-09-16 (lần 17) — Phase 2: lấy bản kết quả về
+
+MINI-SPEC `P2-MCP-29` · quyết định `D-043`. Nền: `33cb7e8`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **48 tệp · 486 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+### 2. Lỗ hổng tìm được — và nó không nằm trong danh sách việc còn lại của tôi
+
+Sau `P2-MCP-27` và `P2-MCP-28`, job chạy xong và sinh ra tệp thật. Nhưng **không đường nào dẫn tới tệp
+đó**:
+
+- Bảng route **không có** route nào cho bản kết quả.
+- `/v1/assets/:assetId/download-url` **luôn** trả tệp **nguồn**: nó tra `asset.sourceFileId`. Id
+  `out_…` không nằm trong bảng `assets` nên chỉ nhận 404.
+- Giao diện đọc `outputAssetId` vào kiểu dữ liệu nhưng **không hiển thị ở đâu**, không có nút tải.
+- Mọi job không bị chặn đều hiện câu *"Phần xử lý AI chưa được bật…"*, kể cả job đã `completed` với
+  tệp thật.
+
+Tôi chỉ chứng minh được tệp tồn tại bằng cách **đọc thẳng MinIO** — người dùng thật không làm được thế.
+Danh sách "Phase 2 còn lại" tôi tự lập trước đó (3 route 501, phân trang audit, resumable upload,
+OpenAPI, giao diện lưu giữ) **thiếu hẳn mục này**, mà nó lại là mục quan trọng nhất: lấy được tệp đã
+làm sạch chính là sản phẩm.
+
+### 3. Hai lỗi của tôi trong chính bộ test này
+
+Cả hai đều là lỗi **test**, không phải lỗi sản phẩm — ghi lại vì chúng cho thấy phép thử đang thật sự
+chạm vào ràng buộc thật:
+
+1. Định ép `validated = false` bằng cách `outputs.create` đè lên bản cũ → chặn bởi `UNIQUE (job_id)`.
+   Đó đúng là ràng buộc đang được bảo vệ. Sửa: dùng một job **khác** chưa chạy rồi đặt vào đó một bản
+   kết quả chưa kiểm chứng.
+2. Gọi `audit.listByWorkspace(ws, { limit: 50 })` trong khi cổng nhận `limit?: number`, nên nhận về
+   `undefined.items`. Sửa: `listByWorkspace(ws, 50)`.
+
+Và một lần **guardrail bắt được tôi**: thêm route mang `mcp: 'P2-MCP-29'` nhưng chưa thêm hàng vào
+`MINI_SPEC_INDEX.md` → test `mini-spec-index` đỏ với *"API_ROUTES trỏ tới MINI-SPEC không có trong
+index: ['P2-MCP-29']"*. Đúng loại lỗi mà index đó sinh ra để chặn.
+
+### 4. Tám phép thử
+
+| Test | Chặn điều gì |
+|---|---|
+| job xong thì đọc được thông tin bản kết quả | không có đường nào tới kết quả |
+| **byte tải về khớp checksum hệ thống khai** | URL trỏ sai tệp mà test vẫn xanh |
+| **đối chứng âm**: `download-url` của asset vẫn trả tệp **nguồn** | hai đường tải bị nhập một (vỡ I-1) |
+| job chưa xong → 404 | trả tệp nửa vời |
+| `validated = false` → từ chối | vỡ bất biến I-2 |
+| workspace khác → 404, **cùng mã lỗi** với job không có thật | lộ sự tồn tại |
+| không có phiên → 401 | tệp của người dùng ra ngoài |
+| phát URL có ghi dấu vết, trỏ đúng bản kết quả | không truy được ai lấy tệp |
+
+Phép quan trọng nhất là **so byte tải về với checksum**. Chỉ kiểm "có trả về một URL" thì một URL trỏ
+sai tệp vẫn xanh — đó đúng là loại lỗi khiến người dùng nhận về tệp của người khác.
+
+### 5. Kiểm chứng live — tải tệp thật qua API
+
+API chạy PostgreSQL + MinIO thật, `internalApiEnabled: false`, worker chạy tiến trình riêng.
+
+```
+>>> job vua tao: job_8410de3c89c74383a112f30b85562acc|queued
+8. trang thai sau khi worker chay: completed
+9. thong tin ban ket qua: {"outputAssetId":"out_5c61a9ee…","mimeType":"image/png",
+   "byteSize":5421,"checksumSha256":"f07785d4…","validated":true}
+10. URL tai ve co han toi: 2026-09-16T11:58:44.000Z   (5 phut)
+11. TAI THAT: 5421 byte · sha256 f07785d49b95935f...
+    khop checksum he thong khai  : true
+    khop kich thuoc he thong khai: true
+    KHAC tep nguon               : true
+12. DOI CHUNG AM - duong tai cua asset tra tep nguon: true
+```
+
+Dòng 12 là phần quan trọng ngang dòng 11: **hai đường tải vẫn tách bạch**. Tệp nguồn không bị đường
+mới chạm vào (bất biến I-1).
+
+Dấu vết trong PostgreSQL, đọc thẳng không qua API:
+
+```
+output_download_url_issued | output | out_5c61a9eef13941de89fcb0edb8cf1e7c
+```
+
+### 6. Giới hạn của lần kiểm này
+
+- **Chưa bấm tay trên trình duyệt.** Thẻ kết quả và nút tải đã qua typecheck + test khoá dịch, nhưng
+  **chưa ai bấm thật**. Bài học cũ của dự án này: test xanh vẫn có màn hình không có đường đi tới.
+- **8 khoá câu chữ mới là tôi viết, chưa được owner duyệt** — cần rà lại như Q-20/Q-22.
+- **Bản kết quả không có `lastAccessedAt`**, nên luật lưu giữ lớp `output_asset` chưa tính được theo
+  lần đọc gần nhất như tệp nguồn.
+- Chưa có tải hàng loạt, chưa đặt tên tệp khi tải về.
+- Dấu vết ghi lúc **phát URL**: một URL đã phát mà không ai dùng vẫn được đếm. API không nhìn thấy
+  lượt tải thật vì kho phục vụ byte trực tiếp.

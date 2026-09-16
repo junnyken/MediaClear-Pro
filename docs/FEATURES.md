@@ -36,6 +36,7 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Index ID của MINI-SPEC | `docs/MINI_SPEC_INDEX.md` | 9 test chặn trùng ID, chặn tham chiếu mồ côi |
 | Câu chữ owner duyệt + phiên bản 2 của nội dung xác nhận | `policy.ts`, `packages/i18n/` | 11 test câu chữ; live: lời khai v1 bị từ chối là `stale` |
 | Worker tự nhận và chạy job (PostgreSQL `FOR UPDATE SKIP LOCKED`) | `worker/job-worker.ts`, `persistence/postgres.ts` | 8 test, trong đó 3 worker song song trên PG thật chỉ một bên nhận được; live: route nội bộ TẮT, job tạo qua API nằm `queued` 5 s rồi tự tới `completed` trong 1 s sau khi bật worker |
+| Tải bản kết quả về (tách hẳn khỏi đường tải tệp nguồn) | `services/outputs.ts`, `app/jobs/[jobId]/page.tsx` | 8 test, có đối chứng âm "đường tải asset vẫn trả tệp nguồn"; live: tải thật 5421 byte, sha256 khớp đúng số hệ thống khai |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
@@ -44,6 +45,10 @@ Auth provider production · Preview render ·
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
 **giao diện hiển thị hạn lưu giữ của tệp**.
 
+> **Đã ra khỏi mục này (P2-MCP-29, D-043): lấy bản kết quả về.** Trước đó tệp đã xử lý xong nằm
+> trong kho mà **không đường nào dẫn tới nó**. Nay có `GET /v1/jobs/:jobId/output` và
+> `…/output/download-url`, giao diện hiện thẻ kết quả kèm nút tải. **Câu chữ mới chưa được owner duyệt.**
+>
 > **Đã ra khỏi mục này (P2-MCP-28, D-042): worker tự chạy job.** Hàng đợi nằm trên PostgreSQL
 > (`FOR UPDATE SKIP LOCKED`), worker là vai thứ ba của cùng ảnh Docker (`MEDIACLEAR_ROLE=worker`).
 > Job tạo qua API **tự chạy**, không còn phải gọi route nội bộ. **Chưa có** retry có backoff và

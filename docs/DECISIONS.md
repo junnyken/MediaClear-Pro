@@ -687,3 +687,42 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   PostgreSQL thật — adapter in-memory không thể chứng minh nó đúng, nên hai test then chốt bỏ qua khi
   không có `TEST_DATABASE_URL`.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-043 — Đường lấy bản kết quả về, tách hẳn khỏi đường tải tệp nguồn (P2-MCP-29)
+
+- **Context**: `P2-MCP-27` làm job tới `completed` và ghi bản kết quả vào kho, `P2-MCP-28` làm nó tự
+  chạy — nhưng **không đường nào dẫn tới tệp đó**. `/v1/assets/:assetId/download-url` luôn trả tệp
+  **nguồn** (nó tra `asset.sourceFileId`), giao diện đọc `outputAssetId` mà không hiển thị ở đâu, và
+  job đã xong vẫn hiện câu dẫn người dùng hiểu là chưa có gì xảy ra. Tôi chỉ chứng minh được tệp tồn
+  tại bằng cách đọc thẳng MinIO. **Lấy được tệp đã làm sạch chính là sản phẩm.**
+- **Decision**:
+  1. **Hai route tách rời**: `GET /v1/jobs/:jobId/output` (thông tin) và
+     `GET /v1/jobs/:jobId/output/download-url` (URL đã ký, hạn ngắn). Gộp một sẽ khiến mỗi lần xem
+     trang lại đúc ra một URL tải mới — thừa, và làm dấu vết "đã phát quyền tải" mất nghĩa.
+  2. **Đặt dưới `jobs/`**, không tạo tài nguyên `outputs/` cấp trên: `UNIQUE (job_id)` nên quan hệ là
+     1–1, `jobId` đủ định danh, và giao diện đã có sẵn nó.
+  3. **Hai đường tải không bao giờ nhập một** (bất biến I-1). Có test đối chứng âm khẳng định
+     `download-url` của asset vẫn trả tệp nguồn.
+  4. **`validated` là cổng cuối cùng, đọc thật chứ không suy ra.** Ràng buộc lược đồ đã chặn job
+     `completed` khi chưa validated, nhưng cổng này không dựa vào giả định đó — đây là chỗ cuối cùng
+     trước khi tệp tới tay người dùng.
+  5. **`head()` trước khi ký URL**: cơ sở dữ liệu có thể còn dòng trong khi kho đã mất tệp (Vibe Host
+     không có S3, đĩa container mất mỗi lần redeploy — D-040).
+  6. **Trả lại `checksumSha256` + `byteSize` cho người tải** để họ tự đối chiếu, thay vì phải tin lời
+     hệ thống.
+  7. **Ghi dấu vết ở lúc PHÁT URL**, không phải lúc tải xong: kho phục vụ byte trực tiếp nên API không
+     nhìn thấy lượt tải. Nói "đã phát quyền tải" là điều biết chắc; nói "đã tải về" thì không.
+  8. **Giao diện**: job `completed` hiện thẻ kết quả thay cho thẻ "đã tiếp nhận". **Không sửa câu chữ
+     owner đã duyệt** — câu `no_production_engine` chỉ thôi xuất hiện ở trạng thái nó gây hiểu nhầm.
+     URL đúc khi người dùng **bấm**, không phải khi mở trang (hạn ngắn).
+- **Alternatives considered**: (a) cho `/v1/assets/:assetId/download-url` nhận luôn id `out_…` — loại,
+  làm mờ ranh giới nguồn/kết quả, đúng thứ bất biến I-1 tồn tại để giữ; (b) trả thẳng byte thay vì URL
+  ký — loại, đẩy toàn bộ băng thông qua API và bỏ mất lợi thế của kho; (c) gộp thông tin + URL vào một
+  route — loại, xem (1); (d) ghi dấu vết lúc tải xong — **không làm được**, API không thấy lượt tải đó.
+- **Consequences**: người dùng lần đầu tiên lấy được tệp đã xử lý **qua API**. Chưa có `lastAccessedAt`
+  cho bản kết quả nên luật lưu giữ lớp `output_asset` chưa tính được theo lần đọc gần nhất. 8 khoá
+  i18n mới là **tôi viết, chưa được owner duyệt** — cần rà lại như đã làm với Q-20/Q-22. Dấu vết đếm
+  URL đã phát, nên một URL không ai dùng vẫn được tính.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
