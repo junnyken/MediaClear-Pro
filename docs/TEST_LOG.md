@@ -1177,3 +1177,73 @@ bắt đầu, mà biến chỉ có hiệu lực ở **lượt triển khai kế 
   tài khoản. Chưa có giới hạn tần suất, chưa khoá sau N lần sai mật khẩu.
 - Chưa có sao lưu, chưa có theo dõi, chưa đo tải.
 - Q-11 (BA/pháp lý duyệt câu chữ) vẫn chặn go-live thật.
+
+---
+
+## 2026-09-16 (lần 14) — Kiểm luồng đầy đủ trên bản ONLINE
+
+Tiếp `P2-MCP-26`. Chi tiết triển khai ở `docs/DEPLOYMENT.md`.
+
+### 1. Lỗi thật thứ ba, chỉ lộ ra khi gọi từ ngoài Internet
+
+`POST /v1/projects/:id/assets/upload-intent` trả về:
+
+```
+uploadUrl: http://localhost:3000/v1/storage/upload/eyJidWNrZXQi...
+```
+
+Client bên ngoài **không dùng được địa chỉ này**. Nguyên nhân: mặc định của
+`MEDIACLEAR_PUBLIC_BASE_URL` là `http://localhost:${PORT}`, mà trong container `PORT=3000`.
+
+Điểm đáng ghi: **`/healthz` vẫn xanh suốt thời gian đó.** Ba cổng đều tự khai đúng, mọi test đều đạt,
+và lỗi này vẫn tồn tại. Nó chỉ lộ ra khi **thật sự xin một vé tải lên rồi nhìn vào giá trị trả về**.
+
+Sửa bằng cách đặt `MEDIACLEAR_PUBLIC_BASE_URL` rồi triển khai lại. Sau đó:
+
+```
+uploadUrl: https://mediaclear-api.cmc-1.vibenode.matbao.ai/v1/storage/upload/eyJi...
+```
+
+### 2. Luồng đầy đủ chạy thật qua Internet
+
+| Bước | Kết quả |
+|---|---|
+| `POST /v1/auth/register` | `ok: true` · `productionAuthProvider: true` |
+| `POST /v1/auth/sign-in` | có token |
+| `GET /v1/me` | đúng email |
+| `POST /v1/auth/sign-in` **sai mật khẩu** | `MCP_AUTH_INVALID_CREDENTIALS` |
+| `POST /v1/workspaces` | `wsp_5507c26c…` |
+| `POST /v1/workspaces/:ws/projects` | `prj_1661d358…` |
+| `POST /v1/projects/:prj/assets/upload-intent` | `ast_89c52bec…` + vé tải lên |
+| `PUT` tệp PNG 240×160 lên vé đó | `ok: true` |
+| `GET /v1/assets/:ast` | `byteSize 44101` · `sha256 67f50b02…` · `240×160` |
+
+`sha256` khớp **đúng chuỗi** của tệp gốc trên máy. Tệp đi từ máy tôi qua Internet vào container và đọc
+ra vẫn nguyên vẹn.
+
+### 3. Giao diện trên URL công khai
+
+`https://mediaclear.cmc-1.vibenode.matbao.ai/sign-in`:
+
+- Địa chỉ API tiêm **lúc chạy**: `__MCP_API_BASE__="https://mediaclear-api.cmc-1.vibenode.matbao.ai"` —
+  chứng minh cơ chế cấu hình lúc chạy hoạt động đúng trên nền tảng thật.
+- Có ô **Mật khẩu** và nút **Tạo tài khoản mới**.
+- Đăng nhập bằng mật khẩu thật → vào `/workspaces`, **không lỗi console**.
+
+### 4. Hai lần suýt kết luận sai — cách tránh
+
+1. `POST /v1/projects` trả `MCP_RESOURCE_NOT_FOUND`. Không phải lỗi: đường thật là
+   `/v1/workspaces/:workspaceId/projects`. Đọc `API_ROUTES` thay vì đoán đường dẫn.
+2. Đọc asset thấy `byteSize: None` — tưởng mất dữ liệu. Thật ra số đo nằm **lồng trong `measured`**;
+   tôi đọc sai tầng. Dump toàn bộ phản hồi là cách xác nhận.
+
+Cả hai đều là **lỗi của người kiểm**, không phải của hệ thống. Ghi lại vì kiểu nhầm này dễ biến thành
+báo cáo lỗi giả.
+
+### 5. Giới hạn — đọc kỹ trước khi dùng thật
+
+- **Tệp tải lên sẽ MẤT mỗi lần redeploy**: Vibe Host không có S3, object storage là đĩa container.
+  Dữ liệu PostgreSQL thì bền.
+- URL công khai, đăng ký mở, **chưa có giới hạn tần suất và chưa khoá sau N lần sai mật khẩu**.
+- Chưa có sao lưu, chưa theo dõi, chưa đo tải.
+- Chưa có xử lý AI — không job nào tới `completed`.
