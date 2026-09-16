@@ -15,6 +15,7 @@ import type {
   ProcessingJob,
   Project,
   RightsAttestation,
+  SessionRecord,
   SourceFileRecord,
   UsageLedgerEntry,
   User,
@@ -74,6 +75,8 @@ export class InMemoryPersistence implements PersistencePort {
   private readonly jobRows: ProcessingJob[] = [];
   private readonly usageRows: UsageLedgerEntry[] = [];
   private readonly auditRows: AuditEvent[] = [];
+  private readonly passwordRows = new Map<string, string>();
+  private readonly sessionRows: SessionRecord[] = [];
 
   readonly users = {
     findById: async (id: string): Promise<User | null> => this.userRows.get(id) ?? null,
@@ -83,6 +86,26 @@ export class InMemoryPersistence implements PersistencePort {
       this.userRows.set(user.id, user);
       return user;
     },
+    findPasswordHash: async (userId: string): Promise<string | null> => this.passwordRows.get(userId) ?? null,
+    setPassword: async (userId: string, passwordHash: string): Promise<void> => {
+      this.passwordRows.set(userId, passwordHash);
+    },
+  };
+
+  readonly sessions = {
+    create: async (session: SessionRecord): Promise<SessionRecord> => {
+      this.sessionRows.push(session);
+      return session;
+    },
+    findByTokenHash: async (tokenHash: string): Promise<SessionRecord | null> =>
+      this.sessionRows.find((s) => s.tokenHash === tokenHash) ?? null,
+    revoke: async (tokenHash: string, at: string): Promise<void> => {
+      const index = this.sessionRows.findIndex((s) => s.tokenHash === tokenHash);
+      const row = this.sessionRows[index];
+      if (row) this.sessionRows[index] = { ...row, revokedAt: at };
+    },
+    listByUser: async (userId: string): Promise<SessionRecord[]> =>
+      this.sessionRows.filter((s) => s.userId === userId),
   };
 
   readonly workspaces = {

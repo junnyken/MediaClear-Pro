@@ -71,6 +71,14 @@ export const ERROR_CODES = {
   /** Phase 1: chua dang nhap / session het han. KHAC voi thieu quyen (403). */
   MCP_AUTHZ_SESSION_REQUIRED: 'MCP_AUTHZ_SESSION_REQUIRED',
   /**
+   * P2-MCP-25: email hoac mat khau sai. MOT ma duy nhat cho ca hai truong hop CO CHU DICH:
+   * tach ra thanh "email khong ton tai" va "mat khau sai" la tao ra mot kenh DO EMAIL.
+   * Cung dung cho dang ky trung email - nguoi that su so huu email van dang nhap duoc.
+   */
+  MCP_AUTH_INVALID_CREDENTIALS: 'MCP_AUTH_INVALID_CREDENTIALS',
+  /** P2-MCP-25: mat khau khong dat do dai toi thieu. */
+  MCP_AUTH_PASSWORD_TOO_SHORT: 'MCP_AUTH_PASSWORD_TOO_SHORT',
+  /**
    * Phase 1: tai nguyen khong ton tai TRONG workspace cua actor.
    * Cross-workspace dung MCP_AUTHZ_WORKSPACE_ACCESS_DENIED - ca hai deu 404 nen
    * nguoi goi khong phan biet duoc tu ben ngoai (I-10).
@@ -170,6 +178,9 @@ export const ERROR_CATALOGUE: Readonly<Record<ErrorCode, ErrorDefinition>> = {
   [C.MCP_NOT_IMPLEMENTED]: def(C.MCP_NOT_IMPLEMENTED, 'generic', 501, false, false),
   // 401: chua co danh tinh. Khong phai 403 (da biet la ai nhung thieu quyen).
   [C.MCP_AUTHZ_SESSION_REQUIRED]: def(C.MCP_AUTHZ_SESSION_REQUIRED, 'authz', 401, false, true),
+  // 401: chua chung minh duoc la ai. Khong retry tu dong - de nguoi dung go lai.
+  [C.MCP_AUTH_INVALID_CREDENTIALS]: def(C.MCP_AUTH_INVALID_CREDENTIALS, 'authz', 401, false, true),
+  [C.MCP_AUTH_PASSWORD_TOO_SHORT]: def(C.MCP_AUTH_PASSWORD_TOO_SHORT, 'validation', 400, false, true),
   // 404 giong het cross-workspace: nhin tu ngoai khong phan biet duoc (I-10).
   [C.MCP_RESOURCE_NOT_FOUND]: def(C.MCP_RESOURCE_NOT_FOUND, 'generic', 404, false, true),
   [C.MCP_VAL_REQUEST_INVALID]: def(C.MCP_VAL_REQUEST_INVALID, 'validation', 400, false, true),

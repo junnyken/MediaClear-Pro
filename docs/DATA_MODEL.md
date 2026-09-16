@@ -220,3 +220,18 @@ hồ sơ cũ vẫn đọc được. Backfill `params` của hồ sơ cũ **để
 
 Ngoài ra trình chạy migration thêm bảng `schema_migration_checksums` (tổng kiểm SHA-256 theo từng
 migration). Bảng `schema_migrations` **giữ nguyên hình dạng cũ** do `0001` tạo ra.
+
+## 18. Migration `0004` — mật khẩu và phiên đăng nhập (P2-MCP-25)
+
+| Thay đổi | Vì sao |
+|---|---|
+| `users.password_hash` (nullable) | Tài khoản tạo ở thời dev **không có** mật khẩu. Không đặt mật khẩu mặc định cho họ — một mật khẩu ai cũng đoán được còn tệ hơn không có |
+| `users.password_set_at` | Mốc để audit |
+| Bảng `sessions` | Trước đây phiên nằm trong bộ nhớ tiến trình nên **mất khi khởi động lại** |
+
+`sessions` chỉ lưu **`token_hash`**, không bao giờ lưu token dùng được: dump database không cho ai
+đăng nhập được. Thu hồi là **ghi mốc `revoked_at`**, không xoá dòng — giữ dấu vết để audit, nhất quán
+với nguyên tắc append-only của lời khai quyền.
+
+Định dạng `password_hash`: `scrypt$<N>$<r>$<p>$<salt b64>$<hash b64>` — **tự mô tả**, nên đổi tham số
+sau này vẫn đọc được bản cũ.

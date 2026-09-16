@@ -2,7 +2,7 @@
 
 - **Date**: 2026-09-15 (Phase 1.1) · **Base path**: `/v1`
 
-> **Sự thật hiện tại**: 25 route chạy thật, 3 route vẫn trả **HTTP 501**
+> **Sự thật hiện tại**: 27 route chạy thật, 3 route vẫn trả **HTTP 501**
 > `MCP_NOT_IMPLEMENTED`, 1 route chỉ bật ở môi trường dev, 2 route vận hành nội bộ
 > **tắt mặc định**. **Chưa có xử lý AI production**: không job nào đạt `completed`, không có output nào.
 > Bảng dưới sinh từ `API_ROUTES` trong `packages/contracts/src/api.ts` và có test đối chiếu
@@ -14,6 +14,8 @@
 |---|---|---|---|
 | GET | `/healthz` | implemented | P0-MCP-00 |
 | POST | `/v1/auth/dev-session` | dev_only | P1-MCP-10 |
+| POST | `/v1/auth/register` | implemented | P2-MCP-25 |
+| POST | `/v1/auth/sign-in` | implemented | P2-MCP-25 |
 | GET | `/v1/me` | implemented | P1-MCP-10 |
 | GET | `/v1/workspaces` | implemented | P1-MCP-10 |
 | POST | `/v1/workspaces` | implemented | P1-MCP-10 |
@@ -79,6 +81,13 @@ X-Workspace-Id: <workspaceId>     # bắt buộc khi user có nhiều workspace
   trong workspace của mình → **404** `MCP_RESOURCE_NOT_FOUND`. Hai trường hợp **cố ý** không phân
   biệt được từ bên ngoài (invariant I-10).
 - Thiếu quyền theo role → **403** `MCP_AUTHZ_INSUFFICIENT_ROLE`.
+- **P2-MCP-25 (Q-14 đã chốt)**: `POST /v1/auth/register` và `POST /v1/auth/sign-in` là **xác thực
+  thật** — email + mật khẩu, phiên lưu trong bảng `sessions`. Mật khẩu băm bằng `scrypt`; cơ sở dữ
+  liệu **chỉ lưu hash của token phiên**, không bao giờ lưu token dùng được.
+  - Sai mật khẩu, email không tồn tại, và đăng ký trùng email đều trả **cùng một** mã
+    `MCP_AUTH_INVALID_CREDENTIALS`. Tách ra là tạo một kênh **dò email**.
+  - Độ bền của phiên là việc của **tầng lưu trữ**: chạy in-memory thì phiên bay theo restart, chạy
+    PostgreSQL thì sống sót. `/healthz` tự khai điều đó qua `persistence.durability`.
 - `POST /v1/auth/dev-session` là **đăng nhập tạm cho môi trường dev**, không phải hệ thống tài khoản
   production. `/healthz` tự khai `identityProvider.production = false`.
 - Hạn của phiên tính theo **đồng hồ của ứng dụng**, không phải giờ hệ thống của tiến trình.
@@ -163,6 +172,8 @@ Mỗi mã có: machine code · translation key `errors.<mã viết thường>` (
 | `MCP_STORAGE_UPLOAD_TICKET_INVALID` | storage | 403 | không | có |
 | `MCP_NOT_IMPLEMENTED` | generic | 501 | không | không |
 | `MCP_AUTHZ_SESSION_REQUIRED` | authz | 401 | không | có |
+| `MCP_AUTH_INVALID_CREDENTIALS` | authz | 401 | không | có |
+| `MCP_AUTH_PASSWORD_TOO_SHORT` | validation | 400 | không | có |
 | `MCP_RESOURCE_NOT_FOUND` | generic | 404 | không | có |
 | `MCP_VAL_REQUEST_INVALID` | validation | 400 | không | có |
 | `MCP_VAL_NOT_VALIDATED` | validation | 409 | có | có |

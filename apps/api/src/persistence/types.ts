@@ -90,6 +90,21 @@ export function toSourceFile(record: SourceFileRecord): SourceFile | null {
   };
 }
 
+/**
+ * P2-MCP-25: phien dang nhap luu BEN VUNG.
+ *
+ * CHI luu hash cua token - dump database khong lam lo mot token dung duoc.
+ * Thu hoi la GHI MOC (`revokedAt`), khong xoa dong: con dau vet de audit.
+ */
+export interface SessionRecord {
+  id: Id;
+  userId: Id;
+  tokenHash: string;
+  createdAt: IsoTimestamp;
+  expiresAt: IsoTimestamp;
+  revokedAt: IsoTimestamp | null;
+}
+
 export type ValidationState = 'not_validated' | 'passed' | 'failed';
 
 export interface ValidationRecord {

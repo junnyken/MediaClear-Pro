@@ -846,3 +846,202 @@ API · văn bản ký v1/v2 · `RIGHTS_STATEMENT.version = 2` · lời khai quy�
 - Byte vẫn **đi qua API**, chưa tải thẳng từ trình duyệt lên S3.
 - Chưa có CDN, chưa có vòng đời object, chưa đo hiệu năng dưới tải.
 - `deleteObject` có trên adapter nhưng **không đường nào gọi** — đúng theo quyết định giữ dry-run.
+
+---
+
+## 2026-09-16 (lần 11) — Phase 2: xác thực bằng mật khẩu + phiên lưu DB (đóng Q-14)
+
+MINI-SPEC `P2-MCP-25` · quyết định `D-039`. Nền: `9469ef0`.
+
+### 1. Bốn lệnh kiểm, chạy RIÊNG từng lệnh
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (không hạ tầng) | `0` | **43 tệp · 401 đạt · 4 bỏ qua** |
+| 3b | `pnpm test` (**có** PostgreSQL + MinIO) | `0` | **43 tệp · 447 đạt · 0 bỏ qua** |
+| 4 | `pnpm build:web` | `0` | |
+
+`git diff --check`: sạch.
+
+**Một lượt build thất bại rồi tự hết.** Lần chạy đầu `build:web` thoát `1` dù Next in đủ bảng route;
+chạy lại sạch thì thoát `0` và log không còn dòng lỗi nào. Nguyên nhân: lần đầu tôi chạy build **song
+song** với việc giết/khởi động lại API trong cùng một lệnh. Không phải lỗi mã — nhưng ghi lại vì
+"build hỏng rồi tự hết" là thứ dễ bị bỏ qua.
+
+### 2. Test mới
+
+| Bộ | Số ca | Ghi chú |
+|---|---|---|
+| `p2-password` | 7 | băm mật khẩu |
+| `p2-password-identity` | 11 × 2 adapter = **22** | đăng ký / đăng nhập / phiên |
+
+Ca quan trọng nhất — **phiên sống sót "khởi động lại"**: một thể hiện `PasswordIdentityProvider`
+**mới** (mô phỏng tiến trình vừa khởi động) đọc được phiên do thể hiện **cũ** cấp. Trước `P2-MCP-25`
+phép này **luôn thất bại**.
+
+Bộ băm mật khẩu có một ca đáng chú ý: **mọi dạng chuỗi băm hỏng** (rỗng · sai định dạng · tham số
+không phải số · muối rỗng · thuật toán khác · thiếu đoạn) đều phải trả `false`, **không ném lỗi** —
+chuỗi hỏng không được biến thành đường vào qua một tầng bắt lỗi ở trên.
+
+### 3. Lỗi thiết kế của tôi mà TEST bắt được
+
+Bản đầu tôi chỉ bật `PasswordIdentityProvider` khi có `MEDIACLEAR_DATABASE_URL`, lý luận rằng "xác
+thực thật mà phiên bay mỗi lần restart là lừa người dùng".
+
+`api-contract.test.ts` báo đỏ: **route khai `implemented` lại trả `501`** khi chạy không DB — tức là
+nói dối về chính nó.
+
+Sửa đúng: độ bền của phiên là việc của **tầng lưu trữ**, đã tự khai ở `/healthz` qua
+`persistence.durability`. Cổng xác thực chỉ lo chứng minh danh tính. Provider nay **luôn bật**; chạy
+in-memory thì phiên bay theo restart **đúng như mọi dữ liệu khác**.
+
+Lỗi thứ hai: tôi **thay** `DevIdentityProvider` bằng provider mới ⇒ **73 test đỏ**, vì
+`/v1/auth/dev-session` gọi vào provider mật khẩu và bị ném lỗi. Sửa bằng `CompositeIdentityProvider`
+giữ cả hai đường; `isProductionProvider` chỉ `true` khi **cửa dev đã đóng**.
+
+### 4. Live verification
+
+Chạy với `MEDIACLEAR_DEV_AUTH=0` (cửa dev đóng). `/healthz` khai **cả ba cổng là production** —
+lần đầu tiên:
+
+```
+identity:    { id: 'password-phase2',      production: true }
+persistence: { id: 'postgres-phase2',      durability: 'durable' }
+storage:     { id: 's3-compatible-phase2', production: true }
+routes: 33
+```
+
+Thí nghiệm có kiểm soát trên email hoàn toàn mới:
+
+| Bước | Kết quả |
+|---|---|
+| Đăng ký email mới | `ok: true` |
+| Đăng ký **trùng** email đó | `MCP_AUTH_INVALID_CREDENTIALS` |
+| Đăng nhập đúng mật khẩu | `ok: true`, có token |
+| Đăng nhập **sai** mật khẩu | `MCP_AUTH_INVALID_CREDENTIALS` — **cùng mã** với trùng email |
+
+**Phép thử quyết định:**
+
+| Bước | Kết quả |
+|---|---|
+| Đăng nhập, gọi `/v1/me` | `ok: true`, `owner2@matbao.com` |
+| **Khởi động lại API** | |
+| Dùng **lại token cũ** gọi `/v1/me` | `ok: true`, `owner2@matbao.com` |
+
+Giao diện: trang đăng nhập nay có ô **Mật khẩu** và nút chuyển sang **Tạo tài khoản mới**. Đăng nhập
+bằng mật khẩu thật qua trình duyệt → vào được `/workspaces`, **không lỗi console**.
+
+### 5. Giới hạn của lần kiểm tra này
+
+- **Chưa có giới hạn tần suất, chưa khoá tài khoản sau N lần sai.** Hiện **không có gì chặn thử mật
+  khẩu hàng loạt** — phải có trước khi mở cho người ngoài.
+- Chưa có đặt lại mật khẩu, chưa có xác minh email.
+- Tài khoản tạo ở thời dev không đăng nhập bằng mật khẩu được (không có mật khẩu).
+- Q-11 (BA/pháp lý duyệt câu chữ) vẫn chặn go-live.
+
+---
+
+## 2026-09-16 (lần 11) — Phase 2: xác thực bằng mật khẩu, phiên lưu database
+
+MINI-SPEC `P2-MCP-25` · quyết định `D-039` · **đóng Q-14**. Nền: `9469ef0`.
+
+### 1. Bốn lệnh kiểm, chạy RIÊNG từng lệnh
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (không hạ tầng) | `0` | **43 tệp · 401 đạt · 4 bỏ qua** |
+| 3b | `pnpm test` (**có** PostgreSQL + MinIO) | `0` | **43 tệp · 447 đạt · 0 bỏ qua** |
+| 4 | `pnpm build:web` | `0` | |
+
+`git diff --check`: sạch.
+
+**Một ghi chú về build:** lượt chạy đầu `build:web` trả `1` **sau khi** Next đã in xong bảng route.
+Chạy lại sạch thì `0`, log không còn dòng lỗi nào. Nguyên nhân là tranh chấp tài nguyên vì tôi khởi
+động lại API song song trong cùng lệnh, **không phải lỗi mã**. Ghi lại vì đây đúng kiểu "hỏng một lần
+rồi thôi" dễ bị bỏ qua hoặc bị quy oan cho mã nguồn.
+
+### 2. Test băm mật khẩu — 7 ca
+
+Đây là lớp chắn duy nhất giữa một email và toàn bộ dữ liệu của người đó, nên mọi dạng hỏng phải trả
+`false` chứ không được ném lỗi rồi để tầng trên bắt nhầm thành "cho qua":
+
+| Ca | Kết quả |
+|---|---|
+| Chuỗi băm **không chứa** mật khẩu thường | đạt |
+| Hai lần băm cùng mật khẩu ra **hai chuỗi khác nhau** (có muối) | đạt |
+| Tài khoản chưa đặt mật khẩu (`null`) ⇒ không đăng nhập được | đạt |
+| 6 dạng chuỗi băm hỏng (rỗng · sai định dạng · tham số không phải số · muối rỗng · thuật toán khác · thiếu đoạn) | **đều trả `false`, không ném lỗi** |
+
+### 3. Test cổng xác thực — 11 ca, chạy trên CẢ HAI adapter (22 lượt)
+
+| Ca đáng chú ý | Kết quả |
+|---|---|
+| **Phiên sống sót qua "khởi động lại"** — thể hiện provider **mới** đọc được phiên do thể hiện cũ cấp | đạt |
+| Email không tồn tại và mật khẩu sai trả **cùng** mã lỗi | đạt |
+| Đăng ký trùng email cũng trả mã đó (không xác nhận email tồn tại) | đạt |
+| Database **chỉ lưu hash**, không lưu token rõ | đạt |
+| Thu hồi rồi thì token hết tác dụng | đạt |
+| Phiên hết hạn không dùng được | đạt |
+
+### 4. Lỗi thiết kế của tôi, do test bắt được
+
+Bản đầu tôi chỉ bật `PasswordIdentityProvider` khi có `MEDIACLEAR_DATABASE_URL`, lý do nghĩ ra lúc đó:
+"xác thực thật mà phiên bay mỗi lần restart là lừa người dùng".
+
+Test `api-contract` bắt ngay: **route khai `implemented` lại trả `501`** khi chạy không DB — tức là
+nói dối về chính nó. Sửa: provider luôn bật; độ bền của phiên là việc của **tầng lưu trữ**, đã tự khai
+ở `/healthz` qua `persistence.durability`.
+
+Lần thứ hai: tôi **thay** `DevIdentityProvider` bằng provider mới ⇒ **73 test đỏ**, vì
+`/v1/auth/dev-session` gọi vào provider mật khẩu và bị ném lỗi. Sửa bằng `CompositeIdentityProvider`
+giữ cả hai đường, và `isProductionProvider` chỉ `true` khi **cửa dev đã đóng**.
+
+### 5. Live verification
+
+`/healthz` khi chạy với `MEDIACLEAR_DEV_AUTH=0`:
+
+```
+identity:    { id: 'password-phase2', production: true }
+persistence: { id: 'postgres-phase2', durability: 'durable' }
+storage:     { id: 's3-compatible-phase2', production: true }
+routes: 33
+```
+
+**Lần đầu tiên cả ba cổng cùng tự khai production.**
+
+Thí nghiệm có kiểm soát trên API thật (email sinh theo thời gian để chắc chắn là mới):
+
+| Bước | Kết quả |
+|---|---|
+| Đăng ký email mới | `ok: true`, có token |
+| Đăng ký **trùng** email đó | `ok: false`, `MCP_AUTH_INVALID_CREDENTIALS` |
+| Đăng nhập đúng mật khẩu | `ok: true`, có token |
+| Đăng nhập **sai** mật khẩu | `ok: false`, **cùng** mã lỗi trên |
+
+**Phép thử quyết định — phiên sống sót khởi động lại:**
+
+| Bước | Kết quả |
+|---|---|
+| Đăng nhập, gọi `/v1/me` | `ok: true`, `owner2@matbao.com` |
+| **Khởi động lại API** | |
+| Dùng **lại token cũ** gọi `/v1/me` | `ok: true`, `owner2@matbao.com` |
+
+Giao diện: trang đăng nhập nay có ô **Mật khẩu** và nút chuyển sang **Tạo tài khoản mới**. Đăng nhập
+bằng mật khẩu thật qua giao diện: vào được `/workspaces`, **không lỗi console**.
+
+Một điểm suýt kết luận sai: một lời gọi đăng ký trả `401` làm tôi tưởng có lỗi. Kiểm ra thì email đó
+**đã được tạo bởi một tiến trình API tôi khởi động trước đó** (log khác), nên đây là **trùng email** —
+đúng hành vi đã thiết kế. Thí nghiệm có kiểm soát ở trên là cách xác nhận, thay vì suy đoán từ log.
+
+### 6. Giới hạn của lần kiểm tra này
+
+- **Chưa có**: đặt lại mật khẩu, xác minh email, khoá tài khoản sau N lần sai, giới hạn tần suất.
+  Hiện **không có gì chặn thử mật khẩu hàng loạt** — ba thứ cuối nên có **trước khi mở cho người ngoài**.
+- Tài khoản tạo ở thời dev không có mật khẩu ⇒ không đăng nhập bằng mật khẩu được.
+- `/v1/auth/dev-session` **vẫn còn** cho môi trường dev; ở production phải đặt `MEDIACLEAR_DEV_AUTH=0`,
+  nếu không `isProductionProvider` sẽ tự khai `false` (đúng sự thật, vì vẫn còn cửa không mật khẩu).
+- Q-11 (BA/pháp lý duyệt câu chữ) vẫn chặn go-live.

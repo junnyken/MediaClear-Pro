@@ -558,3 +558,40 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   storage rộng thêm hai phương thức. **Chưa kiểm trên R2 thật** — mới MinIO. `deleteObject` vẫn
   không đường nào gọi, đúng theo quyết định giữ dry-run.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-039 — Xác thực bằng mật khẩu, phiên lưu trong database (P2-MCP-25, đóng Q-14)
+
+- **Context**: Q-14 (auth provider production) mở từ Phase 1. Hệ thống chỉ có
+  `DevIdentityProvider`: gõ **bất kỳ email nào** là vào được, không mật khẩu. Ở `P2-MCP-23` còn
+  phát hiện phiên nằm trong một mảng bộ nhớ nên **mất mỗi lần khởi động lại**, và lược đồ không có
+  bảng `sessions`. Đây đồng thời là cửa chặn đưa lên mạng: `NODE_ENV=production` thì `devAuthEnabled`
+  tự tắt ⇒ không ai đăng nhập được; bật lên thì URL công khai ai gõ email nào cũng vào.
+  Owner chốt Q-14 (2026-09-16): **tự làm, phiên lưu DB**.
+- **Decision**:
+  1. `PasswordIdentityProvider`: email + mật khẩu, phiên lưu bảng `sessions` (migration `0004`).
+  2. **`scrypt` có sẵn trong Node, không argon2.** Mọi bản argon2 cho Node là **native module**,
+     sẽ làm hỏng build Docker trên nền tảng không có toolchain C. Một hàm băm tốt mà chạy được ở
+     mọi nơi an toàn hơn một hàm băm tốt hơn mà build hỏng — vì khi build hỏng người ta tìm đường tắt.
+  3. **Chuỗi băm nằm NGOÀI kiểu `User`.** `User` đi thẳng ra API response; nếu chuỗi băm là một
+     trường của nó thì chỉ cần một lần quên loại bỏ là lộ. Cổng có `users.findPasswordHash()` riêng.
+  4. **Một mã lỗi duy nhất** `MCP_AUTH_INVALID_CREDENTIALS` cho: sai mật khẩu · email không tồn tại ·
+     đăng ký trùng email. Tách ra là tạo kênh **dò email**. Đường đăng nhập còn luôn chạy hàm kiểm
+     kể cả khi email không tồn tại, để thời gian trả lời không tố ra điều đó.
+  5. **Chỉ lưu hash của token phiên.** Dump database không lộ token dùng được.
+  6. Thu hồi phiên là **ghi mốc** `revoked_at`, không xoá dòng — nhất quán với nguyên tắc append-only.
+  7. `CompositeIdentityProvider` giữ **cả hai** đường: `/v1/auth/dev-session` (dev_only) và
+     `/v1/auth/sign-in` (thật). `isProductionProvider` chỉ `true` khi **cửa dev đã đóng** — còn cửa
+     dev mở thì dù có mật khẩu, hệ thống không được tự nhận là xác thực production.
+- **Alternatives considered**: (a) argon2 — loại, lý do ở (2); (b) chỉ bật xác thực thật khi có
+  `MEDIACLEAR_DATABASE_URL` — **đã thử và bị test bắt là sai**: route khai `implemented` lại trả `501`
+  khi chạy không DB, tức nói dối về chính nó. Độ bền của phiên là việc của **tầng lưu trữ** (đã tự
+  khai ở `/healthz`), không phải việc của cổng xác thực; (c) bỏ `DevIdentityProvider` — loại, mọi test
+  hiện có dùng nó để đăng nhập.
+- **Consequences**: đăng nhập cần mật khẩu; phiên **sống sót khởi động lại** (kiểm bằng tay). Tài
+  khoản tạo ở thời dev **không có mật khẩu** nên không đăng nhập bằng mật khẩu được — không đặt mật
+  khẩu mặc định cho họ vì một mật khẩu ai cũng đoán được còn tệ hơn không có.
+  **Chưa có**: đặt lại mật khẩu, xác minh email, khoá sau N lần sai, giới hạn tần suất — ba thứ cuối
+  nên có **trước khi mở cho người ngoài**.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

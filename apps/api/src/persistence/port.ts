@@ -13,6 +13,7 @@ import type {
   ProcessingJob,
   Project,
   RightsAttestation,
+  SessionRecord,
   SourceFileRecord,
   UsageLedgerEntry,
   User,
@@ -30,6 +31,22 @@ export interface PersistencePort {
     findById(id: string): Promise<User | null>;
     findByEmail(email: string): Promise<User | null>;
     create(user: User): Promise<User>;
+    /**
+     * P2-MCP-25: chuoi bam mat khau. CO Y de ngoai kieu `User` - `User` di thang ra API
+     * response, nen chuoi bam khong duoc phep nam trong do du chi mot lan.
+     * null = tai khoan chua dat mat khau (tao o thoi dev) => khong dang nhap bang mat khau duoc.
+     */
+    findPasswordHash(userId: string): Promise<string | null>;
+    setPassword(userId: string, passwordHash: string, at: string): Promise<void>;
+  };
+
+  /** P2-MCP-25: phien nam o day thay vi trong bo nho tien trinh. */
+  sessions: {
+    create(session: SessionRecord): Promise<SessionRecord>;
+    findByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
+    /** Ghi moc thu hoi. Khong xoa dong: con dau vet de audit. */
+    revoke(tokenHash: string, at: string): Promise<void>;
+    listByUser(userId: string): Promise<SessionRecord[]>;
   };
 
   workspaces: {

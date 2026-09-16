@@ -295,6 +295,67 @@ export function buildServer(options: BuildServerOptions = {}) {
     );
   });
 
+  /* ------------------------------------------------- P2-MCP-25: xac thuc that --- */
+
+  /**
+   * Doc email + mat khau tu body. Tra null neu thieu hoac sai kieu - khong tu "sua" gium,
+   * vi doan y dinh o duong dang nhap la cho de sinh lo hong.
+   */
+  const credentials = (request: FastifyRequest): { email: string; password: string } | null => {
+    const payload = body(request);
+    const email = typeof payload.email === 'string' ? payload.email.trim() : '';
+    const password = typeof payload.password === 'string' ? payload.password : '';
+    if (email.length === 0 || password.length === 0) return null;
+    return { email, password };
+  };
+
+  app.post('/v1/auth/register', async (request, reply) => {
+    const input = credentials(request);
+    if (!input) {
+      return sendError(request, reply, apiError(ERROR_CODES.MCP_VAL_REQUEST_INVALID, { field: 'email' }), 'auth.register');
+    }
+    const payload = body(request);
+    const displayName = typeof payload.displayName === 'string' ? payload.displayName : undefined;
+    const result = await ctx.passwordAuth.register(
+      displayName === undefined ? input : { ...input, displayName },
+    );
+    if (!result.ok) return sendError(request, reply, result.error, 'auth.register');
+    return sendOk(
+      request,
+      reply,
+      {
+        token: result.session.token,
+        userId: result.user.id,
+        expiresAt: result.session.expiresAt,
+        productionAuthProvider: ctx.passwordAuth.isProductionProvider,
+      },
+      'auth.register',
+      { subjectId: result.user.id },
+    );
+  });
+
+  app.post('/v1/auth/sign-in', async (request, reply) => {
+    const input = credentials(request);
+    if (!input) {
+      // Thieu truong cung tra ma loi thong tin dang nhap sai: khong noi thieu truong nao.
+      return sendError(request, reply, apiError(ERROR_CODES.MCP_AUTH_INVALID_CREDENTIALS), 'auth.sign_in');
+    }
+    const result = await ctx.passwordAuth.signInWithPassword(input);
+    if (!result.ok) return sendError(request, reply, result.error, 'auth.sign_in');
+    return sendOk(
+      request,
+      reply,
+      {
+        token: result.session.token,
+        userId: result.user.id,
+        expiresAt: result.session.expiresAt,
+        productionAuthProvider: ctx.passwordAuth.isProductionProvider,
+      },
+      'auth.sign_in',
+      { subjectId: result.user.id },
+    );
+  });
+
   app.get('/v1/me', async (request, reply) => {
     const authed = await resolveUser(ctx, bearerToken(request));
     if (!authed.ok) return sendError(request, reply, authed.error, 'me.read');

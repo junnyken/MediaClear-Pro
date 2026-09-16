@@ -7,7 +7,13 @@
  */
 import { ProviderRegistry, NoopContractProvider, type ObjectStorageAdapter } from '@mediaclear/contracts';
 import { loadConfig, type ApiConfig } from './config/env.js';
-import { DevIdentityProvider, type IdentityProvider } from './auth/identity.js';
+import {
+  CompositeIdentityProvider,
+  DevIdentityProvider,
+  PasswordIdentityProvider,
+  type IdentityProvider,
+  type PasswordIdentityPort,
+} from './auth/identity.js';
 import { Pool } from 'pg';
 import { InMemoryPersistence } from './persistence/in-memory.js';
 import { PostgresPersistence } from './persistence/postgres.js';
@@ -31,6 +37,8 @@ export interface AppContext {
   config: ApiConfig;
   persistence: PersistencePort;
   identity: IdentityProvider;
+  /** P2-MCP-25: cong xac thuc that. Luon co - do ben vung la viec cua tang luu tru. */
+  passwordAuth: PasswordIdentityPort;
   storage: StorageAdapter;
   probe: MediaProbeAdapter;
   providers: ProviderRegistry;
@@ -84,6 +92,20 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
         publicBaseUrl: config.publicBaseUrl,
         signingSecret: config.uploadSecret,
       });
+  /**
+   * P2-MCP-25: xac thuc that, LUON bat.
+   *
+   * Co y KHONG rang buoc vao `databaseUrl`: do ben vung cua phien la viec cua TANG LUU TRU
+   * (da tu khai o `/healthz` qua `persistence.durability`), khong phai viec cua cong xac thuc.
+   * Buoc no phu thuoc DB se lam mot route khai `implemented` tra 501 khi chay khong DB - tuc
+   * la noi doi ve chinh no.
+   */
+  const passwordAuth: PasswordIdentityPort = new PasswordIdentityProvider(
+    persistence,
+    config.sessionTtlSeconds,
+    now,
+  );
+
   const providers = new ProviderRegistry();
   /*
    * Phase 1 CHI dang ky provider no-op (isProductionProvider = false).
@@ -94,7 +116,12 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
   return {
     config,
     persistence,
-    identity: new DevIdentityProvider(persistence, config.sessionTtlSeconds, now),
+    identity: new CompositeIdentityProvider(
+      passwordAuth,
+      new DevIdentityProvider(persistence, config.sessionTtlSeconds, now),
+      config.devAuthEnabled,
+    ),
+    passwordAuth,
     storage,
     probe: overrides.probe ?? new HeaderMediaProbe(),
     providers,

@@ -23,6 +23,7 @@ import type {
   ProcessingJob,
   Project,
   RightsAttestation,
+  SessionRecord,
   SourceFileRecord,
   UsageLedgerEntry,
   User,
@@ -114,6 +115,48 @@ export class PostgresPersistence implements PersistencePort {
         [user.id, user.email, user.displayName, user.defaultLocale, user.createdAt],
       );
       return user;
+    },
+    findPasswordHash: async (userId: string): Promise<string | null> => {
+      const rows = await this.q<{ password_hash: string | null }>(
+        'SELECT password_hash FROM users WHERE id = $1',
+        [userId],
+      );
+      return rows[0]?.password_hash ?? null;
+    },
+    setPassword: async (userId: string, passwordHash: string, at: string): Promise<void> => {
+      await this.q('UPDATE users SET password_hash = $2, password_set_at = $3 WHERE id = $1', [
+        userId,
+        passwordHash,
+        at,
+      ]);
+    },
+  };
+
+  readonly sessions = {
+    create: async (session: SessionRecord): Promise<SessionRecord> => {
+      await this.q(
+        `INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at, revoked_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          session.id, session.userId, session.tokenHash,
+          session.createdAt, session.expiresAt, session.revokedAt,
+        ],
+      );
+      return session;
+    },
+    findByTokenHash: async (tokenHash: string): Promise<SessionRecord | null> => {
+      const rows = await this.q<SessionRow>('SELECT * FROM sessions WHERE token_hash = $1', [tokenHash]);
+      return rows[0] ? toSession(rows[0]) : null;
+    },
+    revoke: async (tokenHash: string, at: string): Promise<void> => {
+      await this.q('UPDATE sessions SET revoked_at = $2 WHERE token_hash = $1', [tokenHash, at]);
+    },
+    listByUser: async (userId: string): Promise<SessionRecord[]> => {
+      const rows = await this.q<SessionRow>(
+        'SELECT * FROM sessions WHERE user_id = $1 ORDER BY created_at ASC, id ASC',
+        [userId],
+      );
+      return rows.map(toSession);
     },
   };
 
@@ -535,6 +578,11 @@ export class PostgresPersistence implements PersistencePort {
 
 /* ====================================================================== rows */
 
+type SessionRow = {
+  id: string; user_id: string; token_hash: string;
+  created_at: Date; expires_at: Date; revoked_at: Date | null;
+};
+
 type UserRow = { id: string; email: string; display_name: string; default_locale: string; created_at: Date }
 type WorkspaceRow = { id: string; name: string; owner_user_id: string; created_at: Date }
 type MembershipRow = { id: string; workspace_id: string; user_id: string; role: string; created_at: Date }
@@ -595,6 +643,14 @@ function numRequired(value: string | number): number {
   const out = num(value);
   if (out === null) throw new Error('mong doi so nhung nhan duoc null');
   return out;
+}
+
+function toSession(r: SessionRow): SessionRecord {
+  return {
+    id: r.id, userId: r.user_id, tokenHash: r.token_hash,
+    createdAt: isoRequired(r.created_at), expiresAt: isoRequired(r.expires_at),
+    revokedAt: iso(r.revoked_at),
+  };
 }
 
 function toUser(r: UserRow): User {

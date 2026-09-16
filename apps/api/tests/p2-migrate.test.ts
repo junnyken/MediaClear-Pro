@@ -27,6 +27,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0001_phase1_init.sql',
       '0002_phase1_1_retention_and_reservation_ttl.sql',
       '0003_phase2_persistence_gaps.sql',
+      '0004_phase2_password_auth_sessions.sql',
     ]);
   });
 
@@ -44,6 +45,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0001_phase1_init',
       '0002_phase1_1_retention_and_reservation_ttl',
       '0003_phase2_persistence_gaps',
+      '0004_phase2_password_auth_sessions',
     ]);
   });
 
@@ -83,6 +85,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
       '0001_phase1_init.sql',
       '0002_phase1_1_retention_and_reservation_ttl.sql',
       '0003_phase2_persistence_gaps.sql',
+      '0004_phase2_password_auth_sessions.sql',
     ]);
     expect(out.skipped).toEqual([]);
 
@@ -96,7 +99,8 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     expect(names).toContain('rights_attestations');
     expect(names).toContain('schema_migrations');
     expect(names).toContain('schema_migration_checksums');
-    expect(names.length).toBeGreaterThanOrEqual(13); // 11 bang nghiep vu + 2 so
+    expect(names).toContain('sessions');
+    expect(names.length).toBeGreaterThanOrEqual(14); // 12 bang nghiep vu + 2 so
 
     // 0003 vá dung ba cho luoc do THIEU so voi kieu mien - kiem cot that su co mat.
     const cols = await p.query<{ table_name: string; column_name: string }>(
@@ -118,7 +122,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     const p2 = await freshPool();
     const out = await runMigrations(p2, REPO_MIGRATIONS);
     expect(out.applied, 'lan hai khong duoc ap dung lai gi').toEqual([]);
-    expect(out.skipped).toHaveLength(3);
+    expect(out.skipped).toHaveLength(4);
     await p2.end();
   });
 

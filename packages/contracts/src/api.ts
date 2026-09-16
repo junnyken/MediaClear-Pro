@@ -89,6 +89,9 @@ export const API_ROUTES = [
 
   // --- MCP-10 Auth & workspace boundary ---
   { method: 'POST', path: '/v1/auth/dev-session', status: 'dev_only', mcp: 'P1-MCP-10' },
+  // P2-MCP-25 (Q-14 da chot): xac thuc that. Hai route nay chay o MOI moi truong.
+  { method: 'POST', path: '/v1/auth/register', status: 'implemented', mcp: 'P2-MCP-25' },
+  { method: 'POST', path: '/v1/auth/sign-in', status: 'implemented', mcp: 'P2-MCP-25' },
   { method: 'GET', path: '/v1/me', status: 'implemented', mcp: 'P1-MCP-10' },
   { method: 'GET', path: '/v1/workspaces', status: 'implemented', mcp: 'P1-MCP-10' },
   { method: 'POST', path: '/v1/workspaces', status: 'implemented', mcp: 'P1-MCP-10' },
