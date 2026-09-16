@@ -1,6 +1,6 @@
 # FEATURES — MediaClear Pro
 
-- **Date**: 2026-09-15 · **Phase**: 1.1 (Post-Phase-1 Hardening)
+- **Date**: 2026-09-16 · **Phase**: 2 (tới `P2-MCP-35`)
 
 Bảng dưới là **trạng thái thật trong repository này**, không phải kế hoạch bán hàng.
 `implemented` = có code chạy được, có test, và đã được gọi thật ít nhất một lần.
@@ -86,8 +86,9 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 
 ## 3. Chưa có bằng chứng (`unknown`)
 
-Provider AI nào đủ chất lượng · Giá thật mỗi ảnh/mỗi phút video · Tỷ lệ fail/retry thực tế · Thư viện
-đọc C2PA · Bộ media mẫu cho benchmark (Q-07).
+Provider AI nào đủ chất lượng (Q-06) · Giá thật mỗi ảnh/mỗi phút video (Q-07) · Tỷ lệ fail/retry thực
+tế · Thư viện đọc C2PA (Q-12) · Bộ media mẫu cho benchmark (Q-07) · **Hành vi khi tệp gần trần 199 MB**
+(mới thử tới 1,9 MB) · **Đỉnh bộ nhớ khi ghép tệp lớn** (`P2-MCP-35` ghép trong bộ nhớ, chưa đo dưới tải).
 
 ## 4. Chưa xác minh (`unconfirmed`)
 
@@ -95,10 +96,16 @@ Việc dọn dữ liệu thật theo luật lưu giữ (**chưa từng chạy** 
 Hành vi hoàn trả tại đúng mốc 30 phút trên môi trường thật (đã kiểm bằng đồng hồ điều khiển được
 trong test; live chỉ xác nhận lệnh chạy được và bị chặn đúng) ·
 
-Bảo toàn metadata/provenance khi xử lý thật (chưa xử lý lần nào) · Hành vi ở tải cao · Khả năng phục
-hồi khi mất kết nối giữa chừng upload · Đọc màn hình (screen reader) trên toàn bộ giao diện.
+Hành vi ở tải cao · **Đọc màn hình (screen reader) trên toàn bộ giao diện** · **Giao diện trên màn
+hình nhỏ** · Việc dọn phiên tải lên quá hạn (`P2-MCP-35` để lại mảnh thừa, chưa ai xoá).
 
-## 5. Cố ý không làm (`out_of_scope` trong Phase 1)
+> **Hai mục đã RA KHỎI danh sách này trong Phase 2, vì nay đã đo được thật:**
+> *"Bảo toàn metadata khi xử lý thật"* — `P2-MCP-30` đo trên byte đã lưu: EXIF **240 byte còn nguyên**
+> trên chính tệp tải về. Nhưng phần **dấu vết AI** vẫn `unknown` vì không có bộ đọc C2PA (Q-12).
+> *"Khả năng phục hồi khi mất kết nối giữa chừng upload"* — `P2-MCP-35` kiểm live: đứt ở 14/29 mảnh
+> rồi nối lại, tệp ghép **khớp từng byte**.
+
+## 5. Cố ý không làm (`out_of_scope` tới hết Phase 2)
 
 Xử lý AI production (ảnh và video) · Trình sửa khung hình · Bám chuyển động · Chọn provider
 production · Thanh toán thật · Google Drive · Chrome Extension · API công khai cho khách · Quyền

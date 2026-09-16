@@ -1,6 +1,6 @@
 # OPEN_QUESTIONS — MediaClear Pro
 
-Cập nhật: **2026-09-16** (sau P2-MCP-25 — Q-14 đã chốt và đã hiện thực).
+Cập nhật: **2026-09-16** (sau `P2-MCP-35` — hết Phase 2; Q-02 đã chốt và đã hiện thực).
 
 Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã chốt chuyển xuống mục "Đã giải quyết" và
 **không** còn xuất hiện ở bảng đang mở.
@@ -9,14 +9,16 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 
 | ID | Câu hỏi | Ảnh hưởng | Trạng thái | Chặn gì |
 |---|---|---|---|---|
-| Q-02 | Queue/worker runtime nào cho video? | ARCH §3 | `unknown` | Phase 1 pipeline |
 | Q-05 | Quy trình report/abuse đầy đủ ở phase sau trông như thế nào? (Phase 0 chỉ mới chốt: asset bị report → attestation `blocked`) | POLICY §7 | `unknown` | thiết kế sau MVP |
 | Q-07 | Ai chuẩn bị bộ media mẫu cho 10 kịch bản benchmark? | PROVIDER_BENCHMARK §5 | `unknown` | chạy benchmark |
-| Q-11 | Có cần luật sư/BA duyệt câu chữ xác nhận quyền (vi + en) trước khi lên production không? | POLICY §3 | `unknown` | go-live |
-| Q-12 | Thư viện nào đọc được C2PA / AI provenance thật? | MCP-05 | `unknown` | `ProvenanceRecord` có số liệu thật |
+| Q-11 | Có cần luật sư/BA duyệt câu chữ xác nhận quyền (vi + en) trước khi lên production không? | POLICY §3 | `unknown` | **go-live.** Nay còn rộng hơn: Phase 2 thêm ~30 khoá câu chữ do agent viết (`P2-MCP-29/31/33`) và **chưa khoá nào được owner duyệt** |
+| Q-12 | Thư viện nào đọc được C2PA / AI provenance thật? | MCP-05 | `unknown` | **Phần "dấu vết AI" của MỌI biên nhận hiện là `unknown`.** `P2-MCP-30` đã có bộ đo thật cho metadata (EXIF/ICC/XMP/IPTC) nhưng **không có** bộ đọc C2PA, và `D-044` cấm suy ra `verified` từ một phép đo chưa chạy |
 | Q-13 | Giới hạn 199 MB / 599 giây / 3840 px đang hiểu là **inclusive** (đúng 199 MB vẫn được nhận). Owner xác nhận cách hiểu này chứ? | MCP-03 | `unconfirmed` | không chặn — contract đã chạy theo cách hiểu inclusive, đổi thì sửa 1 dòng config |
 | Q-15 | "Static mask" đang được map vào `blur`/`brand_overlay` trên một vùng cố định thay vì tạo enum mới. Owner xác nhận cách map này chứ? | vocabulary, provider | `unconfirmed` | không chặn |
 | Q-21 | Bản English của câu phạm vi trong prompt Q-20 **bị cắt ở "identifying ma"**. Đang dùng đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối là "marks" — chữ cuối là **suy ra**, không phải owner duyệt. Owner xác nhận chữ cuối và phần sau (nếu còn) chứ? | i18n `policy.visible_identity_scope` (en) | `unconfirmed` | không chặn — sửa một khoá i18n là xong. **D-034** (`P1.1-Q21-MCP-21`) đã dựng chốt hai chiều: đổi chuỗi mà quên cập nhật dòng này, hoặc đóng dòng này mà chuỗi không đổi, đều làm test đỏ |
+
+| Q-23 | Kho object dùng chung cho bản online: dùng Cloudflare R2 hay nhà cung cấp S3 nào? | `P2-MCP-24`, `DEPLOYMENT.md` | `unknown` | **Chặn deploy worker VÀ chặn go-live.** Bản online đang chạy `local-fs-phase1`: tệp nằm trên đĩa container nên **mất mỗi lần deploy lại**, và worker ở container khác **không thấy tệp nguồn** |
+| Q-24 | ~20 nhãn câu chữ cho loại sự kiện ở trang Nhật ký (`processing_job_completed`, `output_download_url_issued`…) — ai viết? | `P2-MCP-33`, giao diện | `unknown` | không chặn — hiện hiện nguyên chuỗi tiếng Anh `snake_case`. DEV **không tự chế** câu chữ |
 
 > Q-13 và Q-15 là **cách hiểu** của agent khi áp dụng owner decisions, đã ghi rõ trong `DECISIONS.md`
 > (D-018, D-020) thay vì tự đoán im lặng. Cả hai đều sửa được bằng một thay đổi nhỏ nếu owner muốn khác.
@@ -37,6 +39,7 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 | Q-18 | Thời hạn lưu giữ dữ liệu | Retention policy v1: source/output 30 ngày theo **lần truy cập cuối**, trung gian 7 ngày, xem thử 24 giờ, audit 365 ngày, sổ mức dùng 24 tháng, dấu vết đã xoá 30 ngày; Phase 1.1 **chỉ có bản thử, không xoá** | D-031 |
 | Q-19 | Câu chữ tiếng Việt | Dùng bản owner duyệt; nội dung xác nhận quyền **lên phiên bản 2**; CTA ưu tiên "Làm sạch vùng nhận diện" | D-032 |
 | Q-20 | Câu cảnh báo về dấu hiệu nhận diện vô hình bị cắt trong prompt Phase 1.1 | Owner cung cấp bộ câu chữ canonical ở bản vá Q-20; câu phạm vi và câu xác nhận quyền **giữ nguyên** (đã khớp từng chữ từ Phase 1.1); thêm câu về dữ liệu còn sót và dựng lại cấu trúc hộp thoại | D-033 |
+| Q-02 | Queue/worker runtime nào cho video | **Hàng đợi nằm trên PostgreSQL** bằng `FOR UPDATE SKIP LOCKED`, worker là vai thứ ba của cùng ảnh Docker (`MEDIACLEAR_ROLE=worker`). Không thêm Redis: cơ sở dữ liệu đã có sẵn và Vibe Host không có Redis. **Video vẫn chưa xử lý được** — đó là Q-06, không phải Q-02 | D-042 |
 | Q-14 | Auth provider/IdP cụ thể cho production | **Tự làm**: email + mật khẩu băm bằng `scrypt` (có sẵn trong Node, không native module), phiên lưu bảng `sessions` trong PostgreSQL nên **sống sót khởi động lại**. Không dùng vendor ngoài | D-039 |
 | Q-22 | Ô tick ghi "xác nhận nội dung trên" trong khi hệ thống chỉ version hoá một câu | **Không** version hoá phần ngữ cảnh và **không** tạo statement v3. Thay vào đó ô tick hiển thị thẳng chính câu được ký (`rights.attestation.v2.statement`); tiêu đề mục, câu phạm vi hỗ trợ và hai câu cảnh báo được ghi rõ là **ngữ cảnh**, không lưu làm bằng chứng | D-035 |
 
