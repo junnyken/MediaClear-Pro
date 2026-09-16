@@ -595,3 +595,25 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   **Chưa có**: đặt lại mật khẩu, xác minh email, khoá sau N lần sai, giới hạn tần suất — ba thứ cuối
   nên có **trước khi mở cho người ngoài**.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-040 — Một ảnh Docker hai vai, cấu hình đọc lúc chạy (P2-MCP-26)
+
+- **Context**: Đưa hệ thống lên Vibe Host. Repo chưa có Dockerfile; là monorepo pnpm nên build riêng
+  `apps/api` sẽ hỏng vì gói workspace nằm ở gốc. Địa chỉ API lại bị nhúng vào bundle lúc build.
+- **Decision**:
+  1. **Một** Dockerfile build cả workspace; chọn vai lúc chạy bằng `MEDIACLEAR_ROLE` (`api` | `web`).
+     Hai website trên Vibe Host dùng chung repo, chung ảnh, khác biến môi trường.
+  2. Địa chỉ API đọc **lúc chạy**: layout tiêm `window.__MCP_API_BASE__` từ `MEDIACLEAR_API_BASE_URL`.
+  3. **`force-dynamic` ở layout gốc** — bắt buộc, vì Next prerender tĩnh sẽ chốt giá trị ngay lúc
+     build. Đã kiểm thật: không có dòng này thì HTML tĩnh mang `__MCP_API_BASE__=""`.
+  4. `ENV MEDIACLEAR_DEV_AUTH=0` **trong ảnh**, không phụ thuộc người vận hành nhớ đặt.
+  5. Không chạy bằng `root`.
+- **Alternatives considered**: (a) hai Dockerfile + `subdir` — loại, `subdir` đổi ngữ cảnh build nên
+  mất gói workspace; (b) truyền địa chỉ API bằng build arg — loại, đổi địa chỉ là phải build lại,
+  đúng thứ cần tránh; (c) giữ prerender tĩnh cho nhanh — loại, một trang tĩnh không gọi được API nào
+  thì nhanh cũng vô nghĩa.
+- **Consequences**: deploy được lên bất kỳ nền tảng nào nhận Dockerfile. Mất tối ưu tĩnh của Next.
+  **Vibe Host không có S3** nên chạy ở đó object storage là đĩa container, **mất khi redeploy**.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

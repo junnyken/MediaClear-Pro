@@ -1045,3 +1045,70 @@ Một điểm suýt kết luận sai: một lời gọi đăng ký trả `401` l
 - `/v1/auth/dev-session` **vẫn còn** cho môi trường dev; ở production phải đặt `MEDIACLEAR_DEV_AUTH=0`,
   nếu không `isProductionProvider` sẽ tự khai `false` (đúng sự thật, vì vẫn còn cửa không mật khẩu).
 - Q-11 (BA/pháp lý duyệt câu chữ) vẫn chặn go-live.
+
+---
+
+## 2026-09-16 (lần 12) — Phase 2: đóng gói container và cấu hình đọc lúc chạy
+
+MINI-SPEC `P2-MCP-26` · quyết định `D-040`. Nền: `6922f3a`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | sau khi bỏ một chỉ thị `eslint-disable` thừa mà lint tự báo |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **43 tệp · 447 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+`git diff --check`: sạch.
+
+### 2. Kiểm ảnh Docker bằng CHẠY THẬT, không phải đọc Dockerfile
+
+| Kiểm | Kết quả |
+|---|---|
+| `docker build` | **0** |
+| Vai `api` | `migration: ap dung 0, bo qua 4` · `luu tru postgres-phase2 (durable)` · `identity: password-phase2 (production)` |
+| Vai `web` | Next 15.1.6 lên, `/sign-in` → **HTTP 200** |
+
+Storage trong lượt kiểm này là `local-fs-phase1 (production: false)` vì tôi **cố ý không** truyền biến
+S3 — đúng hành vi mặc định đã thiết kế.
+
+### 3. Lỗi thật bắt được — và nó là lỗi tôi vừa tạo ra
+
+Mục đích của việc bỏ `NEXT_PUBLIC_API_BASE_URL` là để **không phải build lại khi đổi địa chỉ API**.
+Sau khi tiêm `window.__MCP_API_BASE__` từ layout, tôi chạy ảnh lên và kiểm giá trị thật:
+
+```
+__MCP_API_BASE__=""
+```
+
+Rỗng. Vì Next **prerender tĩnh** các trang lúc build, nên HTML tĩnh đã chốt sẵn giá trị của
+`process.env` **tại thời điểm build** — tức là tôi vừa đổi từ bẫy build-time này sang bẫy build-time
+khác, mà nhìn mã nguồn thì thấy hoàn toàn hợp lý.
+
+Sửa: `export const dynamic = 'force-dynamic'` ở layout gốc. Dấu hiệu quan sát được sau khi sửa: bảng
+route của Next đổi từ `○ (Static)` sang **`ƒ (Dynamic)`** ở mọi đường.
+
+Bài học: kiểm "cấu hình lúc chạy" **phải chạy thật với hai giá trị khác nhau**, không được nhìn mã rồi
+kết luận.
+
+### 4. Phép thử chứng minh cấu hình thật sự đọc lúc chạy
+
+**Cùng một bản build**, chạy hai lần với hai giá trị biến khác nhau:
+
+| Giá trị `MEDIACLEAR_API_BASE_URL` | Giá trị tiêm ra HTML |
+|---|---|
+| `http://dia-chi-luc-chay.example:9999` | `"http://dia-chi-luc-chay.example:9999"` |
+| `http://localhost:3001` | `"http://localhost:3001"` |
+
+**Không build lại giữa hai lần.** Đây là điều kiện bắt buộc để nền tảng cấp tên miền **sau khi** build
+mà hệ thống vẫn chạy đúng.
+
+### 5. Giới hạn của lần kiểm tra này
+
+- **Chưa deploy lên Vibe Host** — mới kiểm ảnh trên máy.
+- **Vibe Host không có S3**: chạy ở đó thì object storage là đĩa container, **mất khi redeploy**.
+  Muốn bền phải trỏ sang R2 thật, mà **R2 chưa từng được kiểm** (xem `P2-MCP-24` §Remaining Limits).
+- Chưa có health check trong Dockerfile; chưa đo kích thước ảnh và thời gian khởi động lạnh.
+- Mất tối ưu tĩnh của Next do `force-dynamic`.

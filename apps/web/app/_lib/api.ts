@@ -14,7 +14,28 @@ export interface ApiErrorShape {
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiErrorShape };
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001';
+/**
+ * P2-MCP-26: dia chi API doc LUC CHAY, khong phai luc build.
+ *
+ * `NEXT_PUBLIC_*` bi Next NHUNG THANG vao bundle khi build. Nghia la doi dia chi API la phai
+ * build lai toan bo web - khong dung duoc khi trien khai len nen tang cap ten mien sau khi build.
+ * Vi vay layout (server component) tiem dia chi vao `window.__MCP_API_BASE__`, va day doc no truoc.
+ *
+ * Thu tu: bien luc chay -> bien luc build -> mac dinh dev.
+ */
+declare global {
+  var __MCP_API_BASE__: string | undefined;
+}
+
+export function apiBaseUrl(): string {
+  if (typeof window !== 'undefined' && typeof window.__MCP_API_BASE__ === 'string' && window.__MCP_API_BASE__.length > 0) {
+    return window.__MCP_API_BASE__;
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001';
+}
+
+/** Giu ten cu cho cho goi san; gia tri duoc tinh lai moi lan doc. */
+export const API_BASE = apiBaseUrl();
 
 const TOKEN_KEY = 'mediaclear.session.token';
 const WORKSPACE_KEY = 'mediaclear.workspace.id';
@@ -56,7 +77,7 @@ export async function apiFetch<T>(
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    response = await fetch(`${apiBaseUrl()}${path}`, {
       method: init.method ?? 'GET',
       headers,
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
@@ -108,7 +129,7 @@ export interface HealthResponse {
  */
 export async function fetchHealth(): Promise<ApiResult<HealthResponse>> {
   try {
-    const response = await fetch(`${API_BASE}/healthz`);
+    const response = await fetch(`${apiBaseUrl()}/healthz`);
     const payload = (await response.json()) as HealthResponse;
     if (!payload || typeof payload.phase !== 'string') return { ok: false, error: { ...UI_ERROR.UNKNOWN } };
     return { ok: true, data: payload };
