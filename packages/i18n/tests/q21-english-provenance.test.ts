@@ -1,5 +1,5 @@
 /**
- * P1.1-Q21-MCP-22: cau English cua pham vi ho tro VAN CHUA duoc owner duyet.
+ * P1.1-Q21-MCP-21: cau English cua pham vi ho tro VAN CHUA duoc owner duyet.
  *
  * Prompt owner bi cat o "identifying ma". Repo dung dung chu owner viet o phan doc duoc va
  * hoan thanh chu cuoi thanh "marks" - chu do la SUY RA, khong phai owner duyet.

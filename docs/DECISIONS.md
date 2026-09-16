@@ -387,11 +387,50 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
 
 ---
 
-# Quyết định đóng Q-22 (2026-09-15)
+# Quyết định ghi nhận trạng thái Q-21 (2026-09-16)
 
 > ID tiếp theo chưa dùng sau khi audit toàn bộ decision log (D-001…D-033) là **D-034**.
+>
+> **Lưu ý thứ tự:** quyết định này mang số nhỏ hơn D-035 nhưng ra đời **sau** một ngày. Số ID
+> chạy theo **số hiệu câu hỏi** (Q-21 → D-034, Q-22 → D-035) theo chỉ đạo của owner, không
+> chạy theo ngày. Xem D-036.
 
-## D-034 — Ô tick xác nhận quyền hiển thị thẳng câu được ký (Q-22)
+## D-034 — Câu English của phạm vi hỗ trợ giữ nguyên trạng thái chưa được duyệt (Q-21)
+
+- **Context**: Bản vá Q-20 dùng bản English của câu phạm vi lấy từ prompt owner, nhưng prompt **bị
+  cắt ở "identifying ma"**. Repo giữ đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối thành
+  `marks`. Chữ đó là **suy ra**, không phải owner duyệt, và phần bị cắt có thể còn dài hơn một chữ.
+  Cho tới lượt này, trạng thái "chưa được duyệt" chỉ tồn tại dưới dạng một dòng chữ trong
+  `OPEN_QUESTIONS.md` — không có gì ngăn việc sửa chuỗi mà quên cập nhật dòng đó, hoặc đóng dòng đó
+  trong khi chuỗi vẫn là bản agent tự hoàn thành.
+- **Decision**:
+  1. **Không viết tiếp phần câu bị cắt.** Giữ nguyên chuỗi English hiện tại, không thêm một ký tự nào.
+  2. **Không đóng Q-21.** Câu hỏi vẫn `unconfirmed` cho tới khi owner gửi bản đầy đủ.
+  3. Dựng **ràng buộc hai chiều có test chấp hành**: chuỗi English bằng bản-suy-ra **khi và chỉ khi**
+     Q-21 còn `unconfirmed`. Sửa chuỗi mà quên cập nhật Q-21 ⇒ đỏ. Đóng Q-21 mà chuỗi không đổi ⇒ đỏ.
+  4. Ghi trạng thái bằng chứng của giao diện English là **`partially_verified`**, không phải
+     `confirmed`: giao diện chưa có nút đổi ngôn ngữ nên bản en không kiểm được bằng mắt.
+  5. Bổ sung hai chốt parity bản dịch: không giá trị nào trong `en.json` còn dấu tiếng Việt; không
+     khoá nào có `vi === en` ngoài danh sách miễn trừ ghi rõ lý do (`app.name` — tên sản phẩm).
+- **Alternatives considered**: (a) tự hoàn thiện câu English cho đủ nghĩa — **loại**, đó là bịa nội
+  dung pháp lý, và prompt owner đã bị cắt tới lần thứ ba; (b) xoá hẳn câu English — **loại**, người
+  dùng English mất thông tin phạm vi, mất nhiều hơn được; (c) chỉ thêm ghi chú vào tài liệu — **loại**,
+  đó đúng là hiện trạng và hiện trạng không chặn được gì; (d) đánh dấu `confirmed` vì "chữ `marks` gần
+  như chắc chắn đúng" — **loại**, "gần như chắc chắn" không phải chữ ký của owner.
+- **Consequences**: Q-21 **vẫn mở** — lượt này đóng *công việc ghi nhận và canh giữ*, không đóng câu
+  hỏi. Khi owner gửi bản English đầy đủ, việc sửa khoá i18n và việc cập nhật Q-21 buộc phải xảy ra
+  **cùng lúc**, nếu không test đỏ. Không đụng tới D-035 (nhãn ô tick Q-22), không đụng văn bản đã ký.
+- **Status**: `confirmed` (đây là quyết định về **cách xử lý** trạng thái chưa rõ, không phải quyết
+  định về nội dung câu chữ) · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+
+---
+
+# Quyết định đóng Q-22 (2026-09-15)
+
+> ID tiếp theo chưa dùng sau khi audit toàn bộ decision log (D-001…D-034) là **D-035**.
+
+## D-035 — Ô tick xác nhận quyền hiển thị thẳng câu được ký (Q-22)
 
 - **Context**: Sau bản vá Q-20, hộp thoại xác nhận quyền hiển thị bốn đoạn văn: câu phạm vi hỗ trợ,
   câu về dữ liệu nguồn gốc còn sót, câu về giới hạn dấu hiệu nhận diện không nhìn thấy được, và câu
@@ -423,34 +462,32 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
 
 ---
 
-# Quyết định ghi nhận trạng thái Q-21 (2026-09-16)
+# Quyết định về cách đánh số ID (2026-09-16)
 
-> ID tiếp theo chưa dùng sau khi audit toàn bộ decision log (D-001…D-034) là **D-035**.
+> ID tiếp theo chưa dùng sau khi audit toàn bộ decision log (D-001…D-035) là **D-036**.
 
-## D-035 — Câu English của phạm vi hỗ trợ giữ nguyên trạng thái chưa được duyệt (Q-21)
+## D-036 — Đánh số ID theo số hiệu câu hỏi, và ngoại lệ đánh số lại cho Q-21/Q-22
 
-- **Context**: Bản vá Q-20 dùng bản English của câu phạm vi lấy từ prompt owner, nhưng prompt **bị
-  cắt ở "identifying ma"**. Repo giữ đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối thành
-  `marks`. Chữ đó là **suy ra**, không phải owner duyệt, và phần bị cắt có thể còn dài hơn một chữ.
-  Cho tới lượt này, trạng thái "chưa được duyệt" chỉ tồn tại dưới dạng một dòng chữ trong
-  `OPEN_QUESTIONS.md` — không có gì ngăn việc sửa chuỗi mà quên cập nhật dòng đó, hoặc đóng dòng đó
-  trong khi chuỗi vẫn là bản agent tự hoàn thành.
+- **Context**: D-029 quy định canonical ID là **ổn định — không đổi, không tái sử dụng**. Bản vá Q-22
+  hoàn thành trước (commit `4125966`) nên ban đầu nhận `P1.1-Q22-MCP-21` và `D-034`; bản vá Q-21 hoàn
+  thành sau (commit `0bd8420`) nhận `P1.1-Q21-MCP-22` và `D-035` — tức số chạy theo **thứ tự hoàn
+  thành**. Owner sau đó chỉ định rõ, **hai lần**, cách đánh số khác: `P1.1-Q21-MCP-21` + `D-034` cho
+  Q-21 và `P1.1-Q22-MCP-22` + `D-035` cho Q-22 — tức số chạy theo **số hiệu câu hỏi**.
 - **Decision**:
-  1. **Không viết tiếp phần câu bị cắt.** Giữ nguyên chuỗi English hiện tại, không thêm một ký tự nào.
-  2. **Không đóng Q-21.** Câu hỏi vẫn `unconfirmed` cho tới khi owner gửi bản đầy đủ.
-  3. Dựng **ràng buộc hai chiều có test chấp hành**: chuỗi English bằng bản-suy-ra **khi và chỉ khi**
-     Q-21 còn `unconfirmed`. Sửa chuỗi mà quên cập nhật Q-21 ⇒ đỏ. Đóng Q-21 mà chuỗi không đổi ⇒ đỏ.
-  4. Ghi trạng thái bằng chứng của giao diện English là **`partially_verified`**, không phải
-     `confirmed`: giao diện chưa có nút đổi ngôn ngữ nên bản en không kiểm được bằng mắt.
-  5. Bổ sung hai chốt parity bản dịch: không giá trị nào trong `en.json` còn dấu tiếng Việt; không
-     khoá nào có `vi === en` ngoài danh sách miễn trừ ghi rõ lý do (`app.name` — tên sản phẩm).
-- **Alternatives considered**: (a) tự hoàn thiện câu English cho đủ nghĩa — **loại**, đó là bịa nội
-  dung pháp lý, và prompt owner đã bị cắt tới lần thứ ba; (b) xoá hẳn câu English — **loại**, người
-  dùng English mất thông tin phạm vi, mất nhiều hơn được; (c) chỉ thêm ghi chú vào tài liệu — **loại**,
-  đó đúng là hiện trạng và hiện trạng không chặn được gì; (d) đánh dấu `confirmed` vì "chữ `marks` gần
-  như chắc chắn đúng" — **loại**, "gần như chắc chắn" không phải chữ ký của owner.
-- **Consequences**: Q-21 **vẫn mở** — lượt này đóng *công việc ghi nhận và canh giữ*, không đóng câu
-  hỏi. Khi owner gửi bản English đầy đủ, việc sửa khoá i18n và việc cập nhật Q-21 buộc phải xảy ra
-  **cùng lúc**, nếu không test đỏ. Không đụng tới D-034 (nhãn ô tick Q-22), không đụng văn bản đã ký.
-- **Status**: `confirmed` (đây là quyết định về **cách xử lý** trạng thái chưa rõ, không phải quyết
-  định về nội dung câu chữ) · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+  1. **Quy ước đánh số**: số cuối của canonical ID và số decision chạy theo **số hiệu câu hỏi**, không
+     theo thứ tự hoàn thành. Q-21 → `P1.1-Q21-MCP-21`, `D-034`. Q-22 → `P1.1-Q22-MCP-22`, `D-035`.
+  2. **Ngoại lệ một lần đối với D-029**: bốn ID đã phát hành ở hai commit trên được **đánh số lại**
+     theo quy ước trên. Đây là ngoại lệ có chủ đích, không phải tiền lệ: nó chỉ được phép vì repo
+     **chưa có remote, chưa push**, nên bốn ID đó chưa bao giờ rời khỏi máy này.
+  3. **D-029 vẫn còn hiệu lực** cho mọi ID khác và cho mọi ID từ đây về sau. Từ giờ ID đã phát hành
+     không được đánh số lại nữa; thay vào đó ID phải được chọn đúng ngay từ đầu theo quy ước ở (1).
+  4. Decision log giữ **thứ tự số tăng dần**, nên D-034 (Q-21, 16-09) đứng trước D-035 (Q-22, 15-09).
+     Ngày trong từng mục là ngày thật, **không** bị sửa cho khớp thứ tự.
+- **Alternatives considered**: (a) giữ nguyên số cũ và giải thích chênh lệch trong báo cáo — bị loại vì
+  owner đã chỉ định cách đánh số hai lần, và đây là quy ước của chủ dự án; (b) đánh số lại nhưng cũng
+  sửa ngày cho khớp thứ tự — **bị loại**, sửa ngày là làm sai hồ sơ; (c) bỏ hẳn D-029 — bị loại, quy
+  tắc ổn định ID vẫn đúng và vẫn cần, chỉ cần một ngoại lệ có ghi chép.
+- **Consequences**: thông điệp commit của `4125966` và `0bd8420` vẫn nhắc ID **cũ** — git không sửa
+  lại được và cũng không nên sửa. Bảng đối chiếu cũ ↔ mới nằm ở `docs/PHASE_1_1_Q21_Q22_CLOSURE.md` §2,
+  đó là chỗ tra khi đọc hai commit đó.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

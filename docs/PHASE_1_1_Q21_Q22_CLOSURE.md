@@ -4,9 +4,9 @@ Báo cáo closure gộp cho **Q-21** và **Q-22** của Phase 1.1.
 
 | | Q-22 | Q-21 |
 |---|---|---|
-| MINI-SPEC | `P1.1-Q22-MCP-21` | `P1.1-Q21-MCP-22` |
-| Quyết định | `D-034` | `D-035` |
-| Commit | `4125966` (2026-09-15) | lượt này (2026-09-16) |
+| MINI-SPEC | `P1.1-Q22-MCP-22` | `P1.1-Q21-MCP-21` |
+| Quyết định | `D-035` | `D-034` |
+| Commit | `4125966` (2026-09-15) | `0bd8420` (2026-09-16) |
 | Báo cáo chi tiết | `docs/PHASE_1_1_Q22_CLOSURE.md` | tài liệu này, §3 |
 | Kết quả câu hỏi | **resolved** | **vẫn `unconfirmed`** — đóng *công việc*, không đóng câu hỏi |
 
@@ -25,23 +25,29 @@ chữ trong tài liệu** thành **ràng buộc máy kiểm được**. Câu h�
 Không tạo Rights Attestation v3. `statementVersion` giữ nguyên `2`. Văn bản đã ký v1/v2 không đổi một
 ký tự.
 
-## 2. Lệch so với prompt: đánh số ID
+## 2. Đánh số ID: bảng đối chiếu cũ ↔ mới
 
-Prompt đề xuất `P1.1-Q21-MCP-21` / `P1.1-Q22-MCP-22` và `D-034` cho Q-21, `D-035` cho Q-22. Repo
-**không** dùng cách đánh số đó, vì Q-22 đã hoàn thành và commit **trước khi** prompt này tới:
+ID hiện tại **khớp đúng** cách đánh số owner chỉ định. Nhưng bốn ID này **đã từng mang số khác** trong
+hai commit đầu, nên bảng dưới đây là chỗ tra khi đọc lại hai commit đó:
 
-| Prompt đề xuất | Repo thực tế | Vì sao |
+| | ID trong commit `4125966` / `0bd8420` | ID hiện tại |
 |---|---|---|
-| Q-22 = `P1.1-Q22-MCP-22` | `P1.1-Q22-MCP-21` | ID đã phát hành ở commit `4125966`, được tham chiếu từ **13 tệp** gồm cả mã nguồn. `MINI_SPEC_INDEX.md` (D-029, owner duyệt) quy định ID là **ổn định — không đổi, không tái sử dụng** |
-| Q-22 = `D-035` | `D-034` | `D-034` đã ghi trong decision log là quyết định về nhãn ô tick. Gán lại `D-034` cho một quyết định **khác** là viết lại lịch sử quyết định |
-| Q-21 = `P1.1-Q21-MCP-21`, `D-034` | `P1.1-Q21-MCP-22`, `D-035` | số kế tiếp còn trống |
+| MINI-SPEC Q-21 | `P1.1-Q21-MCP-22` | **`P1.1-Q21-MCP-21`** |
+| MINI-SPEC Q-22 | `P1.1-Q22-MCP-21` | **`P1.1-Q22-MCP-22`** |
+| Quyết định Q-21 | `D-035` | **`D-034`** |
+| Quyết định Q-22 | `D-034` | **`D-035`** |
 
-Prompt ghi các ID này dưới dạng **ví dụ** ("e.g., D-034 for Q-21 closure") và đặt yêu cầu thật là
-*"Ensure no duplication of IDs"* — điều kiện đó được thoả: 35 quyết định `D-001`…`D-035` đều duy
-nhất, các canonical ID đều duy nhất, có test canh.
+**Vì sao từng khác:** Q-22 hoàn thành trước Q-21 một ngày, nên ban đầu số chạy theo **thứ tự hoàn
+thành**. Owner sau đó chỉ định rõ, hai lần, rằng số phải chạy theo **số hiệu câu hỏi**. Quy ước đó nay
+được ghi thành **D-036**, cùng với ngoại lệ một lần đối với D-029 (quy tắc "ID ổn định, không đánh số
+lại").
 
-Số thứ tự MINI-SPEC chạy theo **thứ tự hoàn thành**, không theo số hiệu câu hỏi. Vì Q-22 xong trước
-nên nó nhận số nhỏ hơn. Phase 2 nay bắt đầu từ `P2-MCP-23`.
+**Ngoại lệ này chỉ hợp lệ vì repo chưa có remote và chưa push** — bốn ID cũ chưa bao giờ rời khỏi máy
+này. Từ đây về sau, ID đã phát hành **không được đánh số lại**; phải chọn đúng ngay từ đầu.
+
+**Thứ tự trong decision log:** log giữ số tăng dần, nên D-034 (Q-21, **16-09**) đứng trước D-035
+(Q-22, **15-09**). Ngày là ngày thật, không sửa cho khớp thứ tự. Thông điệp commit của `4125966` và
+`0bd8420` vẫn nhắc ID cũ — git không sửa được, và cũng không nên sửa.
 
 ## 3. Q-21 — English Provenance Wording Unconfirmed State
 
@@ -61,7 +67,7 @@ Chữ `marks` là **suy ra**. Vấn đề thật không phải là đoán nốt 
 2. đóng Q-21 thành `confirmed` trong khi chuỗi vẫn là bản agent tự hoàn thành ⇒ **tuyên bố owner đã
    duyệt khi chưa**.
 
-### 3.2 Quyết định (D-035)
+### 3.2 Quyết định (D-034)
 
 Không viết tiếp câu bị cắt. Không đóng Q-21. Thay vào đó dựng **ràng buộc hai chiều**:
 
@@ -89,11 +95,11 @@ trạng, và hiện trạng không chặn được gì) · đánh dấu `confirm
 | Tệp | Thay đổi |
 |---|---|
 | `packages/i18n/tests/q21-english-provenance.test.ts` | **mới** — 11 test: ràng buộc hai chiều, điểm bị cắt, chống viết tiếp, trạng thái bằng chứng, 4 chốt parity, 1 chốt không phá Q-22 |
-| `docs/mini-specs/phase-1.1/P1.1-Q21-MCP-22.md` | **mới** — MINI-SPEC |
-| `docs/DECISIONS.md` | thêm `D-035` |
-| `docs/OPEN_QUESTIONS.md` | Q-21 **giữ `unconfirmed`**, ghi rõ chữ cuối là suy ra + tham chiếu D-035 |
+| `docs/mini-specs/phase-1.1/P1.1-Q21-MCP-21.md` | **mới** — MINI-SPEC |
+| `docs/DECISIONS.md` | thêm `D-034` |
+| `docs/OPEN_QUESTIONS.md` | Q-21 **giữ `unconfirmed`**, ghi rõ chữ cuối là suy ra + tham chiếu D-034 |
 | `docs/POLICY.md` | §17 thêm bảng trạng thái bản vi/en và phát biểu ràng buộc hai chiều |
-| `docs/MINI_SPEC_INDEX.md` | thêm `P1.1-Q21-MCP-22`; Phase 2 dời sang `P2-MCP-23`; ghi rõ quy ước đánh số theo thứ tự hoàn thành |
+| `docs/MINI_SPEC_INDEX.md` | thêm `P1.1-Q21-MCP-21`; Phase 2 dời sang `P2-MCP-23`; ghi rõ quy ước đánh số theo thứ tự hoàn thành |
 | `docs/PHASE_1_1_Q21_Q22_CLOSURE.md` | **mới** — tài liệu này |
 | `docs/TEST_LOG.md` | mục "lần 7" |
 
@@ -106,7 +112,7 @@ trạng, và hiện trạng không chặn được gì) · đánh dấu `confirm
 |---|---|---|
 | Trước Q-22 (`511498a`) | 327 | |
 | Sau Q-22 (`4125966`) | **337** | +10 (9 test `q22-checkbox` + 1 test khoá nhãn cũ đã biến mất) |
-| Sau Q-21 (lượt này) | **348** | +11 (`q21-english-provenance`) |
+| Sau Q-21 (`0bd8420`) | **348** | +11 (`q21-english-provenance`) |
 
 Mốc **327 → 337** mà prompt yêu cầu đối chiếu: **đúng**, đó là phần đóng góp của Q-22. Q-21 cộng
 thêm 11 test nữa.
@@ -136,7 +142,7 @@ Chỉ số giữ nguyên: **0 khoá dịch thô** · **0 route `DELETE`** · **3
 - **Q-21 vẫn mở.** Lượt này đóng công việc ghi nhận và canh giữ, **không** đóng câu hỏi. Cần owner gửi
   phần sau "identifying ma".
 - Giao diện chưa có nút đổi ngôn ngữ ⇒ bản English còn `partially_verified` cho tới khi có.
-- Phần ngữ cảnh (phạm vi, cảnh báo) vẫn **không có version** — đúng theo D-034.
+- Phần ngữ cảnh (phạm vi, cảnh báo) vẫn **không có version** — đúng theo D-035.
 - Runtime vẫn `ephemeral`; dữ liệu kiểm live chỉ tồn tại trong phiên kiểm.
 - Giới hạn Phase 1.1 giữ nguyên: chưa có worker, benchmark provider `unknown`, chưa có provider AI
   production, **không có đường xoá dữ liệu nào**.

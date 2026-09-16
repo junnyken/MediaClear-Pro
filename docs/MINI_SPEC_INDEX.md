@@ -44,8 +44,8 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
 | `P1.1-MCP-18` | — | Phase 1.1 | Data Retention Contract & Dry Run | `docs/mini-specs/phase-1.1/P1.1-MCP-18.md` | completed |
 | `P1.1-MCP-19` | — | Phase 1.1 | Vietnamese Policy & UX Wording | `docs/mini-specs/phase-1.1/P1.1-MCP-19.md` | completed |
 | `P1.1-Q20-MCP-20` | — | Phase 1.1 (Q-20 closure) | Canonical Provenance and Rights Warning Wording | `docs/mini-specs/phase-1.1/P1.1-Q20-MCP-20.md` | completed |
-| `P1.1-Q22-MCP-21` | — | Phase 1.1 (Q-22 closure) | Rights Attestation Checkbox Scope Clarification | `docs/mini-specs/phase-1.1/P1.1-Q22-MCP-21.md` | completed |
-| `P1.1-Q21-MCP-22` | — | Phase 1.1 (Q-21 closure) | English Provenance Wording Unconfirmed State | `docs/mini-specs/phase-1.1/P1.1-Q21-MCP-22.md` | completed |
+| `P1.1-Q22-MCP-22` | — | Phase 1.1 (Q-22 closure) | Rights Attestation Checkbox Scope Clarification | `docs/mini-specs/phase-1.1/P1.1-Q22-MCP-22.md` | completed |
+| `P1.1-Q21-MCP-21` | — | Phase 1.1 (Q-21 closure) | English Provenance Wording Unconfirmed State | `docs/mini-specs/phase-1.1/P1.1-Q21-MCP-21.md` | completed |
 
 ## Điểm mơ hồ duy nhất còn lại
 
@@ -56,14 +56,19 @@ theo thư mục chứa nó. Từ Phase 1.1 trở đi, mọi tham chiếu mới p
 ## ID đã dùng — không được tái sử dụng
 
 `MCP-00` … `MCP-15` (cả hai phase), `P0-MCP-00` … `P0-MCP-10`, `P1-MCP-10` … `P1-MCP-15`,
-`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-21`, `P1.1-Q21-MCP-22`.
+`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`.
 
-> Lưu ý: số `20` đã dùng bởi `P1.1-Q20-MCP-20`, số `21` bởi `P1.1-Q22-MCP-21`, số `22` bởi
-> `P1.1-Q21-MCP-22`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-23`**.
+> Lưu ý: số `20` đã dùng bởi `P1.1-Q20-MCP-20`, số `21` bởi `P1.1-Q21-MCP-21`, số `22` bởi
+> `P1.1-Q22-MCP-22`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-23`**.
 >
-> Số thứ tự chạy theo **thứ tự hoàn thành**, không theo số hiệu câu hỏi: Q-22 đóng trước Q-21 nên
-> nhận số nhỏ hơn. ID đã phát hành thì **không đánh số lại** — xem `PHASE_1_1_Q21_Q22_CLOSURE.md` §2.
+> **Quy ước đánh số (D-036):** số cuối chạy theo **số hiệu câu hỏi**, không theo thứ tự hoàn thành —
+> Q-21 → `...-MCP-21`, Q-22 → `...-MCP-22`. Vì vậy `P1.1-Q21-MCP-21` mang số nhỏ hơn dù hoàn thành
+> **sau** `P1.1-Q22-MCP-22` một ngày.
 >
-> Canonical ID là **chuỗi đầy đủ**, không phải con số cuối: `P1.1-Q22-MCP-21` và `P2-MCP-21` là hai ID
+> Bốn ID của Q-21/Q-22 **đã được đánh số lại một lần** theo chỉ đạo của owner (ngoại lệ có ghi chép
+> đối với D-029, chỉ được phép vì repo chưa push). Bảng đối chiếu cũ ↔ mới ở
+> `PHASE_1_1_Q21_Q22_CLOSURE.md` §2. Từ đây về sau **không đánh số lại** ID đã phát hành nữa.
+>
+> Canonical ID là **chuỗi đầy đủ**, không phải con số cuối: `P1.1-Q22-MCP-22` và `P2-MCP-21` là hai ID
 > khác nhau và không bao giờ đụng nhau. Quy ước "Phase 2 bắt đầu từ số kế tiếp" chỉ để người đọc lướt
 > qua không nhầm, chứ không phải ràng buộc kỹ thuật.

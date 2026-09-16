@@ -195,7 +195,7 @@ Không có cột nào bị xoá, không có dữ liệu nào bị xoá, **không
 
 ## 16. Bản vá Q-22 — tham chiếu chéo, không đổi lược đồ
 
-Bản vá Q-22 (`P1.1-Q22-MCP-21`, D-034) **không** thêm/xoá/đổi bảng, cột, ràng buộc hay migration nào.
+Bản vá Q-22 (`P1.1-Q22-MCP-22`, D-035) **không** thêm/xoá/đổi bảng, cột, ràng buộc hay migration nào.
 `RightsAttestation` giữ nguyên `statement_id`, `statement_version`, `locale_shown`, `attestation_type`.
 
 Ghi ở đây để người đọc lược đồ khỏi hiểu nhầm: cột `statement_version` chỉ nói về **câu xác nhận

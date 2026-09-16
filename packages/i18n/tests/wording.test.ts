@@ -78,7 +78,7 @@ describe('Phien ban noi dung xac nhan quyen', () => {
     expect(MESSAGES.vi['rights.attestation.v2.statement']).not.toBe(MESSAGES.vi['rights.attestation.v1.statement']);
   });
 
-  // P1.1-Q22-MCP-21 (D-034): 'checkbox' bi go khoi danh sach nay. Nhan o tick khong con la
+  // P1.1-Q22-MCP-22 (D-035): 'checkbox' bi go khoi danh sach nay. Nhan o tick khong con la
   // mot khoa rieng - no dung chinh 'statement'. Xem apps/web/tests/q22-checkbox.test.ts.
   it('bo khoa v2 day du cho hop thoai', () => {
     for (const suffix of ['title', 'statement', 'decline_note', 'ownership_note', 'declaration_note', 'policy_version', 'submit', 'validity_note']) {

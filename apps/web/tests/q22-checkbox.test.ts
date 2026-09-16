@@ -1,5 +1,5 @@
 /**
- * P1.1-Q22-MCP-21: o tick phai hien THANG cau duoc ky.
+ * P1.1-Q22-MCP-22: o tick phai hien THANG cau duoc ky.
  *
  * Loi ma bo test nay chan: hop thoai hien 4 doan van, o tick ghi "xac nhan noi dung tren",
  * nhung he thong chi luu DUNG MOT CAU lam bang chung. Nhan mo ho khien nguoi dung tick vao

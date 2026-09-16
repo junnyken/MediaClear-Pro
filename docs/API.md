@@ -256,7 +256,7 @@ worker tự chạy lệnh hết hạn và báo cáo lưu giữ (`planned`).
 
 ## 11. Bản vá Q-22 — không có thay đổi API
 
-Bản vá Q-22 (`P1.1-Q22-MCP-21`, D-034) chỉ sửa **nhãn hiển thị của ô tick** trong hộp thoại xác nhận
+Bản vá Q-22 (`P1.1-Q22-MCP-22`, D-035) chỉ sửa **nhãn hiển thị của ô tick** trong hộp thoại xác nhận
 quyền. Không có gì ở tầng API đổi:
 
 | Hạng mục | Trước Q-22 | Sau Q-22 |

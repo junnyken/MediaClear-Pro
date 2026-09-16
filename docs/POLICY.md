@@ -229,7 +229,7 @@ Quy tắc không được vi phạm:
 Vì vậy bản vá Q-20 sửa được câu chữ ngữ cảnh mà **không** cần tạo phiên bản tuyên bố mới, và **không
 một chữ nào** của văn bản đã phát hành (v1, v2) bị đụng tới. Có test đóng băng hai văn bản này.
 
-**Q-22 (D-034) — phạm vi của phiên bản và nghĩa vụ của ô tick.** Số phiên bản tuyên bố áp dụng
+**Q-22 (D-035) — phạm vi của phiên bản và nghĩa vụ của ô tick.** Số phiên bản tuyên bố áp dụng
 **chỉ** cho câu xác nhận quyền, không áp cho phần ngữ cảnh. Vì vậy ô tick **bắt buộc** hiển thị
 thẳng chính câu được ký, không được dùng nhãn tóm tắt kiểu "xác nhận nội dung trên": nhãn tóm tắt
 khiến người dùng tick vào một phạm vi rộng hơn thứ hệ thống thực sự lưu làm bằng chứng.
@@ -256,7 +256,7 @@ Ba điều hệ thống **không bao giờ** nói: không nói xoá/vô hiệu h
 vô hình · không nói dữ liệu nguồn gốc luôn còn sau mọi lần xuất tệp · không dùng cách nói bị cấm làm
 CTA chính. Có test chặn cả ba ở **cả hai** ngôn ngữ.
 
-**Bản English của câu phạm vi hỗ trợ: CHƯA ĐƯỢC DUYỆT (Q-21, D-035).** Prompt owner bị cắt ở
+**Bản English của câu phạm vi hỗ trợ: CHƯA ĐƯỢC DUYỆT (Q-21, D-034).** Prompt owner bị cắt ở
 "identifying ma"; repo giữ đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối thành `marks`.
 Chữ cuối đó là **suy ra**, không phải chữ ký của owner.
 

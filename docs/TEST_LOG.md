@@ -392,7 +392,7 @@ Không có bug sản phẩm nào trong lượt này — thay đổi giới hạn
 
 ## 2026-09-15 (lần 6) — Bản vá đóng Q-22 (phạm vi ô tick)
 
-MINI-SPEC `P1.1-Q22-MCP-21` · quyết định `D-034`. Nền: `511498a` (Q-20 closure).
+MINI-SPEC `P1.1-Q22-MCP-22` · quyết định `D-035`. Nền: `511498a` (Q-20 closure).
 
 ### 1. Bốn lệnh kiểm, chạy RIÊNG từng lệnh
 
@@ -493,7 +493,7 @@ Không có bug sản phẩm nào trong lượt này — thay đổi giới hạn
 
 ## 2026-09-16 (lần 7) — Ghi nhận trạng thái Q-21 (câu English chưa được duyệt)
 
-MINI-SPEC `P1.1-Q21-MCP-22` · quyết định `D-035`. Nền: `4125966` (Q-22 closure).
+MINI-SPEC `P1.1-Q21-MCP-21` · quyết định `D-034`. Nền: `4125966` (Q-22 closure).
 
 Lượt này **không sửa một câu chữ nào**. Nó biến trạng thái "bản English chưa được owner duyệt" từ một
 dòng chữ trong tài liệu thành ràng buộc máy kiểm được.
@@ -571,7 +571,7 @@ chứng là `partially_verified`, và nay có test chặn không cho ai ghi thà
 |---|---|
 | `RIGHTS_STATEMENT.version` | `2` — không tạo v3 |
 | Văn bản ký v1/v2 | đóng băng, không đổi một ký tự |
-| Nhãn ô tick (D-034) | không đụng |
+| Nhãn ô tick (D-035) | không đụng |
 | Số route | `31` — không đổi |
 | Route `DELETE` | không có |
 | Migration | vẫn `0001`, `0002` |
@@ -596,3 +596,87 @@ sai đó **trước đây không bị chặn** và **bây giờ bị chặn**.
 - Chốt parity "không dấu tiếng Việt trong `en.json`" bắt được lỗi chép nguyên văn, **không** bắt được
   bản dịch sai nghĩa — việc đó cần người đọc.
 - Runtime vẫn `ephemeral`; giới hạn Phase 1.1 giữ nguyên, **không có đường xoá dữ liệu nào**.
+
+---
+
+## 2026-09-16 (lần 8) — Đánh số lại ID Q-21/Q-22 theo chỉ đạo owner
+
+Quyết định `D-036`. Nền: `0c711c7`.
+
+**Không thay đổi hành vi sản phẩm.** Lượt này chỉ đổi số hiệu ID và cập nhật tài liệu cho khớp.
+Thay đổi mã duy nhất là **ghi chú trong tệp nguồn** (`RightsDialog.tsx` và ba tệp test) nhắc tới ID.
+
+### 1. Phép đổi
+
+| | Trước | Sau |
+|---|---|---|
+| MINI-SPEC Q-21 | `P1.1-Q21-MCP-22` | `P1.1-Q21-MCP-21` |
+| MINI-SPEC Q-22 | `P1.1-Q22-MCP-21` | `P1.1-Q22-MCP-22` |
+| Quyết định Q-21 | `D-035` | `D-034` |
+| Quyết định Q-22 | `D-034` | `D-035` |
+
+Đây là **phép hoán đổi hai chiều**, nên thay chuỗi trực tiếp sẽ hỏng. Script đi qua ký tự tạm
+(`@@A@@`…`@@D@@`) rồi mới thay sang giá trị đích. Tương tự với hai tên tệp: `git mv` qua tên tạm trước
+để tránh va chạm. Đổi trong **16 tệp**, đổi tên **2 tệp**.
+
+### 2. Bốn lệnh kiểm, chạy RIÊNG từng lệnh
+
+| # | Lệnh | Mã thoát |
+|---|---|---|
+| 1 | `pnpm typecheck` | `0` |
+| 2 | `pnpm lint` | `0` |
+| 3 | `pnpm test` | `0` — **38 tệp / 348 test đạt** |
+| 4 | `pnpm build:web` | `0` |
+
+`git diff --check`: sạch, mã thoát `0`.
+
+Test canh index (`mini-spec-index.test.ts`, 9 test) vẫn xanh — nó khẳng định mọi spec trên đĩa đều có
+trong index và không canonical ID nào trùng. Đây là chốt xác nhận phép đổi tên không để lại tệp mồ côi.
+
+### 3. Ba chỗ phải sửa tay sau phép hoán đổi
+
+Thay chuỗi hàng loạt làm hỏng đúng ba chỗ mang **ngữ nghĩa thứ tự**, không phải chỉ mang tên:
+
+1. **Thứ tự khối trong `DECISIONS.md`** — sau khi đổi số, log đọc thành D-035 rồi D-034 (giảm dần).
+   Đã đảo vị trí hai khối để log giữ **số tăng dần**. Ngày trong từng mục **giữ nguyên ngày thật**,
+   nên D-034 (16-09) nay đứng trước D-035 (15-09). Có ghi chú giải thích ngay tại chỗ.
+2. **Hai dòng "ID tiếp theo chưa dùng"** — chúng nhắc tới *dải* ID (`D-001…D-033`), nên phép hoán đổi
+   biến chúng thành sai. Đã sửa tay cả hai.
+3. **`MINI_SPEC_INDEX.md` và `PHASE_1_1_Q21_Q22_CLOSURE.md` §2** — hai chỗ này *giải thích* quy ước
+   đánh số cũ ("số chạy theo thứ tự hoàn thành"). Sau phép đổi, lời giải thích thành ngược. Đã viết
+   lại theo quy ước mới và thay bằng **bảng đối chiếu cũ ↔ mới**.
+
+Bài học: thay chuỗi hàng loạt an toàn với *tên*, nhưng nguy hiểm với *câu văn nói về* cái tên đó.
+
+### 4. Live verification — bấm tay, trên bản vừa build
+
+Web được **khởi động lại** trước khi kiểm (tiến trình cũ đang chạy bản build trước đó — `lstart`
+09:06, trong khi build mới chạy lúc 09:37).
+
+| Phép đo | 1280×900 | 390×844 |
+|---|---|---|
+| `scrollWidth` vs `clientWidth` | `1280 = 1280` | `390 = 390` |
+| Phần tử vượt biên phải | `0` | `0` |
+| Ba mục trong hộp thoại | đủ | đủ |
+| Nhãn ô tick | đúng câu canonical | đúng câu canonical |
+| Số lần câu ký xuất hiện | `1` | `1` |
+| Phiên bản hiển thị | `v2` | `v2` |
+| Nút xác nhận trước khi tick | `disabled` | `disabled` |
+| Ký | thành công | thành công |
+| Lỗi console | không có | không có |
+
+Asset dùng để kiểm: `ast_d7bd24c242014dc89c6107cdf67bc898` (desktop) ·
+`ast_85ff21960b7543ff859f033867af32ce` (mobile).
+
+### 5. Điều KHÔNG đổi
+
+Văn bản ký v1/v2 · `RIGHTS_STATEMENT.version = 2` · nhãn ô tick · trạng thái Q-21 (`unconfirmed`) ·
+trạng thái Q-22 (đã giải quyết) · 31 route · không route `DELETE` · không migration mới · `0` khoá
+dịch thô · parity 252/252 · gate `READY_FOR_PHASE_2`.
+
+### 6. Giới hạn
+
+- Thông điệp commit của `4125966` và `0bd8420` **vẫn nhắc ID cũ**. Git không sửa được, và cũng không
+  nên sửa. Bảng đối chiếu ở `PHASE_1_1_Q21_Q22_CLOSURE.md` §2 là chỗ tra khi đọc hai commit đó.
+- Việc đánh số lại là **ngoại lệ một lần** đối với D-029, chỉ hợp lệ vì repo chưa push. Từ đây về sau
+  ID đã phát hành không được đánh số lại.

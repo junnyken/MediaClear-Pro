@@ -109,7 +109,7 @@ export function RightsDialog({
           <p>{translate('rights.attestation.v2.declaration_note')}</p>
 
           {/*
-            P1.1-Q22-MCP-21: nhan o tick CHINH LA cau duoc ky, khong phai mot cau tom tat.
+            P1.1-Q22-MCP-22: nhan o tick CHINH LA cau duoc ky, khong phai mot cau tom tat.
             Cau nay chi duoc xuat hien DUNG MOT CHO trong hop thoai - neu tach ra mot the <p>
             rieng roi de nhan tick tro toi no bang chu "noi dung tren" thi nguoi dung dang tick
             vao mot loi hua rong hon thu he thong thuc su luu lam bang chung.

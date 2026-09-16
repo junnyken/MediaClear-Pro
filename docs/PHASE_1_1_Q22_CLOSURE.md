@@ -1,7 +1,7 @@
 # PHASE_1_1_Q22_CLOSURE — MediaClear Pro
 
-- **MINI-SPEC**: `P1.1-Q22-MCP-21` — Rights Attestation Checkbox Scope Clarification
-- **Decision**: `D-034` · **Closes**: Q-22
+- **MINI-SPEC**: `P1.1-Q22-MCP-22` — Rights Attestation Checkbox Scope Clarification
+- **Decision**: `D-035` · **Closes**: Q-22
 - **Author**: Nguyễn Thiên Triều (trieunt@matbao.com) · **Date**: 2026-09-15
 - **Base commit**: `511498a` (Q-20 closure) · trên nền `5d491e3` (Phase 1.1 hardening)
 
@@ -38,8 +38,8 @@ thoại. Không tạo statement v3, không đổi văn bản đã ký, không đ
 | Trạng thái disabled/loading/error | nút khoá khi `!accepted \|\| busy \|\| statement === null`; lỗi qua `ErrorNotice` | giữ nguyên |
 | Parity khoá dịch | vi 253 / en 253, không lệch nội suy, không khoá thô | sạch |
 | Trùng chữ | `v1.checkbox` và `v2.checkbox` **giống hệt nhau** | nhãn mơ hồ có từ Phase 1 |
-| ID quyết định | đã dùng D-001…D-033 | **D-034** còn trống |
-| ID MINI-SPEC | đã dùng tới `P1.1-Q20-MCP-20` | `P1.1-Q22-MCP-21` còn trống |
+| ID quyết định | đã dùng D-001…D-033 | **D-035** còn trống |
+| ID MINI-SPEC | đã dùng tới `P1.1-Q20-MCP-20` | `P1.1-Q22-MCP-22` còn trống |
 | Câu hỏi mở | Q-21 `unconfirmed`, Q-22 `unconfirmed` | Q-21 **giữ nguyên**, Q-22 đóng lượt này |
 
 **Không mục nào phải dừng.** Điều kiện chặn của prompt — "signed statement text v1/v2 không thay đổi"
@@ -68,13 +68,13 @@ web đã bị test cấm gọi bất kỳ khoá `rights.attestation.v1.*` nào.
 | `packages/i18n/tests/wording.test.ts` | bỏ `checkbox` khỏi bộ hậu tố bắt buộc; **thêm** test khẳng định khoá đó đã biến mất |
 | `apps/web/tests/q20-dialog.test.ts` | bỏ khẳng định về khoá nhãn cũ (chi tiết chuyển sang test Q-22) |
 | `apps/web/tests/q22-checkbox.test.ts` | **mới** — 9 test |
-| `docs/mini-specs/phase-1.1/P1.1-Q22-MCP-21.md` | **mới** — MINI-SPEC |
-| `docs/DECISIONS.md` | thêm D-034 |
+| `docs/mini-specs/phase-1.1/P1.1-Q22-MCP-22.md` | **mới** — MINI-SPEC |
+| `docs/DECISIONS.md` | thêm D-035 |
 | `docs/OPEN_QUESTIONS.md` | Q-22 → đã giải quyết; **Q-21 giữ nguyên `unconfirmed`** |
 | `docs/POLICY.md` | §16 ghi ranh giới bằng chứng ↔ ngữ cảnh và nghĩa vụ của ô tick; §18 ghi ngoại lệ xoá khoá; §19 cập nhật sơ đồ |
 | `docs/DATA_MODEL.md` | §16 tham chiếu chéo, ghi rõ không đổi lược đồ |
 | `docs/API.md` | §11 ghi "không có thay đổi API" kèm bảng đối chiếu |
-| `docs/MINI_SPEC_INDEX.md` | thêm hàng `P1.1-Q22-MCP-21`; Phase 2 dời sang `P2-MCP-22` |
+| `docs/MINI_SPEC_INDEX.md` | thêm hàng `P1.1-Q22-MCP-22`; Phase 2 dời sang `P2-MCP-22` |
 | `docs/TEST_LOG.md` | mục "lần 6" |
 
 ## 5. New/Updated Contract
@@ -85,9 +85,9 @@ web đã bị test cấm gọi bất kỳ khoá `rights.attestation.v1.*` nào.
 > Số phiên bản tuyên bố áp dụng **chỉ** cho câu xác nhận quyền. Vì vậy ô tick **bắt buộc** hiển thị
 > thẳng chính câu được ký, và câu đó chỉ được xuất hiện đúng một chỗ trong hộp thoại.
 
-`P1.1-Q22-MCP-21` là ID mới duy nhất. Vì `P1.1-Q22-MCP-21` dùng số `21`, ghi chú trong
+`P1.1-Q22-MCP-22` là ID mới duy nhất. Vì `P1.1-Q22-MCP-22` dùng số `21`, ghi chú trong
 `MINI_SPEC_INDEX.md` được sửa để Phase 2 bắt đầu từ `P2-MCP-22`; đồng thời ghi rõ canonical ID là
-**chuỗi đầy đủ**, nên `P1.1-Q22-MCP-21` và `P2-MCP-21` không bao giờ đụng nhau.
+**chuỗi đầy đủ**, nên `P1.1-Q22-MCP-22` và `P2-MCP-21` không bao giờ đụng nhau.
 
 ## 6. Tests
 
