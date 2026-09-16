@@ -146,3 +146,27 @@ export function translate(key: string, params?: Record<string, string | number>,
 export function errorText(error: ApiErrorShape): string {
   return translate(error.messageKey, error.params);
 }
+
+/**
+ * P3-MCP-30…34: doc du lieu tu may chu CO KIEM LUC CHAY (dong D-047).
+ *
+ * `apiFetch<T>` chi la mot loi KHANG DINH kieu — khong ai kiem. Doi hinh dang phan hoi o may chu
+ * lam trang hong LUC CHAY trong khi `tsc` ca hai ben deu xanh; da xay ra that o trang Hoat dong.
+ *
+ * Ham nay dung CHINH lich kiem ma may chu dung (`@mediaclear/contracts`), nen khong the co hai
+ * khai bao troi khac nhau. Phan hoi sai hinh dang tra ve mot `ApiErrorShape` — giao dien hien loi
+ * tu te thay vi vo.
+ */
+export async function apiFetchChecked<T>(
+  path: string,
+  schema: { check(value: unknown, path: string): { ok: true; value: T } | { ok: false; errors: string[] } },
+  init: { method?: string; body?: unknown; workspaceId?: string | null } = {},
+): Promise<ApiResult<T>> {
+  const raw = await apiFetch<unknown>(path, init);
+  if (!raw.ok) return raw;
+  const checked = schema.check(raw.data, 'response.data');
+  if (checked.ok) return { ok: true, data: checked.value };
+  // Lo ra o console de nguoi phat trien thay NGAY; nguoi dung thi thay mot loi co ma on dinh.
+  if (typeof console !== 'undefined') console.error('[contract] phan hoi sai hinh dang:', checked.errors);
+  return { ok: false, error: { code: 'MCP_VAL_REQUEST_INVALID', messageKey: 'errors.mcp_val_request_invalid' } };
+}

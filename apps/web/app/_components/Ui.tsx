@@ -171,6 +171,13 @@ export function Field({
         onChange={(event) => onChange(event.target.value)}
         style={{
           width: '100%',
+          /*
+           * `border-box` la BAT BUOC o day: `width: 100%` CONG padding 24px va vien 2px lam o
+           * nhap doi ra dung 26px so voi khung cha. Tren man hinh 390px do la chu bi cat.
+           * Bam tay o khung 390x844 moi thay — `scrollWidth 304 > clientWidth 278`.
+           * Loi nay o component DUNG CHUNG nen anh huong moi form cua ung dung.
+           */
+          boxSizing: 'border-box',
           maxWidth: 420,
           minHeight: 44,
           padding: '8px 12px',

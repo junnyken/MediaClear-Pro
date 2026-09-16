@@ -139,8 +139,16 @@ export default function AssetDetailPage() {
       </Card>
 
       <Card>
+        {/*
+          * Video di duong RIENG (P3-MCP-30…34): no can ban xem truoc, chon vung va chon khung hinh
+          * — nhung thu man hinh tao job cua anh khong co.
+          */}
         {view.validation.state === 'passed' && view.rightsAttestation.status === 'active' ? (
-          <LinkButton href={`/assets/${assetId}/new-job`}>{translate('screen.asset_detail.create_job_cta')}</LinkButton>
+          <LinkButton href={view.asset.mediaType === 'video' ? `/assets/${assetId}/video` : `/assets/${assetId}/new-job`}>
+            {view.asset.mediaType === 'video'
+              ? translate('screen.video.title')
+              : translate('screen.asset_detail.create_job_cta')}
+          </LinkButton>
         ) : (
           <p style={{ color: 'var(--mcp-text-secondary)' }}>
             {view.validation.state !== 'passed'

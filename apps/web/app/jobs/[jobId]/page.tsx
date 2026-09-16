@@ -57,8 +57,26 @@ interface ProvenanceRow {
   limitationNote: string | null;
 }
 
+interface AudioRow {
+  present: boolean;
+  codec: string | null;
+  durationSeconds: number | null;
+  channelCount: number | null;
+}
+
 interface JobReceipt {
-  receipt: { operations: string[]; evidenceStatus: string };
+  receipt: {
+    operations: string[];
+    evidenceStatus: string;
+    /* P3: `null` voi bien nhan ANH cua Phase 2 — "khong ap dung", khong phai "chua do duoc". */
+    operationMode: string | null;
+    presetId: string | null;
+    audioBefore: AudioRow | null;
+    audioAfter: AudioRow | null;
+    audioVerdict: string | null;
+    outputVerified: boolean;
+    reviewReason: string | null;
+  };
   provenanceBefore: ProvenanceRow;
   provenanceAfter: ProvenanceRow | null;
 }
@@ -132,6 +150,7 @@ export default function JobStatusPage() {
   const view = resource.data;
   const isBlocked = view.job.state === 'blocked';
   const isCompleted = view.job.state === 'completed';
+  const needsReview = view.job.state === 'review_required';
 
   return (
     <>
@@ -256,6 +275,30 @@ export default function JobStatusPage() {
       ) : null}
 
       {/*
+        * `review_required`: da xu ly xong nhung KHONG khang dinh duoc ket qua dat. Phai noi ro
+        * day KHONG phai "thanh cong" — de bai cam dung chu do cho truong hop nay.
+        */}
+      {needsReview ? (
+        <Card title={translate('screen.job_status.review_required')}>
+          <p role="alert" style={{ color: 'var(--mcp-warning)' }}>
+            {translate('screen.job_status.review_note')}
+          </p>
+          {receipt.data?.receipt.audioVerdict && receipt.data.receipt.audioVerdict !== 'preserved' ? (
+            <p style={{ color: 'var(--mcp-warning)' }}>{translate('screen.job_status.audio_warning')}</p>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {/*
+        * Quay lai tep goc. O tang du lieu tep goc LUON con (I-1) va chay lai = job MOI (D-005),
+        * nen day khong phai "hoan tac" — no la duong mo lai ban goc chua he bi dung toi.
+        */}
+      <Card title={translate('screen.job_status.reset_title')}>
+        <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('screen.job_status.reset_note')}</p>
+        <LinkButton href={`/assets/${view.job.assetId}`}>{translate('screen.job_status.reset_cta')}</LinkButton>
+      </Card>
+
+      {/*
         * Bien nhan. Hien CA phan chua do duoc - giau di se khien nguoi dung tuong moi thu deu da
         * duoc kiem chung.
         */}
@@ -267,6 +310,27 @@ export default function JobStatusPage() {
           <DefinitionRow label={translate('screen.job_status.receipt_evidence')}>
             <EvidenceBadge status={receipt.data.receipt.evidenceStatus} />
           </DefinitionRow>
+          {/* P3: chi hien khi la luot xu ly VIDEO. Bien nhan anh khong co nhung dong nay. */}
+          {receipt.data.receipt.operationMode ? (
+            <DefinitionRow label={translate('screen.job_status.mode')}>
+              {translate(`screen.video.mode_${receipt.data.receipt.operationMode}`)}
+            </DefinitionRow>
+          ) : null}
+          {receipt.data.receipt.presetId ? (
+            <DefinitionRow label={translate('screen.job_status.preset')}>
+              {translate(`preset.${receipt.data.receipt.presetId}`)}
+            </DefinitionRow>
+          ) : null}
+          {receipt.data.receipt.audioBefore ? (
+            <DefinitionRow label={translate('screen.job_status.audio_before')}>
+              {translate(receipt.data.receipt.audioBefore.present ? 'audio.present' : 'audio.absent')}
+            </DefinitionRow>
+          ) : null}
+          {receipt.data.receipt.audioAfter ? (
+            <DefinitionRow label={translate('screen.job_status.audio_after')}>
+              {translate(receipt.data.receipt.audioAfter.present ? 'audio.present' : 'audio.absent')}
+            </DefinitionRow>
+          ) : null}
           <DefinitionRow label={translate('screen.job_status.receipt_metadata_before')}>
             {translate(`presence.${receipt.data.provenanceBefore.originalMetadataPresence}`)}
           </DefinitionRow>

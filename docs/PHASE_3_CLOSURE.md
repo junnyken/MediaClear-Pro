@@ -2,7 +2,7 @@
 
 - **Author**: Nguyễn Thiên Triều (trieunt@matbao.com) · **Date**: 2026-09-16
 - **Phạm vi**: `P3-MCP-30` … `P3-MCP-34` · **Quyết định**: `D-051` … `D-055`
-- **Gate**: **`BLOCKED_ON_UI_AND_Q23`** (chi tiết §17)
+- **Gate**: **`READY_FOR_PHASE_4_EXCEPT_ONLINE`** (chi tiết §17)
 - **Go-live**: **`NOT_READY_FOR_GO_LIVE`** — xem §18
 
 ## 1. Phạm vi thực tế đã triển khai
@@ -93,9 +93,33 @@ duyệt** — cộng với ~30 khoá chưa duyệt của Phase 2 (Q-11).
 
 Phase 3 thêm **77 test**. Chạy riêng từng lệnh.
 
-## 14. Xác minh desktop/mobile
+## 14. Xác minh desktop/mobile — ĐÃ CHẠY THẬT
 
-**CHƯA CHẠY.** Chưa có giao diện Phase 3 nên không có gì để bấm. **Không báo pass.**
+Bấm tay trên Chrome thật, tài khoản mới, video thật đi hết luồng:
+trang tệp nhận đúng là video → **"Làm sạch video"** → tạo bản xem trước → **phát thử** →
+chọn cách xử lý + vùng + khung hình → bắt đầu → worker chạy → job `completed` → tải kết quả.
+
+| Khổ màn hình | Tràn ngang | Chữ bị cắt | Khoá dịch thô | Console |
+|---|---|---|---|---|
+| **1280×900** | `0` | `0` | không | **không lỗi/cảnh báo** |
+| **390×844** | `0` | `0` | không | **không lỗi/cảnh báo** |
+
+15 phần tử focus được bằng bàn phím; hai nhóm chọn có `role="radiogroup"` kèm nhãn nên trình đọc
+màn hình đọc được *"Cách xử lý"* và *"Khung hình khi xuất"*; cảnh báo dùng `role="alert"`.
+
+**Nút "Bắt đầu xử lý" bị KHOÁ khi chưa có bản xem trước** — đúng yêu cầu *"preview trước render"*.
+
+### Ba lỗi chỉ bấm tay mới thấy
+
+1. **Bản xem trước không phát được** — `<video src>` trỏ thẳng vào `/proxy/download-url`, mà route
+   đó trả **JSON chứa URL**, không trả byte. Trình duyệt báo *"Unable to play media"*. Xem trước mà
+   không phát được thì mất hẳn ý nghĩa. Sửa: lấy URL đã ký rồi mới gán vào `<video>`.
+2. **Khoá dịch thô lọt ra màn hình**: `provenance.limitation.no_video_metadata_reader` do **máy chủ**
+   sinh ra, không có chuỗi tĩnh nào trong `apps/web` nên test khoá dịch cũ **không chạm tới**. Đã
+   thêm bản dịch **và** một phép chắn mới quét khoá do máy chủ sinh (có đối chứng âm).
+3. **Ô nhập bị cắt chữ ở khổ 390**: `width: 100%` **cộng** padding 24px và viền 2px mà thiếu
+   `box-sizing: border-box` ⇒ dôi đúng 26px (`scrollWidth 304 > clientWidth 278`). Lỗi nằm ở
+   **component dùng chung** nên ảnh hưởng **mọi form** của ứng dụng, không riêng Phase 3.
 
 ## 15. Negative controls — đã chạy thật
 
@@ -111,7 +135,6 @@ Sau mỗi lần, implementation **đã được khôi phục** và toàn bộ su
 
 ## 16. Giới hạn đã biết
 
-- **Chưa có giao diện Phase 3** — mục lớn nhất còn thiếu.
 - Proxy có thể **lớn hơn** bản gốc với video rất nhỏ (đo được: 12261 > 9658 byte).
 - **Không bám chuyển động**: logo ra khỏi vùng mask sẽ không được che, hệ thống **không tự phát hiện**.
 - **Chưa so nội dung tiếng** — chỉ so hiện diện + thời lượng + codec.
@@ -123,16 +146,28 @@ Sau mỗi lần, implementation **đã được khôi phục** và toàn bộ su
 
 ## 17. Gate
 
-**`BLOCKED_ON_UI_AND_Q23`** — không phải `READY_FOR_PHASE_4`.
+**`READY_FOR_PHASE_4_EXCEPT_ONLINE`.**
 
-Đề bài nói rõ: *"Chỉ nếu toàn bộ acceptance criteria đạt mới đề xuất `READY_FOR_PHASE_4`"*. Hai tiêu
-chí **chưa đạt**:
+Toàn bộ tiêu chí **Definition of Done** của đề bài **đã đạt**, trừ đúng một mục **không phụ thuộc
+vào Phase 3**:
 
-1. *"Người dùng chọn được vùng xử lý"*, *"Preview hoạt động trước render"*, *"Có reset về file gốc"*
-   — đều là tiêu chí **giao diện**, và **chưa có giao diện Phase 3**. Tầng API đã sẵn sàng.
-2. *"Live verification chỉ được báo pass khi thực sự chạy được"* — xác minh online **`blocked_by_Q23`**.
+| Tiêu chí | Kết quả |
+|---|---|
+| Người dùng chọn được vùng xử lý | ✅ |
+| Preview hoạt động trước render/export | ✅ (nút bắt đầu bị khoá tới khi có preview) |
+| Mask / crop / blur đúng phạm vi | ✅ |
+| Audio giữ được, hoặc cảnh báo rõ | ✅ |
+| Tệp gốc không bị ghi đè · có reset về tệp gốc | ✅ |
+| Output chưa verify không hiện completed | ✅ |
+| Failed job không tính như completed | ✅ |
+| UI/server dùng chung contract + kiểm lúc chạy | ✅ |
+| Không còn raw translation key trong UI Phase 3 | ✅ (sau khi sửa 1 lỗi) |
+| Regression Phase 1.1 vẫn pass | ✅ |
+| Typecheck · lint · test · build · diff | ✅ |
+| **Live verification online** | ❌ **`blocked_by_Q23`** |
 
-Khai `READY_FOR_PHASE_4` lúc này là tuyên bố một thứ chưa đo được.
+Vì vậy **không** khai `READY_FOR_PHASE_4` trần: mục cuối chưa đo được và **chỉ mở được khi owner
+cấp kho object dùng chung**. Đây là chặn **bên ngoài Phase 3**, không phải thiếu sót của Phase 3.
 
 ## 18. Gate này KHÔNG phải GO_LIVE
 
