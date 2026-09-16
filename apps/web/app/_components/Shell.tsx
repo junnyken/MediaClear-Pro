@@ -1,10 +1,11 @@
 'use client';
 
+import { ME_RESPONSE_SCHEMA } from '@mediaclear/contracts';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { apiFetch, readSession, translate, writeSession } from '../_lib/api';
+import { apiFetchChecked, readSession, translate, writeSession } from '../_lib/api';
 
 /**
  * Dieu huong theo WORKFLOW cua nguoi dung, khong phoi bay module noi bo.
@@ -33,7 +34,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   useEffect(() => {
     setWorkspaceId(readSession().workspaceId);
-    void apiFetch<MeResponse>('/v1/me').then((result) => {
+    void apiFetchChecked('/v1/me', ME_RESPONSE_SCHEMA).then((result) => {
       setMe(result.ok ? result.data : null);
     });
   }, [pathname]);

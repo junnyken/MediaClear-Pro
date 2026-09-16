@@ -6,17 +6,12 @@
  * Truoc day man hinh nay chi hoi email - go bat ky email nao la vao duoc. Nay co mat khau that,
  * phien luu trong database. Duong dev (`/v1/auth/dev-session`) van con nhung TAT o production.
  */
+import { SESSION_RESPONSE_SCHEMA } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch, translate, writeSession, type ApiErrorShape } from '../_lib/api';
+import { apiFetchChecked, translate, writeSession, type ApiErrorShape } from '../_lib/api';
 import { Button, Card, ErrorNotice, Field, PageTitle } from '../_components/Ui';
 
-interface SessionResponse {
-  token: string;
-  userId: string;
-  expiresAt: string;
-  productionAuthProvider: boolean;
-}
 
 export default function SignInPage() {
   const router = useRouter();
@@ -33,8 +28,8 @@ export default function SignInPage() {
     }
     setError(null);
     setBusy(true);
-    const result = await apiFetch<SessionResponse>(
-      mode === 'register' ? '/v1/auth/register' : '/v1/auth/sign-in',
+    const result = await apiFetchChecked(
+      mode === 'register' ? '/v1/auth/register' : '/v1/auth/sign-in', SESSION_RESPONSE_SCHEMA,
       { method: 'POST', body: { email: email.trim(), password } },
     );
     setBusy(false);

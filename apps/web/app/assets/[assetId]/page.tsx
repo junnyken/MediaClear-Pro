@@ -1,49 +1,22 @@
 'use client';
 
+import { ASSET_VIEW_SCHEMA, RETENTION_VIEW_SCHEMA, SIGNED_URL_SCHEMA } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { apiFetch, translate, type ApiErrorShape } from '../../_lib/api';
+import { apiFetchChecked, translate } from '../../_lib/api';
 import { useResource } from '../../_lib/use-resource';
 import { Button, Card, DefinitionRow, ErrorNotice, Loading, PageTitle, ValueOrUnknown, LinkButton } from '../../_components/Ui';
 import { RightsDialog } from '../../_components/RightsDialog';
-
-interface AssetView {
-  asset: { id: string; mediaType: string; projectId: string };
-  sourceFile: {
-    originalFilename: string;
-    declaredMimeType: string;
-    uploadState: string;
-    measured: null | {
-      mimeType: string;
-      byteSize: number;
-      widthPx: number | null;
-      heightPx: number | null;
-      durationSeconds: number | null;
-      checksumSha256: string;
-    };
-  };
-  validation: { state: string; errors: ApiErrorShape[]; validatedAt: string | null };
-  rightsAttestation: { status: 'missing' | 'active' | 'blocked'; attestedAt: string | null; statementVersion: number | null };
-}
-
-/** P2-MCP-33: han luu giu doc tu route rieng, khong nhet vao AssetView. */
-interface RetentionView {
-  retentionState: string;
-  lastAccessedAt: string | null;
-  retainUntil: string | null;
-  deletionCandidate: boolean;
-  reason: string | null;
-}
 
 export default function AssetDetailPage() {
   const params = useParams<{ assetId: string }>();
   const assetId = params.assetId;
   const [dialogOpen, setDialogOpen] = useState(false);
-  const resource = useResource(() => apiFetch<AssetView>(`/v1/assets/${assetId}`), [assetId]);
-  const retention = useResource(() => apiFetch<RetentionView>(`/v1/assets/${assetId}/retention`), [assetId]);
+  const resource = useResource(() => apiFetchChecked(`/v1/assets/${assetId}`, ASSET_VIEW_SCHEMA), [assetId]);
+  const retention = useResource(() => apiFetchChecked(`/v1/assets/${assetId}/retention`, RETENTION_VIEW_SCHEMA), [assetId]);
 
   async function download() {
-    const result = await apiFetch<{ url: string }>(`/v1/assets/${assetId}/download-url`);
+    const result = await apiFetchChecked(`/v1/assets/${assetId}/download-url`, SIGNED_URL_SCHEMA);
     if (result.ok && typeof window !== 'undefined') window.open(result.data.url, '_blank');
   }
 

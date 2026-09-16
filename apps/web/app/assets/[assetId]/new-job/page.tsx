@@ -1,17 +1,13 @@
 'use client';
 
+import { ASSET_VIEW_SCHEMA, JOB_CREATED_SCHEMA } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { apiFetch, translate, type ApiErrorShape } from '../../../_lib/api';
+import { apiFetchChecked, translate, type ApiErrorShape } from '../../../_lib/api';
 import { useResource } from '../../../_lib/use-resource';
 import { Button, Card, ErrorNotice, Loading, PageTitle } from '../../../_components/Ui';
 
 const OPERATIONS = ['visible_logo_cleanup', 'visible_text_cleanup', 'object_cleanup', 'crop', 'blur', 'brand_overlay'] as const;
-
-interface AssetView {
-  validation: { state: string };
-  rightsAttestation: { status: string };
-}
 
 export default function CreateJobPage() {
   const params = useParams<{ assetId: string }>();
@@ -22,7 +18,7 @@ export default function CreateJobPage() {
   const [error, setError] = useState<ApiErrorShape | null>(null);
   const [blockedJobId, setBlockedJobId] = useState<string | null>(null);
 
-  const asset = useResource(() => apiFetch<AssetView>(`/v1/assets/${assetId}`), [assetId]);
+  const asset = useResource(() => apiFetchChecked(`/v1/assets/${assetId}`, ASSET_VIEW_SCHEMA), [assetId]);
 
   function toggle(operation: string) {
     setSelected((current) =>
@@ -34,7 +30,7 @@ export default function CreateJobPage() {
     setBusy(true);
     setError(null);
     setBlockedJobId(null);
-    const result = await apiFetch<{ job: { id: string } }>(`/v1/assets/${assetId}/jobs`, {
+    const result = await apiFetchChecked(`/v1/assets/${assetId}/jobs`, JOB_CREATED_SCHEMA, {
       method: 'POST',
       body: {
         operations: selected,

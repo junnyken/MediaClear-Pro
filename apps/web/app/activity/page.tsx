@@ -1,24 +1,23 @@
 'use client';
 
+import { AUDIT_PAGE_SCHEMA, type schema } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { DEFAULT_LOCALE, formatDateTime } from '@mediaclear/i18n';
-import { apiFetch, readSession, translate } from '../_lib/api';
+import { apiFetchChecked, readSession, translate } from '../_lib/api';
 import { useResource } from '../_lib/use-resource';
 import { Button, Card, Empty, ErrorNotice, Loading, PageTitle } from '../_components/Ui';
 
-interface AuditRow {
-  id: string;
-  eventType: string;
-  subjectType: string;
-  subjectId: string;
-  occurredAt: string;
-}
+/*
+ * Kieu SUY RA tu lich kiem, khong tu khai lai.
+ *
+ * Ban tu khai truoc day ghi `subjectId: string` trong khi may chu tra ve duoc `null` — mot lech
+ * that ma khong ai phat hien, vi khong co gi doi chieu hai ben. Chuyen sang kieu suy ra la phep
+ * kiem tu bat duoc no.
+ */
+type AuditPageData = schema.Infer<typeof AUDIT_PAGE_SCHEMA>;
+type AuditRow = AuditPageData['items'][number];
 
-/** P2-MCP-32: route nay nay tra ve trang co con tro, khong con la mang. */
-interface AuditPage {
-  items: AuditRow[];
-  nextCursor: string | null;
-}
+
 
 export default function ActivityPage() {
   const workspaceId = readSession().workspaceId;
@@ -33,7 +32,7 @@ export default function ActivityPage() {
   const resource = useResource(
     () =>
       workspaceId
-        ? apiFetch<AuditPage>(`/v1/workspaces/${workspaceId}/audit-events`)
+        ? apiFetchChecked(`/v1/workspaces/${workspaceId}/audit-events`, AUDIT_PAGE_SCHEMA)
         : Promise.resolve({ ok: false as const, error: { code: 'MCP_RESOURCE_NOT_FOUND', messageKey: 'errors.mcp_resource_not_found' } }),
     [workspaceId],
   );
@@ -44,8 +43,8 @@ export default function ActivityPage() {
   async function loadMore() {
     if (!workspaceId || !nextCursor) return;
     setLoadingMore(true);
-    const result = await apiFetch<AuditPage>(
-      `/v1/workspaces/${workspaceId}/audit-events?cursor=${encodeURIComponent(nextCursor)}`,
+    const result = await apiFetchChecked(
+      `/v1/workspaces/${workspaceId}/audit-events?cursor=${encodeURIComponent(nextCursor)}`, AUDIT_PAGE_SCHEMA,
     );
     setLoadingMore(false);
     if (!result.ok) return;

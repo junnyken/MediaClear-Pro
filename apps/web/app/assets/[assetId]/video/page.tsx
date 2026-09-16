@@ -9,7 +9,9 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
+  JOB_CREATED_SCHEMA,
   PRESET_LIST_SCHEMA,
+  SIGNED_URL_SCHEMA,
   VIDEO_OPERATION_MODES,
   VIDEO_PROXY_SCHEMA,
   validateRegion,
@@ -17,7 +19,7 @@ import {
   type Region,
   type VideoOperationMode,
 } from '@mediaclear/contracts';
-import { apiFetch, apiFetchChecked, translate, type ApiErrorShape } from '../../../_lib/api';
+import { apiFetchChecked, translate, type ApiErrorShape } from '../../../_lib/api';
 import { useResource } from '../../../_lib/use-resource';
 import { Button, Card, DefinitionRow, ErrorNotice, Field, Loading, PageTitle } from '../../../_components/Ui';
 
@@ -60,7 +62,7 @@ export default function VideoCleanupPage() {
   async function loadPlayUrl() {
     setBusy(true);
     setError(null);
-    const result = await apiFetch<{ url: string }>(`/v1/assets/${assetId}/proxy/download-url`);
+    const result = await apiFetchChecked(`/v1/assets/${assetId}/proxy/download-url`, SIGNED_URL_SCHEMA);
     setBusy(false);
     if (!result.ok) {
       setError(result.error);
@@ -84,7 +86,7 @@ export default function VideoCleanupPage() {
   async function startJob() {
     setBusy(true);
     setError(null);
-    const result = await apiFetch<{ job: { id: string } }>(`/v1/assets/${assetId}/jobs`, {
+    const result = await apiFetchChecked(`/v1/assets/${assetId}/jobs`, JOB_CREATED_SCHEMA, {
       method: 'POST',
       body: {
         operations: [OPERATION_OF[mode]],

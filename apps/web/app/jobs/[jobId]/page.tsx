@@ -1,9 +1,10 @@
 'use client';
 
+import { JOB_OUTPUT_SCHEMA, JOB_PREVIEW_SCHEMA, JOB_RECEIPT_SCHEMA, JOB_VIEW_SCHEMA, SIGNED_URL_SCHEMA } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { DEFAULT_LOCALE, formatBytes } from '@mediaclear/i18n';
-import { apiFetch, translate, type ApiErrorShape } from '../../_lib/api';
+import { apiFetch, apiFetchChecked, translate, type ApiErrorShape } from '../../_lib/api';
 import { useResource } from '../../_lib/use-resource';
 import {
   Button,
@@ -17,21 +18,6 @@ import {
   ValueOrUnknown,
   LinkButton,
 } from '../../_components/Ui';
-
-interface JobView {
-  job: {
-    id: string;
-    assetId: string;
-    state: string;
-    reasonCode: string | null;
-    blockReasonKind: string | null;
-    request: { operations: string[] };
-    outputAssetId: string | null;
-  };
-  providerCapability: string;
-  productionProcessingEnabled: boolean;
-  usage: { unitType: string; quantity: number; state: string; expiresAt: string | null };
-}
 
 interface JobOutput {
   outputAssetId: string;
@@ -81,17 +67,11 @@ interface JobReceipt {
   provenanceAfter: ProvenanceRow | null;
 }
 
-interface OutputDownload {
-  url: string;
-  expiresAt: string;
-  checksumSha256: string;
-  byteSize: number;
-}
 
 export default function JobStatusPage() {
   const params = useParams<{ jobId: string }>();
   const jobId = params.jobId;
-  const resource = useResource(() => apiFetch<JobView>(`/v1/jobs/${jobId}`), [jobId]);
+  const resource = useResource(() => apiFetchChecked(`/v1/jobs/${jobId}`, JOB_VIEW_SCHEMA), [jobId]);
   const [downloadError, setDownloadError] = useState<ApiErrorShape | null>(null);
   const [preview, setPreview] = useState<JobPreview | null>(null);
   const [previewError, setPreviewError] = useState<ApiErrorShape | null>(null);
@@ -102,11 +82,11 @@ export default function JobStatusPage() {
    * khong co that len man hinh cua nguoi dung.
    */
   const receipt = useResource<JobReceipt | null>(
-    async () => (jobState === 'completed' ? apiFetch<JobReceipt>(`/v1/jobs/${jobId}/receipt`) : { ok: true, data: null }),
+    async () => (jobState === 'completed' ? apiFetchChecked(`/v1/jobs/${jobId}/receipt`, JOB_RECEIPT_SCHEMA) : { ok: true, data: null }),
     [jobId, jobState],
   );
   const output = useResource<JobOutput | null>(
-    async () => (jobState === 'completed' ? apiFetch<JobOutput>(`/v1/jobs/${jobId}/output`) : { ok: true, data: null }),
+    async () => (jobState === 'completed' ? apiFetchChecked(`/v1/jobs/${jobId}/output`, JOB_OUTPUT_SCHEMA) : { ok: true, data: null }),
     [jobId, jobState],
   );
 
@@ -123,7 +103,7 @@ export default function JobStatusPage() {
   async function runPreview() {
     setPreviewError(null);
     setPreviewing(true);
-    const result = await apiFetch<JobPreview>(`/v1/jobs/${jobId}/preview`, { method: 'POST' });
+    const result = await apiFetchChecked(`/v1/jobs/${jobId}/preview`, JOB_PREVIEW_SCHEMA, { method: 'POST' });
     setPreviewing(false);
     if (!result.ok) {
       setPreviewError(result.error);
@@ -134,7 +114,7 @@ export default function JobStatusPage() {
 
   async function download() {
     setDownloadError(null);
-    const result = await apiFetch<OutputDownload>(`/v1/jobs/${jobId}/output/download-url`);
+    const result = await apiFetchChecked(`/v1/jobs/${jobId}/output/download-url`, SIGNED_URL_SCHEMA);
     if (!result.ok) {
       // Noi that vi sao khong tai duoc, khong im lang khong lam gi.
       setDownloadError(result.error);

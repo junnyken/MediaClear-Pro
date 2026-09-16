@@ -1,16 +1,12 @@
 'use client';
 
+import { ASSET_VIEW_SCHEMA, UPLOAD_INTENT_SCHEMA, VALIDATION_RESULT_SCHEMA } from '@mediaclear/contracts';
 import { useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { apiFetch, apiUpload, fetchHealth, translate, type ApiErrorShape } from '../../../_lib/api';
+import { apiFetchChecked, apiUpload, fetchHealth, translate, type ApiErrorShape } from '../../../_lib/api';
 import { useResource } from '../../../_lib/use-resource';
 import { Button, Card, DefinitionRow, ErrorNotice, Loading, PageTitle, ValueOrUnknown, LinkButton } from '../../../_components/Ui';
 
-interface UploadIntent {
-  assetId: string;
-  sourceFileId: string;
-  uploadUrl: string;
-}
 
 interface ValidationResponse {
   assetId: string;
@@ -50,7 +46,7 @@ export default function UploadPage() {
     const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
 
     setStep('uploading');
-    const intent = await apiFetch<UploadIntent>(`/v1/projects/${projectId}/assets/upload-intent`, {
+    const intent = await apiFetchChecked(`/v1/projects/${projectId}/assets/upload-intent`, UPLOAD_INTENT_SCHEMA, {
       method: 'POST',
       body: { originalFilename: file.name, mimeType: file.type, mediaType, byteSize: file.size },
     });
@@ -67,13 +63,13 @@ export default function UploadPage() {
     }
 
     setStep('checking');
-    const checked = await apiFetch<ValidationResponse>(`/v1/assets/${intent.data.assetId}/validate`, { method: 'POST' });
+    const checked = await apiFetchChecked(`/v1/assets/${intent.data.assetId}/validate`, VALIDATION_RESULT_SCHEMA, { method: 'POST' });
     if (!checked.ok) {
       setStep('idle');
       setError(checked.error);
       return;
     }
-    const view = await apiFetch<AssetView>(`/v1/assets/${intent.data.assetId}`);
+    const view = await apiFetchChecked(`/v1/assets/${intent.data.assetId}`, ASSET_VIEW_SCHEMA);
     setAssetId(intent.data.assetId);
     setValidation(checked.data);
     setMeasured(view.ok ? view.data.sourceFile.measured : null);

@@ -1,8 +1,9 @@
 'use client';
 
+import { WORKSPACE_CREATED_SCHEMA } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch, readSession, translate, writeSession, type ApiErrorShape } from '../../_lib/api';
+import { apiFetchChecked, readSession, translate, writeSession, type ApiErrorShape } from '../../_lib/api';
 import { Button, Card, ErrorNotice, Field, PageTitle } from '../../_components/Ui';
 
 export default function CreateWorkspacePage() {
@@ -17,7 +18,7 @@ export default function CreateWorkspacePage() {
       return;
     }
     setBusy(true);
-    const result = await apiFetch<{ id: string }>('/v1/workspaces', { method: 'POST', body: { name: name.trim() } });
+    const result = await apiFetchChecked('/v1/workspaces', WORKSPACE_CREATED_SCHEMA, { method: 'POST', body: { name: name.trim() } });
     setBusy(false);
     if (!result.ok) {
       setError(result.error);

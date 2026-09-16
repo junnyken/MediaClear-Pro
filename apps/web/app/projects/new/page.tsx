@@ -1,8 +1,9 @@
 'use client';
 
+import { PROJECT_CREATED_SCHEMA } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch, readSession, translate, type ApiErrorShape } from '../../_lib/api';
+import { apiFetchChecked, readSession, translate, type ApiErrorShape } from '../../_lib/api';
 import { Button, Card, ErrorNotice, Field, PageTitle } from '../../_components/Ui';
 
 export default function CreateProjectPage() {
@@ -22,7 +23,7 @@ export default function CreateProjectPage() {
       return;
     }
     setBusy(true);
-    const result = await apiFetch<{ id: string }>(`/v1/workspaces/${workspaceId}/projects`, {
+    const result = await apiFetchChecked(`/v1/workspaces/${workspaceId}/projects`, PROJECT_CREATED_SCHEMA, {
       method: 'POST',
       body: { name: name.trim() },
     });

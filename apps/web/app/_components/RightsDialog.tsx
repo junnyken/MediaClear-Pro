@@ -14,8 +14,9 @@
  * Phan biet: cau `rights.attestation.v2.statement` la BANG CHUNG (co version, duoc luu);
  * tieu de muc, cau pham vi ho tro va hai cau canh bao la NGU CANH (khong version, khong luu).
  */
+import { RIGHTS_STATEMENT_SCHEMA } from '@mediaclear/contracts';
 import { useState } from 'react';
-import { apiFetch, translate, type ApiErrorShape } from '../_lib/api';
+import { apiFetch, apiFetchChecked, translate, type ApiErrorShape } from '../_lib/api';
 import { Button, ErrorNotice } from './Ui';
 
 interface StatementInfo {
@@ -37,7 +38,7 @@ export function RightsDialog({
   const [statement, setStatement] = useState<StatementInfo['statement'] | null>(null);
 
   if (statement === null && !busy) {
-    void apiFetch<StatementInfo>(`/v1/assets/${assetId}/rights-attestation`).then((result) => {
+    void apiFetchChecked(`/v1/assets/${assetId}/rights-attestation`, RIGHTS_STATEMENT_SCHEMA).then((result) => {
       if (result.ok) setStatement(result.data.statement);
     });
   }

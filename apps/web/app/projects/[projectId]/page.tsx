@@ -1,22 +1,18 @@
 'use client';
 
+import { ASSET_LIST_SCHEMA, PROJECT_DETAIL_SCHEMA } from '@mediaclear/contracts';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { apiFetch, translate } from '../../_lib/api';
+import { apiFetchChecked, translate } from '../../_lib/api';
 import { useResource } from '../../_lib/use-resource';
 import { Card, Empty, ErrorNotice, Loading, PageTitle, LinkButton } from '../../_components/Ui';
 
-interface AssetRow {
-  id: string;
-  mediaType: string;
-  createdAt: string;
-}
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
-  const project = useResource(() => apiFetch<{ id: string; name: string }>(`/v1/projects/${projectId}`), [projectId]);
-  const assets = useResource(() => apiFetch<{ items: AssetRow[] }>(`/v1/projects/${projectId}/assets`), [projectId]);
+  const project = useResource(() => apiFetchChecked(`/v1/projects/${projectId}`, PROJECT_DETAIL_SCHEMA), [projectId]);
+  const assets = useResource(() => apiFetchChecked(`/v1/projects/${projectId}/assets`, ASSET_LIST_SCHEMA), [projectId]);
 
   return (
     <>

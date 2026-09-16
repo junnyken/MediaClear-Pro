@@ -1111,3 +1111,48 @@ nay là một bảng số liệu chứ không phải một câu cảnh báo mơ 
 - **Nguyên tắc rút ra**: *"đã ghi vào phần giới hạn"* không có nghĩa *"phải vá"*. Đi đo trước; có
   cái đáng vá, có cái chỉ đáng **nói cho chính xác**.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-058 — Đóng NỐT lỗ hổng D-047 trên toàn bộ giao diện, và dựng chốt để nó không mở lại
+
+- **Context**: `D-051` đóng lỗ hổng cho các endpoint Phase 3. Phần còn lại — **29 lời gọi** ở 16 màn
+  hình — vẫn đọc phản hồi bằng `apiFetch<T>`, tức là một **lời khẳng định kiểu không ai kiểm**.
+- **Bằng chứng lỗ hổng có thật, không phải lo xa**. Đếm được trong mã trước khi sửa:
+
+  | Thứ | Số khai báo | Khác nhau ra sao |
+  |---|---|---|
+  | `MeResponse` | **3** | có `email` ở `page.tsx`, không có ở `Shell.tsx` |
+  | `UsageResponse` | **2** | 4 trường ở `page.tsx`, 7 trường ở `usage/page.tsx` |
+  | `AssetView` | **3** | mỗi màn hình khai một mẩu khác nhau |
+
+  Không bản nào được đối chiếu với máy chủ. Đây đúng là hình dạng đã làm trang Hoạt động hỏng **lúc
+  chạy** trong khi `tsc` hai bên đều xanh.
+
+- **Decision**:
+  1. Khai **một lịch kiểm cho mỗi endpoint** trong `api-schemas.ts`; kiểu **suy ra** từ chính lịch
+     kiểm. Gỡ bỏ toàn bộ `interface` tự khai ở giao diện — chúng thành mã chết, và `eslint` **tự chỉ
+     ra đủ 30 chỗ**.
+  2. Gỡ luôn `MeResponse` **viết tay trong `api.ts`** — nó là khai báo thứ hai cho cùng một thứ,
+     đúng thứ `D-047` tồn tại để chặn.
+  3. **Chốt vĩnh viễn** (`apps/web/tests/contract-boundary.test.ts`): không màn hình nào được đọc
+     phản hồi bằng `apiFetch<T>`; mọi `apiFetchChecked` phải nhận một lịch kiểm; lịch kiểm phải đến
+     từ `@mediaclear/contracts`, **không** khai tại chỗ. Sửa một lần không giữ được gì — chỉ cần một
+     người viết `apiFetch<T>` mới là lỗ hổng trở lại, **và `tsc` vẫn xanh**.
+- **Ba lỗi lộ ra ngay khi bật phép kiểm** — bằng chứng rằng nó làm việc thật:
+  1. `POST /v1/workspaces` và `POST .../projects` trả object **phẳng**, không bọc trong
+     `workspace:`/`project:` như tôi khai. Một `interface` viết tay sẽ **im lặng chấp nhận** hình
+     dạng sai cho tới khi người dùng bấm vào.
+  2. Giao diện khai `subjectId: string` trong khi máy chủ trả được **`null`** — lệch thật, chưa ai
+     phát hiện vì không có gì đối chiếu hai bên.
+  3. `apiFetchChecked` ban đầu nhận kiểu **cấu trúc** nên TypeScript không suy ra được `T` và mọi
+     phản hồi thành `{}` — tức là mất đúng thứ đang đi sửa. Phải nhận thẳng `schema.Schema<T>`.
+- **Phép chắn của tôi cũng từng báo sai**: biểu thức đầu tiên cắt ở ngoặc đóng của
+  `encodeURIComponent(...)` lồng bên trong ⇒ **dương tính giả**. Đổi sang quét **cân bằng ngoặc**.
+  Một phép chắn báo sai thì chẳng bao lâu sẽ bị người ta bỏ qua.
+- **Đối chứng âm đã chạy**: đưa lại một `apiFetch<T>` ⇒ chốt **đỏ** ngay; khôi phục ⇒ xanh.
+- **Consequences**: **0** lời gọi chưa kiểm trên toàn giao diện (trước: 29). Lỗ hổng kiến trúc ghi ở
+  `D-047` **đóng hoàn toàn**, không còn "trong phạm vi Phase 3" nữa. Bấm tay lại sau khi đổi cả 30
+  lời gọi: mọi trang trả `200`, biên nhận/cách xử lý/tiếng/nút quay lại tệp gốc đều hiện đúng,
+  **console sạch**.
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

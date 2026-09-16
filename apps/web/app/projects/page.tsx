@@ -1,22 +1,18 @@
 'use client';
 
+import { PROJECT_LIST_SCHEMA } from '@mediaclear/contracts';
 import Link from 'next/link';
-import { apiFetch, readSession, translate } from '../_lib/api';
+import { apiFetchChecked, readSession, translate } from '../_lib/api';
 import { useResource } from '../_lib/use-resource';
 import { Card, Empty, ErrorNotice, Loading, PageTitle, LinkButton } from '../_components/Ui';
 
-interface ProjectRow {
-  id: string;
-  name: string;
-  createdAt: string;
-}
 
 export default function ProjectListPage() {
   const workspaceId = readSession().workspaceId;
   const resource = useResource(
     () =>
       workspaceId
-        ? apiFetch<{ items: ProjectRow[] }>(`/v1/workspaces/${workspaceId}/projects`)
+        ? apiFetchChecked(`/v1/workspaces/${workspaceId}/projects`, PROJECT_LIST_SCHEMA)
         : Promise.resolve({ ok: false as const, error: { code: 'MCP_RESOURCE_NOT_FOUND', messageKey: 'errors.mcp_resource_not_found' } }),
     [workspaceId],
   );

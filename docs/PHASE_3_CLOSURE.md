@@ -87,7 +87,7 @@ duyệt** — cộng với ~30 khoá chưa duyệt của Phase 2 (Q-11).
 |---|---|
 | `pnpm typecheck` | `0` |
 | `pnpm lint` | `0` |
-| `pnpm test` (có PostgreSQL + MinIO) | `0` — **58 tệp · 632 test đạt** |
+| `pnpm test` (có PostgreSQL + MinIO) | `0` — **59 tệp · 636 test đạt** |
 | `pnpm build:web` | `0` |
 | `git diff --check` | sạch |
 
@@ -141,7 +141,7 @@ Sau mỗi lần, implementation **đã được khôi phục** và toàn bộ su
 - **Chưa so nội dung tiếng** — chỉ so hiện diện, thời lượng, và **số kênh** (`D-057`). Một bản giữ đúng độ dài và đúng số kênh nhưng **tiếng bị méo** vẫn lọt qua.
 - Dung sai audio `0,25s` **nay có cơ sở đo được** (≈11× biên độ lớn nhất, xem `D-056`) nhưng vẫn là giá trị agent chọn — owner đổi được bằng một hằng số.
 - Preset **không có bằng chứng tuân thủ nền tảng**.
-- **25 interface giao diện tự khai** ở màn hình cũ vẫn ngoài phạm vi D-051.
+- ~~25 interface giao diện tự khai ngoài phạm vi D-051~~ — **đã đóng hoàn toàn** (`D-058`): 0 lời gọi chưa kiểm trên toàn giao diện, kèm chốt chặn tái phát + đối chứng âm.
 - Chưa dọn proxy/phiên quá hạn; chưa retry có backoff.
 - `blocked_by_Q23`: mọi xác minh online.
 

@@ -1,38 +1,25 @@
 'use client';
 
+import { ME_RESPONSE_SCHEMA, PROJECT_LIST_SCHEMA, USAGE_SUMMARY_SCHEMA } from '@mediaclear/contracts';
 import Link from 'next/link';
-import { apiFetch, readSession, translate } from './_lib/api';
+import { apiFetchChecked, readSession, translate } from './_lib/api';
 import { useResource } from './_lib/use-resource';
 import { Card, DefinitionRow, ErrorNotice, LinkButton, Loading, PageTitle } from './_components/Ui';
 
-interface MeResponse {
-  user: { displayName: string; email: string };
-  workspaces: Array<{ id: string; name: string; role: string }>;
-}
-interface UsageResponse {
-  imageUnitsReserved: number;
-  videoMinuteUnitsReserved: number;
-  imageUnitsCommitted: number;
-  videoMinuteUnitsCommitted: number;
-}
-interface ProjectPage {
-  items: Array<{ id: string; name: string }>;
-}
-
 export default function DashboardPage() {
-  const me = useResource(() => apiFetch<MeResponse>('/v1/me'), []);
+  const me = useResource(() => apiFetchChecked('/v1/me', ME_RESPONSE_SCHEMA), []);
   const workspaceId = readSession().workspaceId;
   const projects = useResource(
     () =>
       workspaceId
-        ? apiFetch<ProjectPage>(`/v1/workspaces/${workspaceId}/projects`)
-        : Promise.resolve({ ok: true as const, data: { items: [] } }),
+        ? apiFetchChecked(`/v1/workspaces/${workspaceId}/projects`, PROJECT_LIST_SCHEMA)
+        : Promise.resolve({ ok: true as const, data: { items: [], nextCursor: null } }),
     [workspaceId],
   );
   const usage = useResource(
     () =>
       workspaceId
-        ? apiFetch<UsageResponse>('/v1/usage')
+        ? apiFetchChecked('/v1/usage', USAGE_SUMMARY_SCHEMA)
         : Promise.resolve({
             ok: true as const,
             data: { imageUnitsReserved: 0, videoMinuteUnitsReserved: 0, imageUnitsCommitted: 0, videoMinuteUnitsCommitted: 0 },

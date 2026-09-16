@@ -1,31 +1,12 @@
 'use client';
 
-import { apiFetch, translate } from '../_lib/api';
+import { USAGE_SUMMARY_SCHEMA } from '@mediaclear/contracts';
+import { apiFetchChecked, translate } from '../_lib/api';
 import { useResource } from '../_lib/use-resource';
 import { Card, DefinitionRow, Empty, ErrorNotice, Loading, PageTitle } from '../_components/Ui';
 
-interface UsageEntry {
-  id: string;
-  jobId: string;
-  unitType: string;
-  quantity: number;
-  entryType: string;
-  reasonCode: string | null;
-  recordedAt: string;
-}
-
-interface UsageResponse {
-  imageUnitsCommitted: number;
-  videoMinuteUnitsCommitted: number;
-  imageUnitsReserved: number;
-  videoMinuteUnitsReserved: number;
-  imageUnitsExpired: number;
-  videoMinuteUnitsExpired: number;
-  entries: UsageEntry[];
-}
-
 export default function UsagePage() {
-  const resource = useResource(() => apiFetch<UsageResponse>('/v1/usage'), []);
+  const resource = useResource(() => apiFetchChecked('/v1/usage', USAGE_SUMMARY_SCHEMA), []);
 
   return (
     <>

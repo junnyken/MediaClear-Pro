@@ -5,6 +5,7 @@
  * moi so tren UI deu den tu mot response that.
  */
 import { DEFAULT_LOCALE, t, type Locale } from '@mediaclear/i18n';
+import type { schema } from '@mediaclear/contracts';
 
 export interface ApiErrorShape {
   code: string;
@@ -159,7 +160,12 @@ export function errorText(error: ApiErrorShape): string {
  */
 export async function apiFetchChecked<T>(
   path: string,
-  schema: { check(value: unknown, path: string): { ok: true; value: T } | { ok: false; errors: string[] } },
+  /*
+   * Dung THANG `Schema<T>` cua contracts, khong phai mot kieu cau truc tuong duong: kieu cau truc
+   * lam TypeScript khong suy ra duoc `T` va moi phan hoi tro thanh `{}` — dung luc do thi giao
+   * dien lai mat kieu, tuc la mat chinh thu ma D-047 di sua.
+   */
+  schema: schema.Schema<T>,
   init: { method?: string; body?: unknown; workspaceId?: string | null } = {},
 ): Promise<ApiResult<T>> {
   const raw = await apiFetch<unknown>(path, init);

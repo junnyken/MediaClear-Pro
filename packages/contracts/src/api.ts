@@ -241,10 +241,14 @@ export interface DevSessionResponse {
   productionAuthProvider: false;
 }
 
-export interface MeResponse {
-  user: { id: string; email: string; displayName: string; defaultLocale: string };
-  workspaces: Array<{ id: string; name: string; role: string }>;
-}
+/*
+ * `MeResponse` nay SUY RA tu `ME_RESPONSE_SCHEMA` trong `api-schemas.ts`, khong con viet tay.
+ *
+ * Truoc day day la mot `interface` viet tay — tuc la MOT khai bao thu hai cho cung mot thu, ben
+ * canh hinh dang ma may chu that su tra ve. Hai khai bao cho mot khai niem chinh la thu D-047
+ * ton tai de chan, nen no bi go bo thay vi giu lai song song.
+ */
+export type { MeResponse } from './api-schemas.js';
 
 export interface CreateWorkspaceRequest {
   name: string;

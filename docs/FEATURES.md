@@ -48,6 +48,7 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Bản proxy xem trước cho video | `services/video-proxy.ts` | 10 test; proxy ở lớp `preview`, tệp gốc khớp từng byte sau khi sinh |
 | Preset xuất (TikTok/Reels/Shorts/vuông/ngang) | `contracts/presets.ts` | 13 test; KHÔNG preset nào khai `verified`; giới hạn nền tảng đều `null` |
 | Hợp đồng dùng chung UI ↔ server + kiểm lúc chạy | `contracts/{schema,phase3}.ts` | 25 test gồm thiếu trường/sai enum/sai kiểu; đóng D-047 **trong phạm vi Phase 3** |
+| Kiểm lúc chạy cho **toàn bộ** biên UI ↔ server | `contracts/api-schemas.ts`, `web/tests/contract-boundary.test.ts` | 0/29 lời gọi chưa kiểm; chốt chặn tái phát + đối chứng âm; bật lên là lộ ngay 3 lệch thật giữa UI và máy chủ |
 | Giao diện làm sạch video (chọn vùng · xem trước · preset · reset) | `app/assets/[assetId]/video/page.tsx` | bấm tay Chrome thật 1280×900 và 390×844: 0 tràn ngang, 0 chữ cắt, 0 khoá thô, console sạch; 3 lỗi chỉ bấm tay mới thấy |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)

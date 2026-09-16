@@ -1,19 +1,15 @@
 'use client';
 
+import { WORKSPACE_LIST_SCHEMA } from '@mediaclear/contracts';
 import { useRouter } from 'next/navigation';
-import { apiFetch, readSession, translate, writeSession } from '../_lib/api';
+import { apiFetchChecked, readSession, translate, writeSession } from '../_lib/api';
 import { useResource } from '../_lib/use-resource';
 import { Button, Card, Empty, ErrorNotice, Loading, PageTitle, LinkButton } from '../_components/Ui';
 
-interface WorkspaceRow {
-  id: string;
-  name: string;
-  role: string;
-}
 
 export default function WorkspacesPage() {
   const router = useRouter();
-  const resource = useResource(() => apiFetch<{ items: WorkspaceRow[] }>('/v1/workspaces'), []);
+  const resource = useResource(() => apiFetchChecked('/v1/workspaces', WORKSPACE_LIST_SCHEMA), []);
 
   function choose(id: string) {
     writeSession(readSession().token, id);
