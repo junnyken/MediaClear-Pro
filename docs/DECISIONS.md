@@ -1267,3 +1267,38 @@ cho ở `D-059`**, và **vẫn thuộc diện owner/BA duyệt**. Đây là nhã
 phải** câu chữ pháp lý: `rights.attestation.*` / `policy.*` vẫn là `Q-11` và **không bị đụng vào**.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-062 — Worker tự chạy việc hoàn trả khoản giữ quá hạn
+
+**Lỗ hổng — đúng dạng lỗ hổng `P2-MCP-28` đã đóng cho job.** `expireReservations()` đã có từ
+`P1.1-MCP-17`, đã đúng và đã idempotent. Nhưng đường **duy nhất** gọi tới nó là một **route nội bộ
+gọi tay**. Trên máy thật **không ai gọi**. Hệ quả: người dùng bỏ dở một job thì phần mức dùng bị giữ
+**cho tới khi có ai đó nhớ ra mà gọi** — tức là không bao giờ.
+
+Đây là cùng một dạng sai đã gặp ba lần trong dự án này: **thứ đúng nằm đó mà không có đường nào dẫn
+tới nó**. Test xanh không phát hiện được, vì test *gọi thẳng hàm*.
+
+**Cách làm.** Thêm một nhịp bảo trì định kỳ vào vòng lặp worker (mặc định **60 giây**; khoản giữ hết
+hạn sau 30 phút nên một phút là thừa nhanh). Chạy ngay ở vòng đầu để dọn phần còn lại sau một lần
+khởi động lại.
+
+**An toàn để chạy lặp** — đã kiểm chứ không suy đoán: `expireReservations` **không xoá gì**, nó chỉ
+ghi thêm bút toán hoàn trả, và khoá `<jobId>:release` chặn trùng ở **tầng dữ liệu**.
+
+**Bảo trì có khối `try` RIÊNG.** Bản đầu tôi viết nó nằm chung khối `try` với việc chạy job, và
+**chú thích của tôi nói sai về chính mã của mình**: một lỗi khi đọc sổ mức dùng sẽ làm worker bỏ luôn
+lượt nhận job của vòng đó — lấy một việc hỏng kéo theo một việc đang tốt. Đã sửa **mã** cho khớp với
+ý định thay vì sửa chú thích cho nhẹ đi. Đối chứng âm `B` chính là phép kiểm cho điều này.
+
+**Ranh giới — không tự ý mở rộng.** Hai việc bảo trì còn lại trong mục `planned` (**dọn dữ liệu theo
+luật lưu giữ**, **dọn phiên tải lên quá hạn**) **cố ý KHÔNG làm trong đợt này**: cả hai đều **xoá
+byte thật**, và ràng buộc owner đặt ra là *"không thêm route DELETE hoặc đường xoá dữ liệu destructive
+nếu policy hiện tại chưa cho phép"*. Chúng cần owner cho phép trước. `retentionDryRunReport` hiện chỉ
+báo cáo, **không xoá** — giữ nguyên như vậy.
+
+**Bằng chứng.** 4 test mới (`p3-worker-maintenance.test.ts`) + **3 đối chứng âm**, mỗi cái làm đỏ
+đúng phần nó phải làm đỏ: bỏ lời gọi bảo trì (4 đỏ) · bỏ khối `try` riêng (1) · bỏ tôn trọng chu kỳ (1).
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

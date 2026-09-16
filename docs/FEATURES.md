@@ -52,11 +52,12 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Giao diện làm sạch video (chọn vùng · xem trước · preset · reset) | `app/assets/[assetId]/video/page.tsx` | bấm tay Chrome thật 1280×900 và 390×844: 0 tràn ngang, 0 chữ cắt, 0 khoá thô, console sạch; 3 lỗi chỉ bấm tay mới thấy |
 | Cứu job kẹt ở `processing` (nhịp tim · nhận lại · trần số lần thử) | `worker/job-worker.ts`, `persistence/{port,postgres,in-memory}.ts` | 8 test + 3 test hợp đồng trên **cả hai** adapter (PG thật kiểm `SKIP LOCKED`); **5 đối chứng âm**, mỗi cái làm đỏ đúng phần nó phải làm đỏ; `D-060` |
 | Nhãn câu chữ cho loại sự kiện ở trang Nhật ký | `i18n/locales/{vi,en}.json`, `app/activity/page.tsx` | 19 nhãn ×2 ngôn ngữ; phép chắn đọc `AUDIT_EVENTS` thẳng từ mã máy chủ — tự bắt sự kiện mới của `D-060` ngay trong lượt làm; `D-061` |
+| Worker tự hoàn trả khoản giữ quá hạn | `worker/job-worker.ts`, `services/usage.ts` | 4 test + **3 đối chứng âm**; trước đó hàm đã đúng nhưng **chỉ chạy khi gọi tay route nội bộ** — trên máy thật không ai gọi; `D-062` |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
-**worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
-**worker dọn phiên tải lên quá hạn** (P2-MCP-35 để lại mảnh thừa) ·
+**worker dọn dữ liệu theo luật lưu giữ** · **worker dọn phiên tải lên quá hạn** (P2-MCP-35 để lại
+mảnh thừa) — **cả hai đều xoá byte thật nên chờ owner cho phép** (`D-062`) ·
 **giao diện dùng đường tải lên nối lại được** (mới có API).
 
 > Sửa một mục khai sai: *"Auth provider production"* vẫn nằm ở đây trong khi `P2-MCP-25` đã làm xong

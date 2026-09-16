@@ -15,6 +15,7 @@ import { ERROR_CODES, apiError, type ProcessingJob } from '@mediaclear/contracts
 import type { AppContext } from '../app-context.js';
 import { executeClaimedJob, failJob, type RunJobOutcome } from '../services/run-job.js';
 import { AUDIT_EVENTS, recordAudit } from '../services/audit.js';
+import { expireReservations } from '../services/usage.js';
 
 export interface JobWorkerOptions {
   /** Nghi bao lau khi khong con gi de lam. Qua ngan thi quay CPU, qua dai thi job cho lau. */
@@ -31,6 +32,8 @@ export interface JobWorkerOptions {
   heartbeatMs?: number;
   /** Nhan lai qua so lan nay thi dung han thay vi cuu tiep. */
   maxAttempts?: number;
+  /** Khoang cach giua hai lan chay viec bao tri dinh ky. */
+  maintenanceIntervalMs?: number;
 }
 
 export interface JobWorkerStats {
@@ -42,6 +45,10 @@ export interface JobWorkerStats {
   reclaimed: number;
   /** So job bi bo vi vuot tran so lan thu. */
   abandoned: number;
+  /** So lan da chay viec bao tri dinh ky. */
+  maintenanceRuns: number;
+  /** So khoan giu qua han da duoc hoan tra that su. */
+  reservationsReleased: number;
 }
 
 const DEFAULT_IDLE_MS = 2000;
@@ -61,10 +68,21 @@ const DEFAULT_STALE_AFTER_MS = 5 * 60_000;
  */
 const DEFAULT_MAX_ATTEMPTS = 3;
 
+/*
+ * Mot phut. Khoan giu het han sau 30 phut, nen mot phut la du nhanh de nguoi dung khong phai cho,
+ * va du thua de khong quet so muc dung lien tuc.
+ */
+const DEFAULT_MAINTENANCE_MS = 60_000;
+
 export class JobWorker {
   private running = false;
   private stopRequested = false;
-  readonly stats: JobWorkerStats = { cycles: 0, claimed: 0, completed: 0, failed: 0, reclaimed: 0, abandoned: 0 };
+  readonly stats: JobWorkerStats = {
+    cycles: 0, claimed: 0, completed: 0, failed: 0, reclaimed: 0, abandoned: 0,
+    maintenanceRuns: 0, reservationsReleased: 0,
+  };
+  /** null = chua chay lan nao => vong dau tien chay ngay. */
+  private lastMaintenanceMs: number | null = null;
 
   constructor(
     private readonly ctx: AppContext,
@@ -162,6 +180,32 @@ export class JobWorker {
     }
   }
 
+  /**
+   * Viec bao tri dinh ky: hoan tra cac khoan giu qua han (P1.1-MCP-17).
+   *
+   * Truoc muc nay, `expireReservations` CHI chay khi co nguoi goi tay route noi bo - dung cai lo
+   * hong ma `P2-MCP-28` da dong cho job. Nguoi dung bo do mot job thi phan muc dung bi giu lai
+   * cho toi khi co ai do nho ra ma goi. Day la thu lam no tu chay.
+   *
+   * An toan de chay lap: ham nay IDEMPOTENT (khoa `<jobId>:release` chan trung o tang du lieu) va
+   * KHONG xoa gi - no chi ghi them but toan hoan tra.
+   *
+   * Tach rieng de test goi duoc mot buoc thay vi phai chay ca vong lap.
+   */
+  async runMaintenanceOnce(): Promise<number> {
+    this.stats.maintenanceRuns += 1;
+    this.lastMaintenanceMs = this.ctx.now().getTime();
+    const result = await expireReservations(this.ctx);
+    this.stats.reservationsReleased += result.releasedNow;
+    return result.releasedNow;
+  }
+
+  private maintenanceDue(): boolean {
+    if (this.lastMaintenanceMs === null) return true;
+    const every = this.options.maintenanceIntervalMs ?? DEFAULT_MAINTENANCE_MS;
+    return this.ctx.now().getTime() - this.lastMaintenanceMs >= every;
+  }
+
   async start(): Promise<JobWorkerStats> {
     if (this.running) return this.stats;
     this.running = true;
@@ -176,6 +220,19 @@ export class JobWorker {
         if (maxCycles !== undefined && this.stats.cycles >= maxCycles) break;
         this.stats.cycles += 1;
         try {
+          /*
+           * Bao tri co khoi `try` RIENG: viec chinh (chay job) khong duoc phu thuoc vao viec phu.
+           * Neu dung chung khoi `try` ben duoi thi mot loi khi hoan tra khoan giu se lam worker
+           * bo luon luot nhan job cua vong do - lay mot viec hong keo theo mot viec dang tot.
+           */
+          if (this.maintenanceDue()) {
+            try {
+              const released = await this.runMaintenanceOnce();
+              if (released > 0) log(`[worker] hoan tra ${released} khoan giu qua han`);
+            } catch (error) {
+              log(`[worker] bao tri loi: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }
           const outcome = await this.runOnce();
           if (!outcome) {
             if (maxCycles !== undefined) continue;
