@@ -226,6 +226,19 @@ export function buildServer(options: BuildServerOptions = {}) {
 
   /* ------------------------------------------------------------- health --- */
 
+  /**
+   * P2-MCP-26: duong goc.
+   *
+   * Nen tang trien khai kiem suc khoe container bang cach goi `/`. Truoc day duong nay tra 404
+   * nen ban trien khai bi coi la hong va bi huy - du dich vu da len binh thuong.
+   *
+   * CO Y giu that mong: khong lo cau hinh, khong lo phien ban, khong lo gi de nguoi la dung duoc.
+   * Muon biet trang thai that thi goi `/healthz`.
+   */
+  app.get('/', async (request, reply) => {
+    return sendOk(request, reply, { ok: true, service: 'mediaclear-api' }, 'root');
+  });
+
   app.get('/healthz', async (request, reply) => {
     const data = {
       ok: true,

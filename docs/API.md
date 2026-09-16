@@ -12,6 +12,7 @@
 
 | Method | Path | Status | MINI-SPEC |
 |---|---|---|---|
+| GET | `/` | implemented | P0-MCP-00 |
 | GET | `/healthz` | implemented | P0-MCP-00 |
 | POST | `/v1/auth/dev-session` | dev_only | P1-MCP-10 |
 | POST | `/v1/auth/register` | implemented | P2-MCP-25 |

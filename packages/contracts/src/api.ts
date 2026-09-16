@@ -85,6 +85,7 @@ export interface UsageSummaryResponse {
  * Phase 1 muc 8. Cac path cu chua tung duoc hien thuc; bang doi chieu o docs/API.md (D-024).
  */
 export const API_ROUTES = [
+  { method: 'GET', path: '/', status: 'implemented', mcp: 'P0-MCP-00' },
   { method: 'GET', path: '/healthz', status: 'implemented', mcp: 'P0-MCP-00' },
 
   // --- MCP-10 Auth & workspace boundary ---
