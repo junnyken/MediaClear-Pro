@@ -1,7 +1,8 @@
 #!/bin/sh
 # Chon thanh phan chay theo MEDIACLEAR_ROLE (P2-MCP-26).
 #
-# Mot anh, hai vai. Vibe Host tao hai website tu CUNG mot repo, khac nhau o bien moi truong.
+# Mot anh, BA vai (api | web | worker - P2-MCP-28). Vibe Host tao nhieu website tu CUNG mot
+# repo, khac nhau o bien moi truong chu khong khac nhau o ma nguon.
 set -eu
 
 ROLE="${MEDIACLEAR_ROLE:-api}"

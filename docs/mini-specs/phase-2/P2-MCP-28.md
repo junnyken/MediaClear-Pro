@@ -145,3 +145,8 @@ Chi tiết đầy đủ ở `TEST_LOG.md` lần 16. PostgreSQL 16.15 + MinIO th�
   người phía sau.
 - **Một job một lần cho mỗi worker.** Chưa chạy song song trong cùng một tiến trình.
 - Chưa có số đo (metric) về độ dài hàng đợi hay thời gian chờ.
+- **Chưa triển khai lên Vibe Host.** Vai `worker` đã chạy đúng trong **ảnh Docker thật dựng từ git**,
+  nhưng website worker trên Vibe Host cần **chung cơ sở dữ liệu** với API, mà cổng quản trị chỉ trả
+  **tên** biến chứ không trả giá trị — chuỗi kết nối của `mediaclear-api-db` chỉ chủ tài khoản lấy
+  được. Tạo website worker với cơ sở dữ liệu trống tự cấp sẽ cho ra một worker `online` mà im lặng
+  không xử lý gì, nên không làm.

@@ -1450,11 +1450,34 @@ node_pid THAT = 42568
 Dừng êm **chạy đúng**. Bài học lặp lại y như cũ: **`$!` và `$?` trong một chuỗi lệnh ghép thường không
 trỏ vào thứ mình tưởng**. Phải lấy pid từ `ps` theo đúng dòng lệnh, đừng tin `$!` của một chuỗi `&&`.
 
-### 7. Giới hạn của lần kiểm này
+### 7. Vai `worker` trong ẢNH DOCKER THẬT, dựng từ git
+
+Không dựng từ thư mục làm việc: **clone sạch từ git** rồi mới `docker build`. Đây đúng là chỗ lần
+trước bị hớ — `docker build` cục bộ đọc **thư mục làm việc**, còn deploy dựng từ **git**, nên một tệp
+quên `git add` vẫn cho build xanh ở máy và đỏ khi deploy.
+
+```
+docker build  -> exit 0   (clone tai commit 85be9d4)
+docker run -e MEDIACLEAR_ROLE=worker …
+[mediaclear] vai: worker
+[mediaclear-worker] bat dau · luu tru postgres-phase2 (durable) · kho s3-compatible-phase2
+[worker] job_58f149e26e4a478a832e13e269e2cfc5 -> completed
+```
+
+Job mới tạo qua API (route nội bộ vẫn **tắt**) tới `completed` trong **1 giây**. Trong cơ sở dữ liệu:
+**1** bản kết quả, đúng **1** `reserve` + **1** `commit`. `docker port` trả **rỗng** — worker
+**không mở cổng mạng** nào, đúng như thiết kế.
+
+### 8. Giới hạn của lần kiểm này
 
 - **Chưa có retry.** `attempt_count` có tăng, nhưng job hỏng đi thẳng tới `failed`/`blocked` và nằm đó.
 - **Chưa cứu được job kẹt.** Worker chết **giữa lúc** đang xử lý thì job nằm `processing` vĩnh viễn —
   chưa có thời gian chờ để đòi lại.
 - **Chưa đo tải.** Ba worker song song là test tính đúng, **không phải** test hiệu năng.
-- **Chưa chạy trên Vibe Host.** Lần này chỉ chạy local; triển khai worker lên online là bước kế tiếp.
+- **Chưa chạy trên Vibe Host — bị chặn, không phải bỏ sót.** Worker phải dùng **chung** cơ sở dữ
+  liệu với API, nếu không nó nhìn vào một hàng đợi rỗng và **báo khoẻ trong khi không làm gì**. Cổng
+  quản trị của Vibe Host chỉ trả **tên** biến môi trường, không trả giá trị, nên tôi **không đọc
+  được** chuỗi kết nối của `mediaclear-api-db` để gán cho website worker. Chuỗi này chỉ chủ tài khoản
+  lấy được từ bảng điều khiển. Tôi **không** tạo website worker với cơ sở dữ liệu trống mà nền tảng
+  tự cấp: nó sẽ hiện `online` và im lặng không xử lý gì — đúng loại lỗi tự-im-lặng dự án này cấm.
 - Hàng đợi **FIFO thuần**, chưa có ưu tiên.
