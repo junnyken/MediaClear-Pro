@@ -1112,3 +1112,68 @@ mà hệ thống vẫn chạy đúng.
   Muốn bền phải trỏ sang R2 thật, mà **R2 chưa từng được kiểm** (xem `P2-MCP-24` §Remaining Limits).
 - Chưa có health check trong Dockerfile; chưa đo kích thước ảnh và thời gian khởi động lạnh.
 - Mất tối ưu tĩnh của Next do `force-dynamic`.
+
+---
+
+## 2026-09-16 (lần 13) — Đưa lên Vibe Host (trieunt3@matbao.com)
+
+Tiếp `P2-MCP-26`. Nền: `735643c`.
+
+### 1. Hai website, một repo, một ảnh
+
+| Website | URL | Vai |
+|---|---|---|
+| `mediaclear-api` | `mediaclear-api.cmc-1.vibenode.matbao.ai` | `MEDIACLEAR_ROLE=api` |
+| `mediaclear-web` | `mediaclear.cmc-1.vibenode.matbao.ai` | `MEDIACLEAR_ROLE=web` |
+
+Cả hai dựng từ **cùng** `github.com/junnyken/MediaClear-Pro`, nhánh `main`, **cùng một Dockerfile**.
+Đây đúng là lý do chọn "một ảnh hai vai" ở `D-040`.
+
+### 2. Hai lỗi thật, chỉ lộ ra khi triển khai lên nền tảng khác
+
+**Lỗi 1 — bản triển khai đầu bị huỷ dù dịch vụ đã lên.** Nền tảng kiểm sức khoẻ container bằng cách
+gọi `/`, mà API chỉ có `/healthz` ⇒ nhận `404` ⇒ coi như hỏng. Không sửa được đường health check qua
+API quản trị, nên thêm route gốc — **khai đúng chỗ trong `API_ROUTES` + `API.md`**, không lén thêm vào
+server, vì một route thật thì phải nằm trong hợp đồng.
+
+**Lỗi 2 — không đọc được chuỗi kết nối database.** Nền tảng **tự tạo** PostgreSQL (`mediaclear-api-db`)
+và **tự tiêm 23 biến** gồm `DATABASE_URL`, nhưng API quản trị **không cho đọc lại giá trị** biến bí
+mật — chỉ trả về **tên**. Nghĩa là không có cách nào copy giá trị đó sang biến riêng
+`MEDIACLEAR_DATABASE_URL`. Sửa: đọc theo thứ tự `MEDIACLEAR_DATABASE_URL` → `DATABASE_URL`.
+
+Cố ý **không** đọc thêm `POSTGRES_URL` / `DB_URL` / `DB_URI` dù chúng cũng được tiêm: càng nhiều nguồn
+càng dễ rơi vào tình huống hai biến trỏ về hai cơ sở dữ liệu khác nhau mà không ai nhận ra.
+
+### 3. Trạng thái thật trên mạng
+
+`GET https://mediaclear-api.cmc-1.vibenode.matbao.ai/healthz`:
+
+| Trường | Giá trị |
+|---|---|
+| `routes` | `34` |
+| `identity` | `password-phase2` · **`production: true`** |
+| `persistence` | `postgres-phase2` · **`durability: durable`** |
+| `storage` | `local-fs-phase1` · `production: false` |
+| `productionAiProcessingEnabled` | `false` |
+
+`persistence: durable` là bằng chứng phần dự phòng `DATABASE_URL` **thật sự bắt được** cơ sở dữ liệu
+do nền tảng cấp — không phải suy đoán từ cấu hình.
+
+`GET /` → `200` `{"ok":true,"data":{"ok":true,"service":"mediaclear-api"}}`.
+`GET https://mediaclear.cmc-1.vibenode.matbao.ai/sign-in` → `200`.
+
+### 4. Việc còn dở
+
+Web đang tiêm `__MCP_API_BASE__=""` vì tôi đặt `MEDIACLEAR_API_BASE_URL` **sau khi** lượt build đã
+bắt đầu, mà biến chỉ có hiệu lực ở **lượt triển khai kế tiếp**. Nền tảng từ chối `redeploy` với
+`NO_CHANGE` khi mã nguồn không đổi, nên phải có commit mới.
+
+### 5. Giới hạn của môi trường này — đọc kỹ trước khi dùng thật
+
+- **Object storage là đĩa container** (`production: false`): Vibe Host không có S3, nên **tệp tải lên
+  mất mỗi lần redeploy**. Dữ liệu trong PostgreSQL thì bền. Muốn tệp bền phải trỏ `MEDIACLEAR_S3_*`
+  sang R2 thật — mà **R2 chưa từng được kiểm** (xem `P2-MCP-24`).
+- **URL công khai, không giới hạn IP** (`accessCidrs: []`). Đăng ký mở: ai biết địa chỉ cũng tạo được
+  tài khoản. Chưa có giới hạn tần suất, chưa khoá sau N lần sai mật khẩu.
+- Chưa có sao lưu, chưa có theo dõi, chưa đo tải.
+- Q-11 (BA/pháp lý duyệt câu chữ) vẫn chặn go-live thật.
