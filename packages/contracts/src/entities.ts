@@ -207,6 +207,30 @@ export interface ProcessingReceipt {
   invisibleWatermarkDisclaimerKey: string;
   evidenceStatus: EvidenceStatus;
   createdAt: IsoTimestamp;
+
+  /* --- P3: cac truong cua luot xu ly VIDEO. `null` voi bien nhan anh cua Phase 2. ---
+   * KHONG tach bang bien nhan thu hai: hai nguon su that cho cung mot khai niem la dung thu
+   * ma D-047 ton tai de chan. */
+  operationMode: string | null;
+  presetId: string | null;
+  inputChecksum: string | null;
+  outputChecksum: string | null;
+  /** Do THAT tren byte truoc/sau. `null` = chua do (khong phai "khong co"). */
+  audioBefore: AudioTrackSnapshot | null;
+  audioAfter: AudioTrackSnapshot | null;
+  audioVerdict: string | null;
+  /** Bat bien I-2: chi true SAU KHI doc lai byte da ghi va do lai. */
+  outputVerified: boolean;
+  failureReason: string | null;
+  reviewReason: string | null;
+}
+
+/** Anh chup luong tieng tai mot thoi diem. `present: false` = DA DO va khong thay. */
+export interface AudioTrackSnapshot {
+  present: boolean;
+  codec: string | null;
+  durationSeconds: number | null;
+  channelCount: number | null;
 }
 
 export interface AuditEvent {

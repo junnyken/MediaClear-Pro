@@ -31,6 +31,7 @@ import { DeterministicImageProvider } from '../providers/deterministic-image.js'
 import { newId } from '../ids.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
 import { probeProvenance } from '../media/provenance-probe.js';
+import { executeVideoJob } from './run-video-job.js';
 
 /** Toan bo anh - dung khi nguoi dung khong chon vung nao. */
 const WHOLE_IMAGE = { x: 0, y: 0, width: 1, height: 1, startSeconds: null, endSeconds: null };
@@ -94,6 +95,16 @@ export async function runJob(ctx: AppContext, workspaceId: string, jobId: string
 export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Promise<RunJobOutcome> {
   const workspaceId = job.workspaceId;
   const jobId = job.id;
+
+  /*
+   * P3: video di duong RIENG. Khong nhet vao day bang mot chuoi `if` vi video co mot rang buoc ma
+   * anh khong co — AUDIO — va rang buoc do quyet dinh job co duoc `completed` hay khong. Tron hai
+   * duong se lam cho phep kiem audio de bi bo qua khi sua duong anh.
+   */
+  if (job.mediaType === 'video') {
+    const outcome = await executeVideoJob(ctx, job);
+    return { jobId: outcome.jobId, state: outcome.state, outputAssetId: outcome.outputAssetId, error: outcome.error };
+  }
 
   const provider = ctx.providers.get('deterministic-image');
   if (!(provider instanceof DeterministicImageProvider)) {
@@ -245,6 +256,23 @@ async function writeReceipt(
     invisibleWatermarkDisclaimerKey: INVISIBLE_WATERMARK_DISCLAIMER_KEY,
     evidenceStatus: outcome.evidenceStatus,
     createdAt: now,
+    /*
+     * P3 them cac truong cho video. Duong ANH cua P2-MCP-27 khong co chung, va `null` o day la
+     * dung nghia: "khong ap dung cho luot nay", chu khong phai "chua do duoc".
+     *
+     * `outputVerified: true` la co co so: ham goi den day CHI chay sau khi `executeClaimedJob`
+     * doc lai byte va do lai checksum (bat bien I-2).
+     */
+    operationMode: null,
+    presetId: null,
+    inputChecksum: null,
+    outputChecksum: null,
+    audioBefore: null,
+    audioAfter: null,
+    audioVerdict: null,
+    outputVerified: true,
+    failureReason: null,
+    reviewReason: null,
   });
   return receipt.id;
 }

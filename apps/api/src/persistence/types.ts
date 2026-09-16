@@ -133,6 +133,23 @@ export interface UploadSessionRecord {
   expiresAt: IsoTimestamp;
 }
 
+/** P3-MCP-30: ban proxy do phan giai thap. KHONG thay the tep goc (I-1). */
+export interface VideoProxyRecord {
+  id: Id;
+  workspaceId: Id;
+  assetId: Id;
+  sourceFileId: Id;
+  storageKey: string;
+  mimeType: string;
+  byteSize: number;
+  widthPx: number | null;
+  heightPx: number | null;
+  durationSeconds: number | null;
+  /** DA DO va thay/khong thay — khac han "chua do duoc". */
+  hasAudio: boolean;
+  createdAt: IsoTimestamp;
+}
+
 /** P2-MCP-27: ban ket qua da luu. Cung hinh dang voi `OutputAsset` cua contract. */
 export type OutputAssetRecord = OutputAsset;
 

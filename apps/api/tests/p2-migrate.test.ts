@@ -31,6 +31,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0005_phase2_output_assets.sql',
       '0006_phase2_provenance_receipts.sql',
       '0007_phase2_resumable_upload.sql',
+      '0008_phase3_video_proxy_and_receipt.sql',
     ]);
   });
 
@@ -52,6 +53,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0005_phase2_output_assets',
       '0006_phase2_provenance_receipts',
       '0007_phase2_resumable_upload',
+      '0008_phase3_video_proxy_and_receipt',
     ]);
   });
 
@@ -95,6 +97,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
       '0005_phase2_output_assets.sql',
       '0006_phase2_provenance_receipts.sql',
       '0007_phase2_resumable_upload.sql',
+      '0008_phase3_video_proxy_and_receipt.sql',
     ]);
     expect(out.skipped).toEqual([]);
 
@@ -113,7 +116,8 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     expect(names).toContain('provenance_records');
     expect(names).toContain('processing_receipts');
     expect(names).toContain('upload_sessions');
-    expect(names.length).toBeGreaterThanOrEqual(18); // 16 bang nghiep vu + 2 so
+    expect(names).toContain('video_proxies');
+    expect(names.length).toBeGreaterThanOrEqual(19); // 17 bang nghiep vu + 2 so
 
     // 0003 vá dung ba cho luoc do THIEU so voi kieu mien - kiem cot that su co mat.
     const cols = await p.query<{ table_name: string; column_name: string }>(

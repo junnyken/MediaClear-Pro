@@ -29,6 +29,7 @@ import type {
   SessionRecord,
   SourceFileRecord,
   UploadSessionRecord,
+  VideoProxyRecord,
   UsageLedgerEntry,
   User,
   ValidationRecord,
@@ -653,6 +654,40 @@ export class PostgresPersistence implements PersistencePort {
     },
   };
 
+  readonly videoProxies = {
+    upsert: async (proxy: VideoProxyRecord): Promise<VideoProxyRecord> => {
+      /*
+       * `ON CONFLICT (asset_id)` — tao lai proxy la chuyen binh thuong (lan truoc that bai, hoac
+       * nguoi dung muon ban moi). Dung `create` roi bao loi trung se bat tang tren phai tu xoa
+       * truoc, va do la cho de bo sot.
+       */
+      await this.q(
+        `INSERT INTO video_proxies
+           (id, workspace_id, asset_id, source_file_id, storage_key, mime_type, byte_size,
+            width_px, height_px, duration_seconds, has_audio, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         ON CONFLICT (asset_id) DO UPDATE SET
+           id = EXCLUDED.id, storage_key = EXCLUDED.storage_key, mime_type = EXCLUDED.mime_type,
+           byte_size = EXCLUDED.byte_size, width_px = EXCLUDED.width_px,
+           height_px = EXCLUDED.height_px, duration_seconds = EXCLUDED.duration_seconds,
+           has_audio = EXCLUDED.has_audio, created_at = EXCLUDED.created_at`,
+        [
+          proxy.id, proxy.workspaceId, proxy.assetId, proxy.sourceFileId, proxy.storageKey,
+          proxy.mimeType, proxy.byteSize, proxy.widthPx, proxy.heightPx, proxy.durationSeconds,
+          proxy.hasAudio, proxy.createdAt,
+        ],
+      );
+      return proxy;
+    },
+    findByAsset: async (workspaceId: string, assetId: string): Promise<VideoProxyRecord | null> => {
+      const rows = await this.q<VideoProxyRow>(
+        'SELECT * FROM video_proxies WHERE workspace_id = $1 AND asset_id = $2',
+        [workspaceId, assetId],
+      );
+      return rows[0] ? toVideoProxy(rows[0]) : null;
+    },
+  };
+
   readonly provenance = {
     create: async (record: ProvenanceRecord): Promise<ProvenanceRecord> => {
       await this.q(
@@ -685,13 +720,22 @@ export class PostgresPersistence implements PersistencePort {
           `INSERT INTO processing_receipts
              (id, workspace_id, job_id, source_asset_id, output_asset_id, operations,
               provider_run_ids, provenance_before_id, provenance_after_id,
-              invisible_watermark_disclaimer_key, evidence_status, created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+              invisible_watermark_disclaimer_key, evidence_status, created_at,
+              operation_mode, preset_id, input_checksum, output_checksum,
+              audio_before, audio_after, audio_verdict, output_verified,
+              failure_reason, review_reason)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+                   $13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22)`,
           [
             receipt.id, receipt.workspaceId, receipt.jobId, receipt.sourceAssetId, receipt.outputAssetId,
             JSON.stringify(receipt.operations), JSON.stringify(receipt.providerRunIds),
             receipt.provenanceBeforeId, receipt.provenanceAfterId,
             receipt.invisibleWatermarkDisclaimerKey, receipt.evidenceStatus, receipt.createdAt,
+            receipt.operationMode, receipt.presetId, receipt.inputChecksum, receipt.outputChecksum,
+            receipt.audioBefore === null ? null : JSON.stringify(receipt.audioBefore),
+            receipt.audioAfter === null ? null : JSON.stringify(receipt.audioAfter),
+            receipt.audioVerdict, receipt.outputVerified,
+            receipt.failureReason, receipt.reviewReason,
           ],
         );
       } catch (error) {
@@ -798,6 +842,13 @@ type UploadSessionRow = {
   state: string; created_at: Date; expires_at: Date;
 };
 
+type VideoProxyRow = {
+  id: string; workspace_id: string; asset_id: string; source_file_id: string;
+  storage_key: string; mime_type: string; byte_size: string | number;
+  width_px: number | null; height_px: number | null; duration_seconds: number | null;
+  has_audio: boolean; created_at: Date;
+};
+
 type ProvenanceRow = {
   id: string; workspace_id: string; original_metadata_presence: string; ai_provenance_presence: string;
   preservation_requested: boolean; preservation_attempted: boolean; preservation_result: string;
@@ -809,6 +860,10 @@ type ReceiptRow = {
   output_asset_id: string | null; operations: unknown; provider_run_ids: unknown;
   provenance_before_id: string; provenance_after_id: string | null;
   invisible_watermark_disclaimer_key: string; evidence_status: string; created_at: Date;
+  operation_mode: string | null; preset_id: string | null;
+  input_checksum: string | null; output_checksum: string | null;
+  audio_before: unknown; audio_after: unknown; audio_verdict: string | null;
+  output_verified: boolean; failure_reason: string | null; review_reason: string | null;
 };
 
 type SessionRow = {
@@ -906,6 +961,15 @@ function toUploadSession(r: UploadSessionRow): UploadSessionRecord {
   };
 }
 
+function toVideoProxy(r: VideoProxyRow): VideoProxyRecord {
+  return {
+    id: r.id, workspaceId: r.workspace_id, assetId: r.asset_id, sourceFileId: r.source_file_id,
+    storageKey: r.storage_key, mimeType: r.mime_type, byteSize: numRequired(r.byte_size),
+    widthPx: r.width_px, heightPx: r.height_px, durationSeconds: r.duration_seconds,
+    hasAudio: r.has_audio, createdAt: isoRequired(r.created_at),
+  };
+}
+
 function toProvenance(r: ProvenanceRow): ProvenanceRecord {
   return {
     id: r.id,
@@ -935,6 +999,16 @@ function toReceipt(r: ReceiptRow): ProcessingReceipt {
     invisibleWatermarkDisclaimerKey: r.invisible_watermark_disclaimer_key,
     evidenceStatus: r.evidence_status as ProcessingReceipt['evidenceStatus'],
     createdAt: isoRequired(r.created_at),
+    operationMode: r.operation_mode,
+    presetId: r.preset_id,
+    inputChecksum: r.input_checksum,
+    outputChecksum: r.output_checksum,
+    audioBefore: (r.audio_before ?? null) as ProcessingReceipt['audioBefore'],
+    audioAfter: (r.audio_after ?? null) as ProcessingReceipt['audioAfter'],
+    audioVerdict: r.audio_verdict,
+    outputVerified: r.output_verified,
+    failureReason: r.failure_reason,
+    reviewReason: r.review_reason,
   };
 }
 

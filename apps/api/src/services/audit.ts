@@ -80,6 +80,8 @@ export const AUDIT_EVENTS = {
   /** P2-MCP-27: job that su chay xong va ket qua DA duoc do lai. */
   PROCESSING_JOB_COMPLETED: 'processing_job_completed',
   PROCESSING_JOB_FAILED: 'processing_job_failed',
+  /** P3-MCP-33: ra duoc ket qua nhung co canh bao — nguoi that phai xem truoc khi nhan. */
+  PROCESSING_JOB_REVIEW_REQUIRED: 'processing_job_review_required',
   /**
    * P2-MCP-29: mot URL tai ban ket qua da duoc phat. Ghi o luc PHAT URL chu khong phai luc
    * tai xong - kho luu tru phuc vu byte truc tiep, API khong nhin thay luot tai do. Noi

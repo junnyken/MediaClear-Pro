@@ -19,6 +19,7 @@ import type {
   SessionRecord,
   SourceFileRecord,
   UploadSessionRecord,
+  VideoProxyRecord,
   UsageLedgerEntry,
   User,
   ValidationRecord,
@@ -139,6 +140,15 @@ export interface PersistencePort {
     findBySourceFile(workspaceId: string, sourceFileId: string): Promise<UploadSessionRecord | null>;
     recordChunk(workspaceId: string, id: string, chunkIndex: number): Promise<UploadSessionRecord>;
     setState(workspaceId: string, id: string, state: UploadSessionRecord['state']): Promise<UploadSessionRecord>;
+  };
+
+  /**
+   * P3-MCP-30. `upsert` chu khong phai `create`: tao lai proxy (vd sau khi lan truoc that bai) la
+   * chuyen binh thuong va KHONG duoc sinh ban thu hai cho cung mot asset.
+   */
+  videoProxies: {
+    upsert(proxy: VideoProxyRecord): Promise<VideoProxyRecord>;
+    findByAsset(workspaceId: string, assetId: string): Promise<VideoProxyRecord | null>;
   };
 
   provenance: {

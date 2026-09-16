@@ -184,6 +184,19 @@ export interface RenderOptions {
 
 const BLUR_RADIUS = 12;
 
+/**
+ * Ban kinh lam mo phai CO theo kich thuoc vung.
+ *
+ * `boxblur` gioi han ban kinh theo mat phang CHROMA (chi bang nua kich thuoc mat phang luma voi
+ * yuv420p). Dat mot ban kinh CO DINH lam ffmpeg tu choi ngay khi vung chon nho:
+ *   "Invalid chroma_param radius value 12, must be >= 0 and <= 7"
+ *
+ * Loi nay chi lo ra khi RENDER THAT tren mot vung nho — khong the bat bang doc ma.
+ */
+function blurRadiusFor(w: number, h: number): number {
+  return Math.max(1, Math.min(BLUR_RADIUS, Math.floor(Math.min(w, h) / 8)));
+}
+
 function buildFilter(options: RenderOptions, width: number, height: number): string {
   const boxes = options.regions.map((r) => pixelBox(r, width, height));
 
@@ -193,12 +206,20 @@ function buildFilter(options: RenderOptions, width: number, height: number): str
   }
 
   if (options.mode === 'blur') {
-    // Cat vung ra, lam mo, roi dan lai dung cho cu. Khong dung mo toan khung.
+    /*
+     * Cat vung ra, lam mo, roi dan lai dung cho cu. Khong dung mo toan khung.
+     *
+     * `split` la BAT BUOC: mot nhan dau ra cua bo loc (`[step0]`) chi duoc TIEU THU MOT LAN.
+     * Nhan luong (`[0:v]`) thi ffmpeg tu nhan ban nen dung hai lan van chay — va do dung la ly do
+     * ban dau mot vung thi chay con HAI vung thi hong. Chi render that moi lo ra.
+     */
     const parts: string[] = [];
     let current = '0:v';
     boxes.forEach((b, i) => {
-      parts.push(`[${current}]crop=${b.w}:${b.h}:${b.x}:${b.y},boxblur=${BLUR_RADIUS}[blur${i}]`);
-      parts.push(`[${current}][blur${i}]overlay=${b.x}:${b.y}[step${i}]`);
+      const radius = blurRadiusFor(b.w, b.h);
+      parts.push(`[${current}]split=2[keep${i}][cut${i}]`);
+      parts.push(`[cut${i}]crop=${b.w}:${b.h}:${b.x}:${b.y},boxblur=luma_radius=${radius}:chroma_radius=${radius}:luma_power=2[blur${i}]`);
+      parts.push(`[keep${i}][blur${i}]overlay=${b.x}:${b.y}[step${i}]`);
       current = `step${i}`;
     });
     return parts.join(';');

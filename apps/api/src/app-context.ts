@@ -23,6 +23,7 @@ import { S3CompatibleStorageAdapter } from './storage/s3-adapter.js';
 import type { TicketResult, UploadTicketPayload } from './storage/upload-ticket.js';
 import { HeaderMediaProbe } from './media/header-probe.js';
 import { DeterministicImageProvider } from './providers/deterministic-image.js';
+import { DeterministicVideoProvider } from './providers/deterministic-video.js';
 import type { MediaProbeAdapter } from './media/probe.js';
 
 /**
@@ -119,6 +120,15 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
    * crop/blur/brand_overlay tren anh. Cac thao tac can AI van tu khai khong lam duoc.
    */
   providers.register(new DeterministicImageProvider());
+  /*
+   * P3-MCP-30…34: ban tuong duong cho VIDEO, chay bang ffmpeg. Cung nguyen tac: khong AI,
+   * khong ton tien moi lan chay, ket qua lap lai duoc.
+   *
+   * Dang ky KHONG dong nghia voi "chay duoc": `ffmpeg` la nhi phan NGOAI. Neu no vang mat thi
+   * job phai thanh `blocked` (phu thuoc thieu) chu khong phai `failed` (xu ly that bai) — hai
+   * thu khac nhau, va gop chung lam nguoi doc hieu sai nguyen nhan.
+   */
+  providers.register(new DeterministicVideoProvider());
 
   return {
     config,

@@ -83,6 +83,30 @@ describe.skipIf(!hasFfmpeg)('P3 — render giu audio', () => {
     expect(out.probe.heightPx).toBe(before.heightPx);
   }, 120_000);
 
+  it('BLUR tren vung RAT NHO van chay - ban kinh phai co theo kich thuoc vung', async () => {
+    /*
+     * Hoi quy cho mot loi that. Ban dau `boxblur` dung ban kinh CO DINH 12, va ffmpeg tu choi
+     * ngay khi vung chon nho:
+     *   "Invalid chroma_param radius value 12, must be >= 0 and <= 7"
+     * `boxblur` gioi han ban kinh theo mat phang CHROMA (chi bang nua luma voi yuv420p). Loi nay
+     * KHONG doc ma ma thay duoc - chi lo ra khi render that tren mot vung nho.
+     */
+    const source = await load('video-with-audio.mp4');
+    const tiny = await renderVideo(source, { mode: 'blur', regions: [region(0.05, 0.05, 0.1, 0.05)] });
+    expect(tiny.probe.unreadable).toBe(false);
+    expect(tiny.probe.audio.present).toBe(true);
+  }, 120_000);
+
+  it('BLUR nhieu vung cung luc', async () => {
+    const source = await load('video-with-audio.mp4');
+    const out = await renderVideo(source, {
+      mode: 'blur',
+      regions: [region(0.05, 0.05, 0.3, 0.1), region(0.5, 0.6, 0.3, 0.2)],
+    });
+    expect(out.probe.unreadable).toBe(false);
+    expect(out.probe.audio.present).toBe(true);
+  }, 120_000);
+
   it('CROP 9:16 doi kich thuoc nhung KHONG lam mat audio', async () => {
     const source = await load('video-landscape-audio.mp4');
     const before = await probeVideo(source);

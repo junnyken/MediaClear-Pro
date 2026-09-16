@@ -21,6 +21,7 @@ import type {
   SessionRecord,
   SourceFileRecord,
   UploadSessionRecord,
+  VideoProxyRecord,
   UsageLedgerEntry,
   User,
   ValidationRecord,
@@ -113,6 +114,7 @@ export class InMemoryPersistence implements PersistencePort {
   private readonly provenanceRows: ProvenanceRecord[] = [];
   private readonly receiptRows: ProcessingReceipt[] = [];
   private readonly uploadSessionRows: UploadSessionRecord[] = [];
+  private readonly videoProxyRows: VideoProxyRecord[] = [];
 
   readonly users = {
     findById: async (id: string): Promise<User | null> => this.userRows.get(id) ?? null,
@@ -343,6 +345,17 @@ export class InMemoryPersistence implements PersistencePort {
       row.state = state;
       return { ...row, receivedChunks: [...row.receivedChunks] };
     },
+  };
+
+  readonly videoProxies = {
+    upsert: async (proxy: VideoProxyRecord): Promise<VideoProxyRecord> => {
+      const i = this.videoProxyRows.findIndex((r) => r.workspaceId === proxy.workspaceId && r.assetId === proxy.assetId);
+      if (i >= 0) this.videoProxyRows[i] = proxy;
+      else this.videoProxyRows.push(proxy);
+      return proxy;
+    },
+    findByAsset: async (workspaceId: string, assetId: string): Promise<VideoProxyRecord | null> =>
+      this.videoProxyRows.find((r) => r.workspaceId === workspaceId && r.assetId === assetId) ?? null,
   };
 
   readonly provenance = {

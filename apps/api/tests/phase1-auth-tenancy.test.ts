@@ -14,9 +14,16 @@ describe('MCP-10 auth & workspace boundary', () => {
     expect(body.identityProvider.production).toBe(false);
     expect(body.storage.production).toBe(false);
     expect(body.persistence.durability).toBe('ephemeral');
-    // P2-MCP-27: co 1 provider production (ban tat dinh bang libvips), nhung KHONG phai AI.
-    // Dieu can giu nguyen la dong duoi: he thong khong duoc tu nhan la da bat xu ly AI.
-    expect(body.productionProviders).toBe(1);
+    /*
+     * P2-MCP-27 dang ky ban tat dinh cho ANH; P3-MCP-30 them ban cho VIDEO. Ca hai deu la
+     * provider production nhung KHONG cai nao dung AI.
+     *
+     * Bo con so ghim cung (truoc day la `1`): no khoa cung hien trang va do moi lan them mot
+     * provider tat dinh — mot ly do KHONG lien quan gi toi tinh chat dang kiem. Tinh chat can
+     * giu la hai dong duoi: co provider production, va KHONG cai nao la AI.
+     */
+    expect(body.productionProviders).toBeGreaterThanOrEqual(1);
+    expect(body.productionAiProcessingEnabled).toBe(false);
     expect(body.limits.maxVideoDurationSeconds).toBe(599);
     await app.close();
   });
