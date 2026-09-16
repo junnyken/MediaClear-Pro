@@ -38,10 +38,14 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
-Adapter PostgreSQL thật (schema đã có) · Adapter R2/MinIO thật (port đã có) · Auth provider
-production · Queue/worker · Preview render · Ước tính chi phí · Biên nhận xử lý · Phân trang audit ·
-Resumable upload · OpenAPI · **worker tự chạy việc hoàn trả khoản giữ quá hạn** ·
-**worker dọn dữ liệu theo luật lưu giữ** · **giao diện hiển thị hạn lưu giữ của tệp**.
+Adapter R2/MinIO thật (port đã có) · Auth provider production · Queue/worker · Preview render ·
+Ước tính chi phí · Biên nhận xử lý · Phân trang audit · Resumable upload · OpenAPI ·
+**worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
+**giao diện hiển thị hạn lưu giữ của tệp**.
+
+> **Đã ra khỏi mục này (P2-MCP-23, D-037): adapter PostgreSQL.** Nay chạy thật, tự khai
+> `durability: 'durable'` ở `/healthz`, kèm trình chạy migration. Bật bằng `MEDIACLEAR_DATABASE_URL`;
+> không có biến đó thì vẫn in-memory như cũ.
 
 ## 3. Chưa có bằng chứng (`unknown`)
 

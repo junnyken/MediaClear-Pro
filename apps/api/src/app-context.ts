@@ -8,7 +8,9 @@
 import { ProviderRegistry, NoopContractProvider } from '@mediaclear/contracts';
 import { loadConfig, type ApiConfig } from './config/env.js';
 import { DevIdentityProvider, type IdentityProvider } from './auth/identity.js';
+import { Pool } from 'pg';
 import { InMemoryPersistence } from './persistence/in-memory.js';
+import { PostgresPersistence } from './persistence/postgres.js';
 import type { PersistencePort } from './persistence/port.js';
 import { LocalFsStorageAdapter } from './storage/local-fs-adapter.js';
 import { HeaderMediaProbe } from './media/header-probe.js';
@@ -23,6 +25,11 @@ export interface AppContext {
   providers: ProviderRegistry;
   bucket: string;
   now: () => Date;
+  /**
+   * P2-MCP-23: chi co gia tri khi dang chay tren PostgreSQL. Server dung no de chay migration
+   * truoc khi nhan request, va de dong ket noi khi tat.
+   */
+  dbPool: Pool | null;
 }
 
 export interface AppContextOverrides {
@@ -36,7 +43,17 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
   const config: ApiConfig = { ...loadConfig(), ...overrides.config };
   // Mot dong ho duy nhat cho ca tien trinh: danh tinh, job, usage, retention deu doc day.
   const now = overrides.now ?? (() => new Date());
-  const persistence = overrides.persistence ?? new InMemoryPersistence();
+  // Mac dinh KHONG doi: thieu cau hinh DB thi van in-memory y nhu truoc.
+  // `new Pool()` khong ket noi ngay, nen ham nay van dong bo duoc.
+  let dbPool: Pool | null = null;
+  let defaultPersistence: PersistencePort;
+  if (config.databaseUrl) {
+    dbPool = new Pool({ connectionString: config.databaseUrl });
+    defaultPersistence = new PostgresPersistence(dbPool);
+  } else {
+    defaultPersistence = new InMemoryPersistence();
+  }
+  const persistence = overrides.persistence ?? defaultPersistence;
   const bucket = 'mediaclear-phase1';
   const storage = new LocalFsStorageAdapter({
     rootDir: config.dataDir,
@@ -60,5 +77,6 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
     providers,
     bucket,
     now,
+    dbPool,
   };
 }

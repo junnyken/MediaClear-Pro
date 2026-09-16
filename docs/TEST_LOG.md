@@ -680,3 +680,91 @@ dịch thô · parity 252/252 · gate `READY_FOR_PHASE_2`.
   nên sửa. Bảng đối chiếu ở `PHASE_1_1_Q21_Q22_CLOSURE.md` §2 là chỗ tra khi đọc hai commit đó.
 - Việc đánh số lại là **ngoại lệ một lần** đối với D-029, chỉ hợp lệ vì repo chưa push. Từ đây về sau
   ID đã phát hành không được đánh số lại.
+
+---
+
+## 2026-09-16 (lần 9) — Phase 2 mục đầu: adapter PostgreSQL + trình chạy migration
+
+MINI-SPEC `P2-MCP-23` · quyết định `D-037`. Nền: `4ba10f7`.
+
+### 1. Bốn lệnh kiểm, chạy RIÊNG từng lệnh
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (không PostgreSQL) | `0` | **40 tệp · 370 đạt · 4 bỏ qua** |
+| 3b | `pnpm test` (**có** PostgreSQL) | `0` | **40 tệp · 392 đạt · 0 bỏ qua** |
+| 4 | `pnpm build:web` | `0` | |
+
+Chênh **22 test** giữa hai lần chạy chính là phần chạy thật trên PostgreSQL: 18 test hợp đồng + 4 test
+trình chạy migration. Con số này là chốt chống "xanh vì không chạy gì": thiếu DB thì số test **giảm
+thấy được**, không im lặng.
+
+Môi trường: PostgreSQL **16.15** trong Docker (`postgres:16`), cổng 55432. Workspace không có sẵn
+PostgreSQL — không client, không tiến trình, cổng 5432 từ chối.
+
+### 2. Bộ test hợp đồng chạy trên CẢ HAI adapter
+
+18 ca, viết **một lần**, chạy hai lượt: `InMemoryPersistence` và `PostgresPersistence`. Đây là chốt
+chống hai adapter trôi khác nhau. Nó lập tức trả công:
+
+| # | Khác biệt bị lộ ra | Ai đúng |
+|---|---|---|
+| 1 | **PostgreSQL ép toàn vẹn tham chiếu, in-memory thì không.** Test tạo được bản ghi con thiếu cha — PostgreSQL từ chối 15/18 ca | **PostgreSQL đúng.** Test được sửa cho khớp mô hình dữ liệu thật (users → workspaces → projects → assets → source_files → jobs) |
+| 2 | DB có `CHECK (attempt_count >= 1)`, in-memory nhận `0` | **DB đúng** — và mã thật (`services/jobs.ts:184`) vốn đã dùng `1`. Chỉ fixture của tôi sai, **không phải lỗi sản phẩm** |
+| 3 | `UPDATE` truyền 18 tham số nhưng chỉ dùng 12 ⇒ `could not determine data type of parameter $3` | **Lỗi của tôi** trong adapter; đã dùng danh sách tham số riêng cho `UPDATE` |
+
+Nếu chỉ viết test riêng cho adapter mới, cả ba chỗ này đều sẽ không lộ ra.
+
+### 3. Trình chạy migration — 8 test trên PostgreSQL thật
+
+| Kiểm | Kết quả |
+|---|---|
+| Chạy lần đầu: áp dụng cả 3 migration | đạt |
+| **Chạy lần hai: không làm gì** — đúng lỗi `PHASE_1_REPORT` §11 cảnh báo | đạt |
+| Sửa migration **đã phát hành** ⇒ dừng, ném `MigrationChecksumError` | đạt |
+| Migration lỗi giữa chừng ⇒ **không để lại lược đồ nửa vời**, không ghi sổ | đạt |
+
+**Phát hiện thật khi dựng:** hai migration đã phát hành **tự mở giao dịch** (`BEGIN; … COMMIT;`) và
+**tự ghi sổ** vào `schema_migrations(version)`. Thiết kế đầu của tôi dựng sổ riêng tên `name/checksum`
+nên đụng ngay: `column "version" of relation "schema_migrations" does not exist`. Đã sửa hướng: dùng
+**chính** bảng đó làm nguồn sự thật, tổng kiểm để bảng riêng, và **không bọc thêm giao dịch** cho tệp
+đã tự mở giao dịch.
+
+### 4. Migration `0003` — ba chỗ lược đồ thiếu so với kiểu miền
+
+`source_files.project_id` · `source_files.declared_media_type` · `validation_results.errors` (jsonb).
+Chỉ thêm cột, có backfill, không xoá gì. Chi tiết ở `DATA_MODEL.md` §17.
+
+### 5. Live verification — phép thử quyết định
+
+> Ký lời khai quyền → **khởi động lại API** → lời khai vẫn còn.
+
+**Trước mục này phép thử đó luôn thất bại.**
+
+| Bước | Kết quả |
+|---|---|
+| `/healthz` khi chạy PostgreSQL | `{ id: 'postgres-phase2', durability: 'durable' }` — **lần đầu tiên** |
+| Log khởi động | `migration: ap dung 3, bo qua 0` rồi lần sau `ap dung 0, bo qua 3` |
+| Ký qua giao diện thật | `att_ecf4b708a07f4415bb71b5db3520c04c`, `statementVersion: 2`, `localeShown: vi` |
+| Đối chiếu **thẳng trong database** (không qua API) | 1 dòng, `statement_version = 2`, `locale_shown = vi`, `status = active` |
+| **Khởi động lại API** | |
+| Bản ghi sau khởi động lại | **cùng id**, cùng `statementVersion`, cùng `attestedAt` |
+| Giao diện sau khởi động lại | hiện "Đã xác nhận quyền sử dụng"; tên tệp và SHA-256 còn nguyên |
+| Lỗi console | không có |
+
+**Nhưng phải nói rõ một nửa còn lại:** **phiên đăng nhập KHÔNG sống sót.** `DevIdentityProvider` giữ
+phiên trong một mảng bộ nhớ (`auth/identity.ts:44`), lược đồ cũng không có bảng `sessions`. Sau khi
+khởi động lại, giao diện hiện "Bạn cần đăng nhập để tiếp tục"; đăng nhập lại thì **toàn bộ dữ liệu
+còn nguyên**. Đây là Q-14 (auth provider production), ngoài phạm vi `P2-MCP-23` — ghi lại để không ai
+đọc mục này rồi tưởng đã hết chuyện mất trạng thái khi restart.
+
+### 6. Giới hạn của lần kiểm tra này
+
+- PostgreSQL chạy bằng **Docker để kiểm**; **chưa có** hạ tầng production.
+- Chưa tinh chỉnh pool, chưa có read replica, **chưa đo hiệu năng dưới tải**.
+- Object storage vẫn là đĩa local — tệp gốc vẫn nằm trên một máy.
+- Phiên đăng nhập vẫn mất khi restart (Q-14).
+- Giới hạn Phase 1.1 giữ nguyên: chưa có worker, benchmark provider `unknown`, chưa có provider AI
+  production, **không có đường xoá dữ liệu nào**.

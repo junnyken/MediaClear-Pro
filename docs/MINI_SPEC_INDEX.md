@@ -14,7 +14,7 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
    từ một câu hỏi đã chốt (vd `P1.1-Q20-MCP-20`). ID là **ổn định** — không đổi, không tái sử dụng.
 2. **Historical ID** là ID từng được publish; giữ nguyên, không xoá khỏi bảng này.
 3. Tên file lịch sử **không đổi** — đổi tên sẽ phá mọi đường dẫn đã trích dẫn trong báo cáo đã publish.
-4. MINI-SPEC **mới bắt buộc** dùng canonical ID có tiền tố phase (Phase 2 dùng `P2-MCP-23…`).
+4. MINI-SPEC **mới bắt buộc** dùng canonical ID có tiền tố phase (Phase 2 dùng `P2-MCP-23…`; `P2-MCP-23` đã dùng).
 5. Mã nguồn (`API_ROUTES.mcp`) chỉ dùng canonical ID.
 6. Không có hai canonical ID trùng nhau — có test chặn.
 
@@ -46,6 +46,7 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
 | `P1.1-Q20-MCP-20` | — | Phase 1.1 (Q-20 closure) | Canonical Provenance and Rights Warning Wording | `docs/mini-specs/phase-1.1/P1.1-Q20-MCP-20.md` | completed |
 | `P1.1-Q22-MCP-22` | — | Phase 1.1 (Q-22 closure) | Rights Attestation Checkbox Scope Clarification | `docs/mini-specs/phase-1.1/P1.1-Q22-MCP-22.md` | completed |
 | `P1.1-Q21-MCP-21` | — | Phase 1.1 (Q-21 closure) | English Provenance Wording Unconfirmed State | `docs/mini-specs/phase-1.1/P1.1-Q21-MCP-21.md` | completed |
+| `P2-MCP-23` | — | Phase 2 | PostgreSQL Persistence Adapter & Migration Runner | `docs/mini-specs/phase-2/P2-MCP-23.md` | completed |
 
 ## Điểm mơ hồ duy nhất còn lại
 
@@ -56,10 +57,10 @@ theo thư mục chứa nó. Từ Phase 1.1 trở đi, mọi tham chiếu mới p
 ## ID đã dùng — không được tái sử dụng
 
 `MCP-00` … `MCP-15` (cả hai phase), `P0-MCP-00` … `P0-MCP-10`, `P1-MCP-10` … `P1-MCP-15`,
-`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`.
+`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`, `P2-MCP-23`.
 
 > Lưu ý: số `20` đã dùng bởi `P1.1-Q20-MCP-20`, số `21` bởi `P1.1-Q21-MCP-21`, số `22` bởi
-> `P1.1-Q22-MCP-22`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-23`**.
+> `P1.1-Q22-MCP-22`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-23`** (đã dùng; tiếp theo là `P2-MCP-24`).
 >
 > **Quy ước đánh số (D-036):** số cuối chạy theo **số hiệu câu hỏi**, không theo thứ tự hoàn thành —
 > Q-21 → `...-MCP-21`, Q-22 → `...-MCP-22`. Vì vậy `P1.1-Q21-MCP-21` mang số nhỏ hơn dù hoàn thành

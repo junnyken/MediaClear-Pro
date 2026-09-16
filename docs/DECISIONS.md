@@ -491,3 +491,41 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   lại được và cũng không nên sửa. Bảng đối chiếu cũ ↔ mới nằm ở `docs/PHASE_1_1_Q21_Q22_CLOSURE.md` §2,
   đó là chỗ tra khi đọc hai commit đó.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+# Quyết định Phase 2 (2026-09-16)
+
+> ID tiếp theo chưa dùng sau khi audit toàn bộ decision log (D-001…D-036) là **D-037**.
+
+## D-037 — Lưu trữ bền vững bằng PostgreSQL, có trình chạy migration (P2-MCP-23)
+
+- **Context**: `/healthz` tự khai `persistence: { durability: 'ephemeral' }`. Khởi động lại API là
+  mất sạch workspace, project, asset và **lời khai quyền sử dụng** — đúng thứ mà Q-19, Q-20, Q-22
+  dựng lên làm **bằng chứng**. Trong các lượt kiểm live trước, việc này đã xảy ra ít nhất năm lần.
+  `PHASE_1_REPORT.md` §11 còn ghi rõ: chưa có trình chạy migration, nên chạy migration lần hai trên
+  DB có dữ liệu sẽ lỗi.
+- **Decision**:
+  1. Thêm `PostgresPersistence` hiện thực đủ **33 phương thức** của `PersistencePort`, tự khai
+     `durability: 'durable'`.
+  2. **Một bộ test hợp đồng, chạy trên CẢ HAI adapter.** Rủi ro lớn nhất khi có adapter thứ hai là
+     hai adapter trôi khác nhau; viết hai bộ test là tạo ra hai định nghĩa về "đúng".
+  3. Thêm trình chạy migration ghi sổ có **tổng kiểm SHA-256**. Chạy lại: không làm gì. Migration đã
+     phát hành mà bị sửa nội dung: **dừng và báo lỗi**, không im lặng chạy lên.
+  4. Trình chạy **tôn trọng** hai migration đã phát hành: chúng tự mở giao dịch và tự ghi sổ vào
+     `schema_migrations(version)`, nên trình chạy dùng chính bảng đó làm nguồn sự thật thay vì dựng
+     sổ thứ hai rồi để hai sổ nói khác nhau. Tổng kiểm nằm ở bảng riêng.
+  5. **Mặc định không đổi**: không có `MEDIACLEAR_DATABASE_URL` thì vẫn chạy in-memory y như trước.
+     Không có chế độ tự đoán.
+  6. Migration chạy **trước khi** server nhận request đầu tiên.
+- **Alternatives considered**: (a) dùng ORM (Drizzle/Prisma) — bị loại ở lượt này vì `PersistencePort`
+  đã là ranh giới rõ, thêm ORM là thêm một tầng ánh xạ nữa mà chưa giải quyết thêm vấn đề nào; (b)
+  bỏ in-memory, chỉ còn PostgreSQL — bị loại vì test và môi trường dev không nên bắt buộc có DB; (c)
+  sửa `0001`/`0002` cho hợp trình chạy — **bị loại**, sửa migration đã phát hành đúng là thứ mà trình
+  chạy này đi chặn.
+- **Consequences**: lời khai quyền **sống sót qua khởi động lại** — đã kiểm bằng tay và đối chiếu
+  thẳng trong database. Phát sinh migration `0003` vá ba chỗ lược đồ thiếu so với kiểu miền
+  (`source_files.project_id`, `source_files.declared_media_type`, `validation_results.errors`).
+  **Phiên đăng nhập VẪN mất khi khởi động lại** vì `DevIdentityProvider` giữ phiên trong bộ nhớ —
+  đó là Q-14, ngoài phạm vi mục này.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

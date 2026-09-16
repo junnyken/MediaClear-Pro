@@ -272,3 +272,18 @@ quyền. Không có gì ở tầng API đổi:
 
 Lý do không cần đổi API: thứ được lưu làm bằng chứng vẫn là **đúng câu cũ** ở **đúng phiên bản cũ**.
 Q-22 sửa chỗ người dùng *đọc* câu đó, không sửa câu.
+
+## 12. P2-MCP-23 — không có thay đổi API
+
+Adapter PostgreSQL (`P2-MCP-23`, D-037) đổi **tầng lưu trữ**, không đổi bề mặt API.
+
+| Hạng mục | Trước | Sau |
+|---|---|---|
+| Số route | 31 | 31 |
+| Route `DELETE` | không có | không có |
+| Hình dạng request/response | — | **giữ nguyên** |
+| `/healthz` → `persistence.durability` | `ephemeral` | `durable` **khi** có `MEDIACLEAR_DATABASE_URL` |
+| Migration | `0001`, `0002` | thêm `0003` (chỉ thêm cột) |
+
+Biến môi trường mới: **`MEDIACLEAR_DATABASE_URL`**. Không đặt ⇒ chạy in-memory y như trước. Khi có,
+server chạy migration **trước khi** nhận request đầu tiên và in ra số migration đã áp dụng/bỏ qua.

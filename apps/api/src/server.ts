@@ -23,6 +23,8 @@ import {
   httpStatusFor,
   type ApiError,
 } from '@mediaclear/contracts';
+import { join } from 'node:path';
+import { runMigrations } from './db/migrate.js';
 import { createAppContext, type AppContext } from './app-context.js';
 import { RequestLog } from './observability/request-log.js';
 import { resolveActor, resolveUser, type Actor } from './services/access.js';
@@ -646,11 +648,30 @@ export function buildServer(options: BuildServerOptions = {}) {
 const isEntrypoint = process.argv[1]?.endsWith('server.js') ?? false;
 if (isEntrypoint) {
   const port = Number(process.env.PORT ?? 3001);
-  buildServer()
-    .listen({ port, host: '0.0.0.0' })
-    .then(() => console.log(`[mediaclear-api] ${PHASE} on :${port}`))
-    .catch((err) => {
-      console.error(err);
-      process.exit(1);
-    });
+  const app = buildServer();
+  const ctx = app.mediaclearContext;
+
+  const bootstrap = async (): Promise<void> => {
+    // P2-MCP-23: chay migration TRUOC khi nhan request dau tien. Neu luoc do chua san sang
+    // thi tha khong khoi dong con hon nhan request roi hong giua chung.
+    if (ctx.dbPool) {
+      const dir = join(import.meta.dirname, '../../../db/migrations');
+      const outcome = await runMigrations(ctx.dbPool, dir);
+      console.log(
+        `[mediaclear-api] migration: ap dung ${outcome.applied.length}, bo qua ${outcome.skipped.length}` +
+          (outcome.checksumBackfilled.length > 0
+            ? `, ghi bu tong kiem ${outcome.checksumBackfilled.length}`
+            : ''),
+      );
+    }
+    await app.listen({ port, host: '0.0.0.0' });
+    console.log(
+      `[mediaclear-api] ${PHASE} on :${port} · luu tru ${ctx.persistence.id} (${ctx.persistence.durability})`,
+    );
+  };
+
+  bootstrap().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
 }

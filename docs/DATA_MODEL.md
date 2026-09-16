@@ -202,3 +202,21 @@ Ghi ở đây để người đọc lược đồ khỏi hiểu nhầm: cột `s
 quyền**, không nói về các đoạn ngữ cảnh hiển thị kèm trong hộp thoại. Ranh giới bằng chứng ↔ ngữ cảnh
 nằm ở `docs/POLICY.md` §16; từ Q-22, nhãn ô tick bắt buộc chính là câu được ký, nên thứ người dùng
 tick khớp đúng thứ cột này lưu.
+
+## 17. Migration `0003` — vá ba chỗ lược đồ thiếu so với kiểu miền (P2-MCP-23)
+
+Khi hiện thực adapter PostgreSQL, ba chỗ lộ ra: lược đồ **không có chỗ để lưu** một số trường mà kiểu
+miền bắt buộc, nên ghi vào rồi đọc ra sẽ **không bằng nhau**.
+
+| Cột thêm | Vì sao thiếu là hỏng |
+|---|---|
+| `source_files.project_id` | `SourceFileRecord.projectId` không có chỗ lưu; trước đây phải suy qua `assets` |
+| `source_files.declared_media_type` | loại media **người dùng khai** lúc upload, khác loại **đo được** ở `measured` |
+| `validation_results.errors` (jsonb) | cột cũ `error_codes text[]` **mất `params`** (vd `{ limitMb: 199 }`) và mất `messageKey` |
+
+`0003` **chỉ thêm cột**, có backfill, không xoá và không đổi kiểu cột nào. `error_codes` giữ nguyên để
+hồ sơ cũ vẫn đọc được. Backfill `params` của hồ sơ cũ **để trống** — dữ liệu đó đã mất thật, điền số
+đoán vào còn tệ hơn.
+
+Ngoài ra trình chạy migration thêm bảng `schema_migration_checksums` (tổng kiểm SHA-256 theo từng
+migration). Bảng `schema_migrations` **giữ nguyên hình dạng cũ** do `0001` tạo ra.

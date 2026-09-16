@@ -88,7 +88,9 @@ describe('MINI_SPEC_INDEX', () => {
 
   it('historical ID cua Phase 0/Phase 1 khong bi xoa khoi index', () => {
     // MINI-SPEC ra doi tu Phase 1.1 tro di khong co ID lich su ('—'); moi hang con lai PHAI co.
-    const legacy = rows.filter((r) => !r.phase.startsWith('Phase 1.1'));
+    // Noi theo chieu KHANG DINH: chi Phase 0 va Phase 1 moi co ID lich su. Loc bang
+    // "khong phai Phase 1.1" se sai lai moi khi them mot phase moi (da sai that voi Phase 2).
+    const legacy = rows.filter((r) => r.phase === 'Phase 0' || r.phase === 'Phase 1');
     expect(legacy.length).toBeGreaterThanOrEqual(17);
     const missing = legacy.filter((r) => !r.historical.includes('MCP-')).map((r) => r.canonical);
     expect(missing, 'hang cu bi mat historical ID').toEqual([]);

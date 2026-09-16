@@ -11,6 +11,11 @@ import { join } from 'node:path';
 export interface ApiConfig {
   /** Thu muc goc cua object storage local. KHONG bao gio la thu muc repo. */
   dataDir: string;
+  /**
+   * P2-MCP-23: chuoi ket noi PostgreSQL. KHONG co => chay in-memory y nhu truoc.
+   * Khong co che do "tu doan": co thi dung PostgreSQL, khong thi dung in-memory.
+   */
+  databaseUrl: string | null;
   /** Khoa ky upload ticket. */
   uploadSecret: string;
   uploadSecretProvided: boolean;
@@ -36,6 +41,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const secret = env.MEDIACLEAR_UPLOAD_SECRET ?? '';
   return {
     dataDir: env.MEDIACLEAR_DATA_DIR ?? join(tmpdir(), 'mediaclear-data'),
+    databaseUrl: env.MEDIACLEAR_DATABASE_URL && env.MEDIACLEAR_DATABASE_URL.length > 0
+      ? env.MEDIACLEAR_DATABASE_URL
+      : null,
     uploadSecret: secret.length > 0 ? secret : randomBytes(32).toString('hex'),
     uploadSecretProvided: secret.length > 0,
     // Mac dinh TAT o production: khong bao gio de cua dev auth mo tren that.
