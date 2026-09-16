@@ -1859,3 +1859,83 @@ moi nhat truoc: project_created -> workspace_created
 - Con trỏ **không ký**: lộ mốc thời gian và id, người dùng sửa tay được. Không rò dữ liệu workspace
   khác vì truy vấn vẫn lọc theo workspace.
 - **Chưa bấm tay trang Hoạt động trên trình duyệt** sau khi sửa.
+
+---
+
+## 2026-09-16 (lần 21) — Phase 2: xem trước + biên nhận + hạn lưu giữ trên giao diện
+
+MINI-SPEC `P2-MCP-33` · quyết định `D-048`. Nền: `5f5fdc6`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **51 tệp · 528 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+### 2. BỐN lỗi mà cả 528 test, `tsc` và `eslint` đều không bắt được
+
+Đây là nội dung quan trọng nhất của lần này. Cả bốn chỉ lộ ra khi **mở Chrome thật và bấm**.
+
+**1. `formatBytes` hiện "0 MB" cho tệp 5421 byte.**
+Hàm luôn chia cho 1 MB với 1 chữ số thập phân, nên **mọi** tệp dưới ~50 KB đều hiện "0 MB". Người dùng
+nhìn thẻ "Tệp kết quả" — đúng chỗ họ cần tin tưởng nhất — và có mọi lý do để hiểu rằng tệp của họ
+**rỗng**. Test duy nhất của hàm này kiểm ca `null`, nên không bao giờ chạm tới. Đã sửa thành đổi đơn
+vị B/KB/MB/GB và thêm test ghim `5,3 KB` / `900 B` / `0 B`.
+
+**2. Câu giới hạn hiện ra là chuỗi tiếng Việt KHÔNG DẤU.**
+Màn hình hiện: `Chua co bo doc C2PA / Content Credentials. Dau vet AI trong tep KHONG duoc kiem tra.`
+Đây là hằng số viết thẳng trong mã nguồn. Chú thích trong repo này không dấu **theo quy ước**, nhưng
+chuỗi đó **đi thẳng ra màn hình người dùng** — vi phạm luật "không tự chế câu chữ, phải qua i18n".
+Đổi thành **khoá** `provenance.limitation.no_c2pa_reader`; câu có dấu nằm trong tệp ngôn ngữ.
+
+**3. Nút "Tải tệp kết quả" mở ảnh trong tab, không tải tệp.**
+Thiếu `Content-Disposition` nên trình duyệt hiển thị ngay; nếu người dùng bấm lưu thì tên tệp là **cả
+chuỗi vé đã ký**, dài hàng trăm ký tự. Đã thêm `attachment; filename="<tên object>"` + test. Đo lại
+trên máy chủ thật:
+
+```
+content-type       : image/png
+content-disposition: attachment; filename="out_b3080734924b4405809234626e3773f0.png"
+so byte nhan duoc  : 5499
+```
+
+**4. Mốc thời gian trang Nhật ký hiện dạng ISO thô** (`2026-09-16T13:39:39.081Z`).
+
+### 3. Bấm tay trên Chrome thật
+
+Workspace mất thư viện hệ thống lần nữa — Chrome thiếu 19 thư viện (`libglib-2.0.so.0`, `libnss3`…).
+`sudo npx playwright install-deps chromium` cài đủ.
+
+Tài khoản **tạo mới hoàn toàn qua giao diện**: đăng ký → tạo workspace → (dữ liệu tệp dựng qua API cho
+cùng tài khoản đó) → bấm tiếp trên giao diện.
+
+| Bước | Kết quả |
+|---|---|
+| Job `queued` → thẻ **Xem trước**, bấm | ảnh 240×160 render thật trong trình duyệt |
+| Mức dùng sau khi xem trước | vẫn **"Đang giữ"** — không bị tính (I-12) |
+| Trang tệp → **Thời hạn lưu giữ** | "Đang giữ · Giữ đến 16/10/2026 · Tệp còn trong thời hạn" |
+| Job `completed` → **Tệp kết quả** | **"5,4 KB"** (trước bản vá: "0 MB") |
+| **Biên nhận xử lý** | "Mức bằng chứng: Chưa xác định" + giới hạn **có dấu** |
+| Bấm "Tải tệp kết quả" | tải đúng một tệp, tên `out_….png` |
+| Trang Nhật ký | 19 sự kiện, mới nhất trước |
+
+**Console: không một lỗi hay cảnh báo nào.**
+
+### 4. Hai lần tôi tự làm hỏng phép đo
+
+- `pkill -f "next start -p 3002"` khớp luôn dòng lệnh của **chính shell đang chạy** nên nó tự giết
+  mình (exit 144). Cùng họ với bài học `$!` ở lần 16.
+- Sau khi dựng lại web, lệnh khởi động mới **thoát ngay** vì cổng 3002 còn bị chiếm, nhưng `curl` vẫn
+  trả 200 — **bản đang phục vụ là bản CŨ**. Suýt nữa kết luận "bản vá không có tác dụng". `ss -ltnp`
+  và `lsof` đều không thấy tiến trình; phải tìm bằng `ps` theo tên `next-server` mới ra.
+
+### 5. Giới hạn của lần kiểm này
+
+- **Loại sự kiện trên trang Nhật ký vẫn hiện chuỗi tiếng Anh** `snake_case`
+  (`output_download_url_issued`). Cần ~20 nhãn **do owner/BA duyệt** — DEV không tự chế.
+- **Toàn bộ câu chữ mới của `P2-MCP-29/31/33` chưa được owner duyệt.**
+- Chưa bấm trên màn hình nhỏ; **chưa kiểm bằng trình đọc màn hình**.
+- Nút "Xem thêm mục cũ hơn" ở trang Nhật ký **chưa được bấm thật** — dữ liệu chưa đủ một trang.

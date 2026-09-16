@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { INVISIBLE_WATERMARK_DISCLAIMER_KEY } from '@mediaclear/contracts';
 import { JobWorker } from '../src/worker/job-worker.js';
-import { probeProvenance, C2PA_LIMITATION_NOTE } from '../src/media/provenance-probe.js';
+import { probeProvenance, C2PA_LIMITATION_KEY } from '../src/media/provenance-probe.js';
 import { attest, auth, createJob, createProject, createWorkspace, makeApp, signIn, uploadFixture, validateAsset, FIXTURES } from './helpers.js';
 
 async function runWith(fixture: string) {
@@ -47,7 +47,7 @@ describe('P2-MCP-30 — bo do dau vet nguon goc', () => {
     const probe = await probeProvenance(readFileSync(join(FIXTURES, 'sample-with-exif.png')), 'image');
     // 'absent' = "da tim va khong thay". Su that la "chua tung tim". Hai cai khac han nhau.
     expect(probe.aiProvenancePresence).toBe('unknown');
-    expect(probe.detectorLimitationNote).toBe(C2PA_LIMITATION_NOTE);
+    expect(probe.detectorLimitationNote).toBe(C2PA_LIMITATION_KEY);
   });
 
   it('tep hong thi tra "unknown", khong ket luan la khong co metadata', async () => {
@@ -84,7 +84,7 @@ describe('P2-MCP-30 — bien nhan', () => {
     expect(body.receipt.evidenceStatus).toBe('unknown');
     expect(body.provenanceBefore.aiProvenancePresence).toBe('unknown');
     // Gioi han phai duoc NOI RA, khong giau trong tai lieu.
-    expect(body.provenanceBefore.limitationNote).toBe(C2PA_LIMITATION_NOTE);
+    expect(body.provenanceBefore.limitationNote).toBe(C2PA_LIMITATION_KEY);
     await app.close();
   });
 

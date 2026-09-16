@@ -29,11 +29,26 @@ export function formatDuration(locale: Locale, seconds: number | null): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/**
+ * Doi don vi theo kich thuoc THAT.
+ *
+ * Ban dau ham nay luon chia cho 1 MB, nen MOI tep duoi ~50 KB deu hien "0 MB". Bam tay tren the
+ * "Tep ket qua" moi thay: mot tep 5421 byte hien la "0 MB", va nguoi dung co moi ly do de hieu
+ * rang tep cua ho rong. Khong test nao bat duoc vi test duy nhat cua ham nay kiem ca `null`.
+ */
 export function formatBytes(locale: Locale, bytes: number | null): string {
   if (bytes === null || !Number.isFinite(bytes)) return t(locale, 'evidence.unknown');
-  const mb = bytes / (1024 * 1024);
   const intl = locale === 'vi' ? 'vi-VN' : 'en-US';
-  return `${new Intl.NumberFormat(intl, { maximumFractionDigits: 1 }).format(mb)} MB`;
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
+  let value = Math.max(bytes, 0);
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  // Byte khong co phan thap phan; tu KB tro len giu mot chu so cho de doc.
+  const digits = unit === 0 ? 0 : 1;
+  return `${new Intl.NumberFormat(intl, { maximumFractionDigits: digits }).format(value)} ${units[unit]}`;
 }
 
 export function formatDateTime(locale: Locale, iso: string): string {

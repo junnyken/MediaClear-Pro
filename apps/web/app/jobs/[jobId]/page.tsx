@@ -42,6 +42,27 @@ interface JobOutput {
   createdAt: string;
 }
 
+interface JobPreview {
+  mode: string;
+  billable: boolean;
+  operation: string;
+  widthPx: number;
+  heightPx: number;
+  imageDataUri: string;
+}
+
+interface ProvenanceRow {
+  originalMetadataPresence: string;
+  aiProvenancePresence: string;
+  limitationNote: string | null;
+}
+
+interface JobReceipt {
+  receipt: { operations: string[]; evidenceStatus: string };
+  provenanceBefore: ProvenanceRow;
+  provenanceAfter: ProvenanceRow | null;
+}
+
 interface OutputDownload {
   url: string;
   expiresAt: string;
@@ -54,11 +75,18 @@ export default function JobStatusPage() {
   const jobId = params.jobId;
   const resource = useResource(() => apiFetch<JobView>(`/v1/jobs/${jobId}`), [jobId]);
   const [downloadError, setDownloadError] = useState<ApiErrorShape | null>(null);
+  const [preview, setPreview] = useState<JobPreview | null>(null);
+  const [previewError, setPreviewError] = useState<ApiErrorShape | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   const jobState = resource.data?.job.state ?? null;
   /*
    * Chi hoi ban ket qua khi job DA xong. Hoi som hon thi chac chan 404 va se do mot loi
    * khong co that len man hinh cua nguoi dung.
    */
+  const receipt = useResource<JobReceipt | null>(
+    async () => (jobState === 'completed' ? apiFetch<JobReceipt>(`/v1/jobs/${jobId}/receipt`) : { ok: true, data: null }),
+    [jobId, jobState],
+  );
   const output = useResource<JobOutput | null>(
     async () => (jobState === 'completed' ? apiFetch<JobOutput>(`/v1/jobs/${jobId}/output`) : { ok: true, data: null }),
     [jobId, jobState],
@@ -74,6 +102,18 @@ export default function JobStatusPage() {
    * duc san luc mo trang thi den luc bam co the da het han, va moi lan mo trang lai ghi mot
    * su kien "da phat quyen tai" khong co ai that su tai gi.
    */
+  async function runPreview() {
+    setPreviewError(null);
+    setPreviewing(true);
+    const result = await apiFetch<JobPreview>(`/v1/jobs/${jobId}/preview`, { method: 'POST' });
+    setPreviewing(false);
+    if (!result.ok) {
+      setPreviewError(result.error);
+      return;
+    }
+    setPreview(result.data);
+  }
+
   async function download() {
     setDownloadError(null);
     const result = await apiFetch<OutputDownload>(`/v1/jobs/${jobId}/output/download-url`);
@@ -182,6 +222,69 @@ export default function JobStatusPage() {
           ) : null}
         </Card>
       )}
+
+      {/*
+        * Xem truoc: chi co nghia khi job CHUA xong. Xong roi thi tep ket qua that co ich hon han
+        * mot ban proxy do phan giai thap.
+        */}
+      {!isBlocked && !isCompleted ? (
+        <Card title={translate('screen.job_status.preview_title')}>
+          <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('screen.job_status.preview_free')}</p>
+          <Button variant="secondary" onClick={runPreview} disabled={previewing}>
+            {translate('screen.job_status.preview_cta')}
+          </Button>
+          {previewError ? <ErrorNotice error={previewError} onRetry={runPreview} /> : null}
+          {preview ? (
+            <>
+              {/*
+                * Dung <img> chu khong phai next/image: anh nay la data URI nhung thang trong
+                * response, khong co URL de Next toi uu. Quy tac `no-img-element` khong duoc nap
+                * trong cau hinh eslint cua repo nen KHONG dat eslint-disable cho no - dat vao se
+                * thanh loi "rule not found", da vap mot lan.
+                */}
+              <img
+                src={preview.imageDataUri}
+                alt={translate('screen.job_status.preview_title')}
+                style={{ maxWidth: '100%', marginTop: 'var(--mcp-space-3)', borderRadius: 'var(--mcp-radius-sm)' }}
+              />
+              <p style={{ color: 'var(--mcp-text-secondary)' }}>
+                {translate('screen.job_status.preview_proxy_note')} ({preview.widthPx}×{preview.heightPx})
+              </p>
+            </>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {/*
+        * Bien nhan. Hien CA phan chua do duoc - giau di se khien nguoi dung tuong moi thu deu da
+        * duoc kiem chung.
+        */}
+      {receipt.data ? (
+        <Card title={translate('screen.job_status.receipt_title')}>
+          <DefinitionRow label={translate('screen.job_status.receipt_operations')}>
+            {receipt.data.receipt.operations.map((op) => translate(`operation.${op}`)).join(', ')}
+          </DefinitionRow>
+          <DefinitionRow label={translate('screen.job_status.receipt_evidence')}>
+            <EvidenceBadge status={receipt.data.receipt.evidenceStatus} />
+          </DefinitionRow>
+          <DefinitionRow label={translate('screen.job_status.receipt_metadata_before')}>
+            {translate(`presence.${receipt.data.provenanceBefore.originalMetadataPresence}`)}
+          </DefinitionRow>
+          <DefinitionRow label={translate('screen.job_status.receipt_metadata_after')}>
+            {receipt.data.provenanceAfter
+              ? translate(`presence.${receipt.data.provenanceAfter.originalMetadataPresence}`)
+              : translate('common.unknown_value')}
+          </DefinitionRow>
+          {receipt.data.provenanceBefore.limitationNote ? (
+            <DefinitionRow label={translate('screen.job_status.receipt_limitation')}>
+              {/* Truong nay chua KHOA i18n, khong phai cau chu. In thang se ra chuoi khong dau. */}
+              <span style={{ color: 'var(--mcp-warning)' }}>
+                {translate(receipt.data.provenanceBefore.limitationNote)}
+              </span>
+            </DefinitionRow>
+          ) : null}
+        </Card>
+      ) : null}
     </>
   );
 }

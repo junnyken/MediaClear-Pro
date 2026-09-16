@@ -40,12 +40,13 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Đo dấu vết nguồn gốc trên byte thật + biên nhận xử lý | `media/provenance-probe.ts`, `db/migrations/0006_*.sql` | 10 test; live: EXIF 240 byte còn nguyên trên tệp vừa tải về, biên nhận tự khai `unknown` về dấu vết AI thay vì `verified` |
 | Ước tính mức dùng + xem trước trên bản proxy | `services/outputs.ts`, `services/preview.ts` | 11 test, trong đó 4 phép đo "không xảy ra điều gì"; live: xem trước chạy thật mà số bút toán mức dùng 1→1 |
 | Phân trang nhật ký kiểm toán (con trỏ, mới nhất trước) | `persistence/{in-memory,postgres}.ts`, `app/activity/page.tsx` | 14 test trên cả hai adapter + đối chứng âm bỏ khoá phụ; live: 3 trang ra đúng tập hợp như đọc một lần |
+| Giao diện: xem trước · biên nhận · hạn lưu giữ | `app/jobs/[jobId]/page.tsx`, `app/assets/[assetId]/page.tsx` | bấm tay trên Chrome thật: xem trước render ảnh, mức dùng không đổi, tải về ra đúng một tệp; 4 lỗi tìm được mà 528 test không bắt |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
 Resumable upload · OpenAPI ·
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
-**giao diện hiển thị hạn lưu giữ của tệp** · **giao diện xem trước** · **giao diện xem biên nhận**.
+**nhãn câu chữ cho loại sự kiện ở trang Nhật ký** (chờ owner/BA duyệt).
 
 > Sửa một mục khai sai: *"Auth provider production"* vẫn nằm ở đây trong khi `P2-MCP-25` đã làm xong
 > từ trước. Bản online tự khai `identityProvider: password-phase2, production: true`. Bảng này nói sai

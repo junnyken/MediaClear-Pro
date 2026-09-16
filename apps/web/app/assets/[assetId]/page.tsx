@@ -26,11 +26,21 @@ interface AssetView {
   rightsAttestation: { status: 'missing' | 'active' | 'blocked'; attestedAt: string | null; statementVersion: number | null };
 }
 
+/** P2-MCP-33: han luu giu doc tu route rieng, khong nhet vao AssetView. */
+interface RetentionView {
+  retentionState: string;
+  lastAccessedAt: string | null;
+  retainUntil: string | null;
+  deletionCandidate: boolean;
+  reason: string | null;
+}
+
 export default function AssetDetailPage() {
   const params = useParams<{ assetId: string }>();
   const assetId = params.assetId;
   const [dialogOpen, setDialogOpen] = useState(false);
   const resource = useResource(() => apiFetch<AssetView>(`/v1/assets/${assetId}`), [assetId]);
+  const retention = useResource(() => apiFetch<RetentionView>(`/v1/assets/${assetId}/retention`), [assetId]);
 
   async function download() {
     const result = await apiFetch<{ url: string }>(`/v1/assets/${assetId}/download-url`);
@@ -89,6 +99,37 @@ export default function AssetDetailPage() {
           </ul>
         ) : null}
       </Card>
+
+      {/*
+        * P2-MCP-33: han luu giu. Truoc day luat luu giu chay o tang duoi ma nguoi dung KHONG
+        * co cach nao biet tep cua ho se duoc giu toi bao gio.
+        */}
+      {retention.data ? (
+        <Card title={translate('screen.asset_detail.retention_title')}>
+          <DefinitionRow label={translate('screen.asset_detail.retention_state')}>
+            {translate(`retention_state.${retention.data.retentionState}`)}
+          </DefinitionRow>
+          <DefinitionRow label={translate('screen.asset_detail.retention_until')}>
+            <ValueOrUnknown
+              value={retention.data.retainUntil ? new Date(retention.data.retainUntil).toLocaleDateString('vi-VN') : null}
+            />
+          </DefinitionRow>
+          <DefinitionRow label={translate('screen.asset_detail.retention_last_access')}>
+            <ValueOrUnknown
+              value={retention.data.lastAccessedAt ? new Date(retention.data.lastAccessedAt).toLocaleString('vi-VN') : null}
+            />
+          </DefinitionRow>
+          {/*
+            * Noi ro he thong CHUA xoa gi. Hien "da toi han" ma khong noi tiep se khien nguoi dung
+            * tuong tep da mat.
+            */}
+          <p style={{ color: retention.data.deletionCandidate ? 'var(--mcp-warning)' : 'var(--mcp-text-secondary)' }}>
+            {retention.data.deletionCandidate
+              ? translate('screen.asset_detail.retention_candidate')
+              : translate('screen.asset_detail.retention_safe')}
+          </p>
+        </Card>
+      ) : null}
 
       <Card title={translate('screen.asset_detail.rights_title')}>
         <p>{rightsLabel}</p>

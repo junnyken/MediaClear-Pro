@@ -175,3 +175,20 @@ describe('P2-MCP-29 — lay ban ket qua ve', () => {
     await app.close();
   });
 });
+
+describe('P2-MCP-33 — tai ve phai ra MOT TEP, khong phai mot tab', () => {
+  it('co content-disposition attachment, ten tep hop ly chu khong phai chuoi ve', async () => {
+    const { app, token, ws, jobId } = await completedJob();
+    const dl = (
+      await app.inject({ method: 'GET', url: `/v1/jobs/${jobId}/output/download-url`, headers: auth(token, ws) })
+    ).json().data;
+    const file = await app.inject({ method: 'GET', url: new URL(dl.url).pathname });
+
+    const disposition = file.headers['content-disposition'];
+    expect(disposition, 'thieu content-disposition => trinh duyet mo tep trong tab').toBeDefined();
+    expect(String(disposition)).toContain('attachment');
+    // Ten tep phai la ten object, KHONG phai chuoi ve dai hang tram ky tu.
+    expect(String(disposition)).toMatch(/filename="out_[0-9a-f]+\.png"/);
+    await app.close();
+  });
+});

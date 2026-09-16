@@ -556,7 +556,19 @@ export function buildServer(options: BuildServerOptions = {}) {
     const contentType = (await ctx.storage.contentTypeOf({ bucket: ticket.payload.bucket, key: ticket.payload.key })) ?? 'application/octet-stream';
     const bytes = Buffer.from(await ctx.storage.getObject({ bucket: ticket.payload.bucket, key: ticket.payload.key }));
     log(request, reply, { operation: 'storage.download' });
-    return reply.header('content-type', contentType).send(bytes);
+    /*
+     * P2-MCP-33: khong co header nay thi trinh duyet MO tep ngay trong tab, va neu nguoi dung
+     * bam luu thi ten tep la CA CHUOI VE da ky - dai hang tram ky tu va vo nghia. Bam tay moi
+     * thay: nut "Tai tep ket qua" chuyen tab sang mot anh thay vi tai ve mot tep.
+     *
+     * Ten lay tu phan cuoi cua khoa object. Khoa do he thong tu sinh (`storageKeyFor`) nen
+     * khong chua gi do nguoi dung dat - khong co duong chen ky tu la vao header.
+     */
+    const filename = ticket.payload.key.split('/').pop() ?? 'mediaclear-download';
+    return reply
+      .header('content-type', contentType)
+      .header('content-disposition', `attachment; filename="${filename}"`)
+      .send(bytes);
   });
 
   app.get('/v1/assets/:assetId/download-url', async (request, reply) => {

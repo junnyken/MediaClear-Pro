@@ -46,6 +46,19 @@ describe('i18n foundation', () => {
   it('gia tri khong xac dinh hien thi "Chua xac dinh", khong hien 0', () => {
     expect(formatDuration('vi', null)).toBe('Chưa xác định');
     expect(formatBytes('vi', null)).toBe('Chưa xác định');
+  });
+
+  /*
+   * Bam tay tren the "Tep ket qua" moi thay: ham nay luon chia cho 1 MB nen mot tep 5421 byte
+   * hien la "0 MB". Nguoi dung co moi ly do de hieu rang tep cua ho rong. Test cu chi kiem ca
+   * `null` nen khong bat duoc.
+   */
+  it('kich thuoc nho KHONG duoc hien la "0 MB"', () => {
+    expect(formatBytes('vi', 5421)).not.toContain('0 MB');
+    expect(formatBytes('vi', 5421)).toBe('5,3 KB');
+    expect(formatBytes('vi', 900)).toBe('900 B');
+    expect(formatBytes('vi', 0)).toBe('0 B');
+    expect(formatBytes('vi', 5 * 1024 * 1024)).toBe('5 MB');
     expect(formatDuration('vi', 61)).toBe('1:01');
   });
 

@@ -863,3 +863,32 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   đọc route, **không phải** vì công cụ báo. Đã sửa trang đó (gom trang + nút "xem thêm"), nhưng **lỗ
   hổng kiến trúc còn nguyên**: chưa có gì buộc hai khai báo khớp nhau.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-048 — Nối ba tính năng đã chạy vào giao diện, và bốn lỗi chỉ bấm tay mới thấy (P2-MCP-33)
+
+- **Context**: xem trước, biên nhận và hạn lưu giữ đều đã chạy thật ở tầng API nhưng **không có đường
+  nào trên giao diện** — route có, test xanh, người dùng không bấm tới được.
+- **Decision**:
+  1. **Xem trước chỉ hiện khi job chưa xong**; xong rồi thì tệp kết quả thật có ích hơn bản proxy.
+     URL đúc khi **bấm**, không phải khi mở trang (URL có hạn ngắn).
+  2. **Biên nhận hiện cả phần chưa đo được** — giấu đi sẽ khiến người dùng tưởng mọi thứ đã được kiểm
+     chứng.
+  3. **Hạn lưu giữ**: khi tệp đã tới hạn, câu chữ phải nói rõ **hệ thống chưa xoá gì**.
+- **Bốn lỗi chỉ lộ ra khi BẤM TAY** (cả bốn lọt qua 528 test, `tsc`, `eslint`):
+  1. **`formatBytes` hiện "0 MB" cho tệp 5421 byte** — hàm luôn chia cho 1 MB nên **mọi** tệp dưới
+     ~50 KB đều là "0 MB". Người dùng nhìn thẻ "Tệp kết quả" và hiểu rằng tệp của họ rỗng. Test duy
+     nhất của hàm chỉ kiểm ca `null`. Sửa thành đổi đơn vị B/KB/MB/GB.
+  2. **Câu giới hạn hiện ra là chuỗi tiếng Việt KHÔNG DẤU** viết thẳng trong mã nguồn và đi thẳng ra
+     màn hình. Đổi thành **khoá i18n**; câu có dấu nằm trong tệp ngôn ngữ.
+  3. **Nút "Tải tệp kết quả" mở ảnh trong tab** thay vì tải — thiếu `Content-Disposition`, và tên tệp
+     khi lưu là **cả chuỗi vé đã ký**. Thêm `attachment; filename="<tên object>"`.
+  4. **Mốc thời gian trang Nhật ký hiện dạng ISO thô**.
+- **Alternatives considered**: (a) chỉ viết test cho giao diện thay vì bấm tay — loại, **cả bốn lỗi
+  trên đều xanh hết mọi lệnh kiểm**; (b) tự chế ~20 nhãn cho loại sự kiện — loại, câu chữ là việc của
+  BA/owner, DEV không tự chế.
+- **Consequences**: ba tính năng nay dùng được thật. **Loại sự kiện trên trang Nhật ký vẫn hiện chuỗi
+  tiếng Anh `snake_case`** — chờ câu chữ được duyệt. Toàn bộ câu chữ mới của `P2-MCP-29/31/33` **chưa
+  được owner duyệt**. Chưa bấm trên màn hình nhỏ, chưa kiểm bằng trình đọc màn hình.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

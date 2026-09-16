@@ -20,9 +20,14 @@ import type { MediaType, Presence, ProvenanceProbe } from '@mediaclear/contracts
 /** Ten bo do, ghi vao ban ghi de ve sau biet ket luan den tu dau. */
 export const METADATA_DETECTOR_ID = 'libvips-metadata-v1';
 
-/** Noi thang gioi han, khong giau trong tai lieu. */
-export const C2PA_LIMITATION_NOTE =
-  'Chua co bo doc C2PA / Content Credentials. Dau vet AI trong tep KHONG duoc kiem tra.';
+/**
+ * KHOA i18n cua cau noi ve gioi han, KHONG phai cau chu.
+ *
+ * Ban dau day la mot chuoi tieng Viet KHONG DAU viet thang trong ma nguon - va no di thang ra
+ * man hinh nguoi dung qua the "Bien nhan xu ly". Bam tay moi thay. Chu thich trong ma nguon cua
+ * repo nay khong dau theo quy uoc, nhung cau chu cho NGUOI DUNG thi phai qua i18n va co dau.
+ */
+export const C2PA_LIMITATION_KEY = 'provenance.limitation.no_c2pa_reader';
 
 /**
  * Do tren byte that. Khong nem loi: tep hong hay dinh dang khong doc duoc thi tra 'unknown',
@@ -32,7 +37,7 @@ export async function probeProvenance(bytes: Uint8Array, mediaType: MediaType): 
   const base = {
     aiProvenancePresence: 'unknown' as Presence,
     detectorId: METADATA_DETECTOR_ID,
-    detectorLimitationNote: C2PA_LIMITATION_NOTE,
+    detectorLimitationNote: C2PA_LIMITATION_KEY,
   };
 
   if (mediaType !== 'image') {
