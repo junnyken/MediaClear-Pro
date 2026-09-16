@@ -256,6 +256,19 @@ Ba điều hệ thống **không bao giờ** nói: không nói xoá/vô hiệu h
 vô hình · không nói dữ liệu nguồn gốc luôn còn sau mọi lần xuất tệp · không dùng cách nói bị cấm làm
 CTA chính. Có test chặn cả ba ở **cả hai** ngôn ngữ.
 
+**Bản English của câu phạm vi hỗ trợ: CHƯA ĐƯỢC DUYỆT (Q-21, D-035).** Prompt owner bị cắt ở
+"identifying ma"; repo giữ đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối thành `marks`.
+Chữ cuối đó là **suy ra**, không phải chữ ký của owner.
+
+| Câu | Trạng thái | Được phép làm gì |
+|---|---|---|
+| Bản tiếng Việt | owner duyệt | dùng bình thường |
+| Bản English | **`unconfirmed`** | dùng tạm; **không** sửa thêm, **không** tuyên bố đã duyệt |
+
+Ràng buộc **hai chiều**, có test chấp hành: chuỗi English bằng bản-suy-ra **khi và chỉ khi** Q-21 còn
+`unconfirmed`. Sửa chuỗi mà quên cập nhật Q-21 ⇒ test đỏ; đóng Q-21 mà chuỗi không đổi ⇒ test đỏ. Khi
+owner gửi bản đầy đủ, hai việc đó buộc phải làm cùng lúc.
+
 ## 18. Ánh xạ khoá dịch
 
 Prompt gợi ý năm khoá theo ngữ nghĩa; repo đã có sẵn ba khoá tương đương nên **dùng lại**, không tạo

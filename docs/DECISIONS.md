@@ -420,3 +420,37 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   thứ hệ thống lưu; API, schema, số route và migration không đổi. Q-21 (chữ cuối bản English của câu
   phạm vi) **vẫn để ngỏ** — Q-22 không đụng tới khoá đó.
 - **Status**: `confirmed` · **Date**: 2026-09-15 · **Owner**: Owner MediaClear Pro
+
+---
+
+# Quyết định ghi nhận trạng thái Q-21 (2026-09-16)
+
+> ID tiếp theo chưa dùng sau khi audit toàn bộ decision log (D-001…D-034) là **D-035**.
+
+## D-035 — Câu English của phạm vi hỗ trợ giữ nguyên trạng thái chưa được duyệt (Q-21)
+
+- **Context**: Bản vá Q-20 dùng bản English của câu phạm vi lấy từ prompt owner, nhưng prompt **bị
+  cắt ở "identifying ma"**. Repo giữ đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối thành
+  `marks`. Chữ đó là **suy ra**, không phải owner duyệt, và phần bị cắt có thể còn dài hơn một chữ.
+  Cho tới lượt này, trạng thái "chưa được duyệt" chỉ tồn tại dưới dạng một dòng chữ trong
+  `OPEN_QUESTIONS.md` — không có gì ngăn việc sửa chuỗi mà quên cập nhật dòng đó, hoặc đóng dòng đó
+  trong khi chuỗi vẫn là bản agent tự hoàn thành.
+- **Decision**:
+  1. **Không viết tiếp phần câu bị cắt.** Giữ nguyên chuỗi English hiện tại, không thêm một ký tự nào.
+  2. **Không đóng Q-21.** Câu hỏi vẫn `unconfirmed` cho tới khi owner gửi bản đầy đủ.
+  3. Dựng **ràng buộc hai chiều có test chấp hành**: chuỗi English bằng bản-suy-ra **khi và chỉ khi**
+     Q-21 còn `unconfirmed`. Sửa chuỗi mà quên cập nhật Q-21 ⇒ đỏ. Đóng Q-21 mà chuỗi không đổi ⇒ đỏ.
+  4. Ghi trạng thái bằng chứng của giao diện English là **`partially_verified`**, không phải
+     `confirmed`: giao diện chưa có nút đổi ngôn ngữ nên bản en không kiểm được bằng mắt.
+  5. Bổ sung hai chốt parity bản dịch: không giá trị nào trong `en.json` còn dấu tiếng Việt; không
+     khoá nào có `vi === en` ngoài danh sách miễn trừ ghi rõ lý do (`app.name` — tên sản phẩm).
+- **Alternatives considered**: (a) tự hoàn thiện câu English cho đủ nghĩa — **loại**, đó là bịa nội
+  dung pháp lý, và prompt owner đã bị cắt tới lần thứ ba; (b) xoá hẳn câu English — **loại**, người
+  dùng English mất thông tin phạm vi, mất nhiều hơn được; (c) chỉ thêm ghi chú vào tài liệu — **loại**,
+  đó đúng là hiện trạng và hiện trạng không chặn được gì; (d) đánh dấu `confirmed` vì "chữ `marks` gần
+  như chắc chắn đúng" — **loại**, "gần như chắc chắn" không phải chữ ký của owner.
+- **Consequences**: Q-21 **vẫn mở** — lượt này đóng *công việc ghi nhận và canh giữ*, không đóng câu
+  hỏi. Khi owner gửi bản English đầy đủ, việc sửa khoá i18n và việc cập nhật Q-21 buộc phải xảy ra
+  **cùng lúc**, nếu không test đỏ. Không đụng tới D-034 (nhãn ô tick Q-22), không đụng văn bản đã ký.
+- **Status**: `confirmed` (đây là quyết định về **cách xử lý** trạng thái chưa rõ, không phải quyết
+  định về nội dung câu chữ) · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

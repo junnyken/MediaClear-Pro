@@ -488,3 +488,111 @@ Không có bug sản phẩm nào trong lượt này — thay đổi giới hạn
   kiểm này.
 - Mọi giới hạn của Phase 1.1 giữ nguyên: chưa có worker, benchmark provider `unknown`,
   **không có đường xoá dữ liệu nào**.
+
+---
+
+## 2026-09-16 (lần 7) — Ghi nhận trạng thái Q-21 (câu English chưa được duyệt)
+
+MINI-SPEC `P1.1-Q21-MCP-22` · quyết định `D-035`. Nền: `4125966` (Q-22 closure).
+
+Lượt này **không sửa một câu chữ nào**. Nó biến trạng thái "bản English chưa được owner duyệt" từ một
+dòng chữ trong tài liệu thành ràng buộc máy kiểm được.
+
+### 1. Bốn lệnh kiểm, chạy RIÊNG từng lệnh
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | `tsc -b --force` 4 package |
+| 2 | `pnpm lint` | `0` | `eslint .` |
+| 3 | `pnpm test` | `0` | **38 tệp / 348 test đạt** (sau Q-22: 37 tệp / 337) |
+| 4 | `pnpm build:web` | `0` | `✓ Compiled successfully` |
+
+`git diff --check`: sạch, mã thoát `0`. Mã thoát ghi ra tệp riêng từng lệnh, không đọc `$?` giữa chuỗi.
+
+### 2. Đối chứng âm — năm phép
+
+Chốt chính của lượt này là **ràng buộc hai chiều**, nên phải chứng minh nó đỏ ở **cả hai** hướng.
+
+| # | Tái tạo lỗi gì | Kết quả |
+|---|---|---|
+| A | Sửa chuỗi English (`marks` → `signs`) nhưng **giữ** Q-21 `unconfirmed` | **2 đỏ** — "owner đã duyệt thì phải đóng Q-21, chưa duyệt thì không được sửa chuỗi" |
+| B | **Đóng** Q-21 thành `confirmed` nhưng chuỗi **không đổi** | **2 đỏ** — "không được tuyên bố owner đã duyệt khi chữ vẫn do agent tự hoàn thành" |
+| C | Viết tiếp phần câu bị cắt (`+ " that are visible in the image or video"`) | **3 đỏ**, trong đó chốt độ dài báo `127 ≠ 88` |
+| D | Chép nguyên bản tiếng Việt sang `en.json` (quên dịch) | **2 đỏ** — rò rỉ dấu tiếng Việt + `vi === en` ngoài miễn trừ |
+| E | Nống trạng thái bằng chứng của giao diện English lên `confirmed` | **1 đỏ** |
+
+Sau mỗi phép, tệp khôi phục từ bản sao lưu và test xanh lại. Không phép nào được xử lý bằng cách nới
+lỏng test.
+
+Phép A và B là cặp đối xứng — đây là thứ khiến chốt này khác với một dòng ghi chú: một dòng ghi chú
+không thể sai, nên cũng không thể cảnh báo.
+
+### 3. Live verification — bấm tay trên trình duyệt thật
+
+Q-21 không đụng mã giao diện, nhưng vẫn kiểm lại để chắc chắn không làm hỏng thứ Q-22 vừa chốt.
+
+| Kiểm gì | 1280×900 | 390×844 |
+|---|---|---|
+| Hộp thoại đủ ba mục | đạt | đạt |
+| Nhãn ô tick = câu được ký | đạt | đạt |
+| Phiên bản tuyên bố lấy từ máy chủ | `v2` | `v2` |
+| Ký | thành công | thành công |
+| Lỗi console | không có | không có |
+| Tràn ngang | không | không |
+
+Số đo thật lấy từ DOM, không phải cảm nhận:
+
+| Phép đo | 1280×900 | 390×844 |
+|---|---|---|
+| `scrollWidth` vs `clientWidth` | `1280 = 1280` | `390 = 390` |
+| Phần tử vượt biên phải | `0` | `0` |
+| Tên gọi của ô tick (trình đọc màn hình) | đúng câu canonical | đúng câu canonical |
+| Số lần câu được ký xuất hiện trong hộp thoại | `1` | `1` |
+| Tiêu đề trong hộp thoại | — | `["Xác nhận quyền sử dụng", "Phạm vi hỗ trợ", "Xác nhận quyền sử dụng"]` |
+| Hộp thoại phải cuộn dọc không | — | không |
+
+Bản **English** vẫn **không** kiểm live được: giao diện chưa có nút đổi ngôn ngữ ⇒ trạng thái bằng
+chứng là `partially_verified`, và nay có test chặn không cho ai ghi thành `confirmed`.
+
+**Hai sự cố hạ tầng gặp giữa lượt kiểm — không phải lỗi sản phẩm, ghi lại để lần sau khỏi mất giờ:**
+
+1. **Workspace mất gói hệ thống giữa phiên.** Chrome đang chạy thì chết, MCP báo `Target closed`.
+   `ldd` trên binary Chrome cho thấy **24 thư viện dùng chung biến mất** (`libnspr4`, `libnss3`,
+   `libglib-2.0`, `libgbm1`, …). `playwright install-deps` không chạy được bằng `sudo` vì module
+   Python nằm trong không gian của user. Vá bằng `apt-get install` trực tiếp — lưu ý trên Ubuntu 24.04
+   tên gói là **`libasound2t64`**, không phải `libasound2` (dùng tên cũ thì cả lệnh hỏng, mã thoát 100).
+2. **Tệp mẫu trong `/tmp` bị xoá giữa lượt.** Bấm tải lên thì ứng dụng trả `MCP_VAL_EMPTY_FILE` và
+   hiện đúng câu tiếng Việt *"Tệp rỗng hoặc tải lên chưa hoàn tất"*. Đây là **hành vi đúng** — cổng
+   kiểm tệp rỗng hoạt động thật; chỉ cần tạo lại tệp mẫu.
+
+### 4. Hồi quy — không đổi gì ở tầng dưới
+
+| Kiểm gì | Kết quả |
+|---|---|
+| `RIGHTS_STATEMENT.version` | `2` — không tạo v3 |
+| Văn bản ký v1/v2 | đóng băng, không đổi một ký tự |
+| Nhãn ô tick (D-034) | không đụng |
+| Số route | `31` — không đổi |
+| Route `DELETE` | không có |
+| Migration | vẫn `0001`, `0002` |
+| Khoá dịch thô | `0` |
+| Parity vi/en | 252/252 |
+| Ký bản v1 (cũ) | **HTTP 403** `MCP_POLICY_RIGHTS_ATTESTATION_STALE` |
+| Bản ghi sau lần ký v1 bị chặn | **không bị ghi đè** — vẫn `att_86276345…`, version 2 |
+| Bản ghi lưu gì | `statementVersion: 2` · `localeShown: "vi"` · `user_self_declared` · `active` |
+
+### 5. Bug thật tìm được trong lượt này
+
+Không có bug sản phẩm. Thứ lượt này tìm ra là một **lỗ hổng quy trình**, không phải lỗi mã: trạng thái
+`unconfirmed` của Q-21 trước đây không có gì canh, nên hai kiểu sai im lặng đều có thể xảy ra mà không
+ai biết (sửa chữ mà giấu · đóng câu hỏi mà chưa ai duyệt). Đối chứng âm A và B chứng minh cả hai kiểu
+sai đó **trước đây không bị chặn** và **bây giờ bị chặn**.
+
+### 6. Giới hạn của lần kiểm tra này
+
+- **Q-21 vẫn mở.** Lượt này đóng *công việc ghi nhận*, không đóng câu hỏi. Chờ owner gửi phần sau
+  "identifying ma".
+- Bản English vĩnh viễn `partially_verified` cho tới khi giao diện có nút đổi ngôn ngữ.
+- Chốt parity "không dấu tiếng Việt trong `en.json`" bắt được lỗi chép nguyên văn, **không** bắt được
+  bản dịch sai nghĩa — việc đó cần người đọc.
+- Runtime vẫn `ephemeral`; giới hạn Phase 1.1 giữ nguyên, **không có đường xoá dữ liệu nào**.

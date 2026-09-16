@@ -1,6 +1,6 @@
 # OPEN_QUESTIONS — MediaClear Pro
 
-Cập nhật: **2026-09-15** (sau bản vá đóng Q-22 của Phase 1.1).
+Cập nhật: **2026-09-16** (sau bản vá ghi nhận trạng thái Q-21 của Phase 1.1).
 
 Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã chốt chuyển xuống mục "Đã giải quyết" và
 **không** còn xuất hiện ở bảng đang mở.
@@ -17,7 +17,7 @@ Quy tắc: một câu hỏi chỉ nằm ở **một** trạng thái. Câu đã c
 | Q-13 | Giới hạn 199 MB / 599 giây / 3840 px đang hiểu là **inclusive** (đúng 199 MB vẫn được nhận). Owner xác nhận cách hiểu này chứ? | MCP-03 | `unconfirmed` | không chặn — contract đã chạy theo cách hiểu inclusive, đổi thì sửa 1 dòng config |
 | Q-14 | Auth provider/IdP cụ thể (session, JWT, OAuth, vendor nào)? | API, tenancy | `unknown` | Phase 1 — owner đã cho phép để ngỏ ở mức implementation decision |
 | Q-15 | "Static mask" đang được map vào `blur`/`brand_overlay` trên một vùng cố định thay vì tạo enum mới. Owner xác nhận cách map này chứ? | vocabulary, provider | `unconfirmed` | không chặn |
-| Q-21 | Bản English của câu phạm vi trong prompt Q-20 **bị cắt ở "identifying ma"**. Đang dùng đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối là "marks". Owner xác nhận chữ cuối và phần sau (nếu còn) chứ? | i18n `policy.visible_identity_scope` (en) | `unconfirmed` | không chặn — sửa một khoá i18n là xong |
+| Q-21 | Bản English của câu phạm vi trong prompt Q-20 **bị cắt ở "identifying ma"**. Đang dùng đúng chữ owner viết ở phần đọc được và hoàn thành chữ cuối là "marks" — chữ cuối là **suy ra**, không phải owner duyệt. Owner xác nhận chữ cuối và phần sau (nếu còn) chứ? | i18n `policy.visible_identity_scope` (en) | `unconfirmed` | không chặn — sửa một khoá i18n là xong. **D-035** (`P1.1-Q21-MCP-22`) đã dựng chốt hai chiều: đổi chuỗi mà quên cập nhật dòng này, hoặc đóng dòng này mà chuỗi không đổi, đều làm test đỏ |
 
 > Q-13 và Q-15 là **cách hiểu** của agent khi áp dụng owner decisions, đã ghi rõ trong `DECISIONS.md`
 > (D-018, D-020) thay vì tự đoán im lặng. Cả hai đều sửa được bằng một thay đổi nhỏ nếu owner muốn khác.
