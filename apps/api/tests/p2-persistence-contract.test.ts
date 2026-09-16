@@ -276,10 +276,10 @@ function contractSuite(label: string, make: () => Promise<PersistencePort>): voi
       await db.audit.append(anAuditEvent('aud_1', at(40)));
       await db.audit.append(anAuditEvent('aud_2', at(41)));
       await db.audit.append(anAuditEvent('aud_3', at(42)));
-      const rows = await db.audit.listByWorkspace(WS, 2);
+      const rows = (await db.audit.listByWorkspace(WS, { limit: 2 })).items;
       expect(rows.map((e) => e.id)).toEqual(['aud_3', 'aud_2']);
       expect(rows[0]?.detail).toEqual({ statementVersion: 2 });
-      expect(await db.audit.listByWorkspace(OTHER_WS)).toEqual([]);
+      expect((await db.audit.listByWorkspace(OTHER_WS)).items).toEqual([]);
     });
   });
 }

@@ -230,6 +230,7 @@
   "screen.usage.entries_title": "Lịch sử ghi nhận",
   "screen.usage.empty": "Chưa có ghi nhận mức dùng nào",
   "screen.activity.empty": "Chưa có hoạt động nào",
+  "screen.activity.load_more": "Xem thêm mục cũ hơn",
   "usage.state.reserved": "Đang giữ",
   "usage.state.released": "Đã hoàn lại",
   "usage.state.committed": "Đã tính",

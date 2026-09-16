@@ -167,8 +167,8 @@ describe('P2-MCP-29 — lay ban ket qua ve', () => {
     const { app, ctx, token, ws, jobId } = await completedJob();
     await app.inject({ method: 'GET', url: `/v1/jobs/${jobId}/output/download-url`, headers: auth(token, ws) });
 
-    const events = await ctx.persistence.audit.listByWorkspace(ws, 50);
-    const issued = events.find((e) => e.eventType === 'output_download_url_issued');
+    const events = await ctx.persistence.audit.listByWorkspace(ws, { limit: 50 });
+    const issued = events.items.find((e) => e.eventType === 'output_download_url_issued');
     expect(issued, 'thieu dau vet phat URL tai ve').toBeDefined();
     expect(issued?.subjectType).toBe('output');
     expect(issued?.subjectId).toMatch(/^out_/);

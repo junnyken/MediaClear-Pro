@@ -827,3 +827,39 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   chốt. Preview **chưa có giới hạn tần suất** dù mỗi lượt tốn CPU thật. Ước tính chỉ dùng được **sau**
   khi job đã tạo, tức sau khi mức dùng đã bị giữ — ước tính trước khi tạo job chưa có đường nào.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-047 — Phân trang nhật ký kiểm toán, và khoá phụ `id` là bắt buộc (P2-MCP-32)
+
+- **Context**: `audit.listByWorkspace` chỉ có `limit` và trả mảng ⇒ nhật ký dài hơn `limit` thì phần
+  còn lại **không có đường nào đọc tới**. Một bản ghi tồn tại để đối chiếu về sau mà không đọc tới
+  được thì không dùng được — và nó hỏng đúng lúc cần nhất: khi có nhiều hoạt động để rà.
+- **Decision**:
+  1. Đổi sang **con trỏ** như các danh sách khác: `listByWorkspace(workspaceId, query?: PageQuery)`
+     trả `Page<AuditEvent>`, **mới nhất trước**.
+  2. **Sắp xếp theo `(occurredAt, id)` giảm dần — khoá phụ `id` là bắt buộc.** Hai sự kiện cùng mốc
+     thời gian mà không có khoá phụ thì thứ tự tuỳ ý và con trỏ sẽ nhảy qua hoặc lặp lại mục. Nhật ký
+     kiểm toán là nơi chuyện này xảy ra thường xuyên (một job hoàn tất ghi nhiều bút toán trong cùng
+     mili-giây).
+  3. **`paginateDesc` tách riêng khỏi `paginate`**: nhét hai chiều vào một hàm bằng một cờ sẽ khiến
+     mỗi lần đọc phải tự hỏi "lần này chiều nào".
+  4. **Con trỏ hỏng ⇒ đọc từ đầu**, không ném lỗi, không trả rỗng. Trả rỗng sẽ bị hiểu là "không có
+     nhật ký nào" — sai nguy hiểm hơn nhiều.
+- **Lỗi tìm ra khi làm**: hai adapter **đã lệch nhau sẵn**. PostgreSQL sắp xếp `occurred_at DESC, id
+  DESC`; in-memory chỉ `b.occurredAt.localeCompare(a.occurredAt)` — **không** khoá phụ. Sắp xếp ổn
+  định của V8 giữ thứ tự chèn nên hai mục cùng mốc ra id **tăng** dần, ngược hẳn PostgreSQL. Bộ test
+  hai-adapter sinh ra để bắt đúng loại này.
+- **Alternatives considered**: (a) tăng `limit` mặc định lên thật lớn — loại, chỉ đẩy vấn đề đi xa
+  hơn; (b) phân trang theo offset — loại, nhật ký luôn có mục mới chèn vào đầu nên offset sẽ trượt;
+  (c) ký con trỏ — hoãn, hiện con trỏ chỉ chứa mốc thời gian và id, không rò dữ liệu workspace khác.
+- **Consequences**: đọc được toàn bộ nhật ký qua nhiều trang. **Chưa có lọc** theo loại sự kiện /
+  người thực hiện / khoảng thời gian — với nhật ký dài, phân trang không thay thế được lọc. Chưa có
+  giao diện xem nhật ký. Con trỏ **không ký** nên người dùng sửa tay được (vô hại, nhưng ghi lại).
+- **Phát hiện kèm theo**: route này đổi `data` từ **mảng** thành `{items, nextCursor}`, và giao diện
+  `activity/page.tsx` đọc nó bằng `apiFetch<AuditRow[]>`. `apiFetch<T>` chỉ là **khẳng định kiểu** —
+  kiểu máy chủ và kiểu giao diện là hai khai báo **rời nhau**, nên `tsc` hai bên đều xanh trong khi
+  trang Hoạt động hỏng **lúc chạy** và hiện rỗng **không báo lỗi gì**. Tôi bắt được vì đi tìm mọi nơi
+  đọc route, **không phải** vì công cụ báo. Đã sửa trang đó (gom trang + nút "xem thêm"), nhưng **lỗ
+  hổng kiến trúc còn nguyên**: chưa có gì buộc hai khai báo khớp nhau.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

@@ -166,7 +166,7 @@ describe('MCP-10 auth & workspace boundary', () => {
       payload: { name: 'x' },
     });
     const audit = await app.inject({ method: 'GET', url: `/v1/workspaces/${ws}/audit-events`, headers: auth(owner, ws) });
-    const types = audit.json().data.map((e: { eventType: string }) => e.eventType);
+    const types = audit.json().data.items.map((e: { eventType: string }) => e.eventType);
     expect(types).toContain('permission_denied');
     expect(types).toContain('workspace_created');
     expect(types).toContain('workspace_member_added');

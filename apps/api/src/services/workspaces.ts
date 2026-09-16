@@ -12,6 +12,7 @@ import {
   type WorkspaceRole,
 } from '@mediaclear/contracts';
 import type { AppContext } from '../app-context.js';
+import type { PageQuery } from '../persistence/types.js';
 import { newId } from '../ids.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
 import { ensurePermission, type Actor } from './access.js';
@@ -125,7 +126,7 @@ export async function addMember(
   return ok(membership);
 }
 
-export async function listAuditEvents(ctx: AppContext, actor: Actor) {
+export async function listAuditEvents(ctx: AppContext, actor: Actor, query?: PageQuery) {
   const allowed = await ensurePermission(ctx, actor, {
     resourceWorkspaceId: actor.workspace.id,
     resourceType: 'audit',
@@ -133,5 +134,5 @@ export async function listAuditEvents(ctx: AppContext, actor: Actor) {
     permission: 'audit.read',
   });
   if (!allowed.ok) return fail(allowed.error);
-  return ok(await ctx.persistence.audit.listByWorkspace(actor.workspace.id));
+  return ok(await ctx.persistence.audit.listByWorkspace(actor.workspace.id, query));
 }

@@ -230,6 +230,7 @@
   "screen.usage.entries_title": "Ledger history",
   "screen.usage.empty": "No usage recorded yet",
   "screen.activity.empty": "No activity yet",
+  "screen.activity.load_more": "Show older entries",
   "usage.state.reserved": "On hold",
   "usage.state.released": "Released",
   "usage.state.committed": "Counted",

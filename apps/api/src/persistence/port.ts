@@ -147,6 +147,17 @@ export interface PersistencePort {
 
   audit: {
     append(event: AuditEvent): Promise<AuditEvent>;
-    listByWorkspace(workspaceId: string, limit?: number): Promise<AuditEvent[]>;
+    /**
+     * P2-MCP-32: phan trang bang con tro, MOI NHAT TRUOC.
+     *
+     * Truoc day chi co `limit` va tra mang: nhat ky dai hon `limit` thi phan con lai KHONG CO
+     * DUONG NAO doc toi. Voi mot ban ghi dung de doi chieu ve sau, "khong doc toi duoc" nghia la
+     * khong dung duoc.
+     *
+     * Sap xep theo `(occurredAt, id)` giam dan. Khoa phu `id` la bat buoc: hai su kien cung moc
+     * thoi gian ma khong co khoa phu thi thu tu khong on dinh, va con tro se nhay qua hoac lap
+     * lai muc khi doc trang sau.
+     */
+    listByWorkspace(workspaceId: string, query?: PageQuery): Promise<Page<AuditEvent>>;
   };
 }

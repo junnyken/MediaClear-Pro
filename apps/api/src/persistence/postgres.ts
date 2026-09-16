@@ -73,10 +73,18 @@ function limitOf(query?: PageQuery): number {
 
 /** Phan trang theo (createdAt, id) - cung quy uoc voi adapter in-memory. */
 function pageOf<T extends { id: string; createdAt: string }>(rows: T[], limit: number): Page<T> {
+  return pageOfBy(rows, limit, (r) => r.createdAt);
+}
+
+/**
+ * P2-MCP-32: cung phep phan trang nhung khoa sap xep do ben goi chon.
+ * Nhat ky kiem toan dung `occurredAt` chu khong phai `createdAt`.
+ */
+function pageOfBy<T extends { id: string }>(rows: T[], limit: number, keyOf: (row: T) => string): Page<T> {
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
   const last = items[items.length - 1];
-  return { items, nextCursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null };
+  return { items, nextCursor: hasMore && last ? encodeCursor(keyOf(last), last.id) : null };
 }
 
 export interface PostgresPersistenceOptions {
@@ -692,13 +700,18 @@ export class PostgresPersistence implements PersistencePort {
       );
       return event;
     },
-    listByWorkspace: async (workspaceId: string, limit = 100): Promise<AuditEvent[]> => {
+    listByWorkspace: async (workspaceId: string, query?: PageQuery): Promise<Page<AuditEvent>> => {
+      const limit = limitOf(query);
+      const after = decodeCursor(query?.cursor);
       const rows = await this.q<AuditRow>(
-        `SELECT * FROM audit_events WHERE workspace_id = $1
-          ORDER BY occurred_at DESC, id DESC LIMIT $2`,
-        [workspaceId, limit],
+        `SELECT * FROM audit_events
+          WHERE workspace_id = $1
+            AND ($2::text IS NULL OR (occurred_at, id) < ($2::timestamptz, $3::text))
+          ORDER BY occurred_at DESC, id DESC
+          LIMIT $4`,
+        [workspaceId, after?.createdAt ?? null, after?.id ?? null, limit + 1],
       );
-      return rows.map(toAudit);
+      return pageOfBy(rows.map(toAudit), limit, (e) => e.occurredAt);
     },
   };
 }

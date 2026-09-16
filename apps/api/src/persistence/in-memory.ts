@@ -63,6 +63,34 @@ function paginate<T extends { id: string; createdAt: string }>(rows: T[], query?
   return { items, nextCursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null };
 }
 
+/**
+ * Phan trang GIAM DAN (moi nhat truoc) - P2-MCP-32.
+ *
+ * Tach rieng khoi `paginate` (tang dan) vi nhat kiem duoc doc nguoc chieu voi moi danh sach khac.
+ * Khoa phu `id` la BAT BUOC: khong co no thi hai muc cung moc thoi gian co thu tu tuy y, va con
+ * tro se nhay qua hoac lap lai muc. Ban PostgreSQL da sap xep `(occurred_at, id)` tu truoc, ban
+ * nay thi KHONG - hai adapter tung lech nhau o dung cho do.
+ */
+function paginateDesc<T extends { id: string }>(
+  rows: T[],
+  keyOf: (row: T) => string,
+  query?: PageQuery,
+): Page<T> {
+  const limit = Math.min(Math.max(query?.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
+  const sorted = [...rows].sort((a, b) =>
+    keyOf(a) === keyOf(b) ? b.id.localeCompare(a.id) : keyOf(b).localeCompare(keyOf(a)),
+  );
+  const after = decodeCursor(query?.cursor);
+  const start = after
+    ? sorted.findIndex((r) => keyOf(r) < after.createdAt || (keyOf(r) === after.createdAt && r.id < after.id))
+    : 0;
+  const from = start < 0 ? sorted.length : start;
+  const items = sorted.slice(from, from + limit);
+  const last = items[items.length - 1];
+  const hasMore = from + limit < sorted.length;
+  return { items, nextCursor: hasMore && last ? encodeCursor(keyOf(last), last.id) : null };
+}
+
 export class InMemoryPersistence implements PersistencePort {
   readonly id = 'in-memory-phase1';
   readonly durability = 'ephemeral' as const;
@@ -324,10 +352,11 @@ export class InMemoryPersistence implements PersistencePort {
       this.auditRows.push(event);
       return event;
     },
-    listByWorkspace: async (workspaceId: string, limit = 100): Promise<AuditEvent[]> =>
-      this.auditRows
-        .filter((e) => e.workspaceId === workspaceId)
-        .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
-        .slice(0, limit),
+    listByWorkspace: async (workspaceId: string, query?: PageQuery): Promise<Page<AuditEvent>> =>
+      paginateDesc(
+        this.auditRows.filter((e) => e.workspaceId === workspaceId),
+        (e) => e.occurredAt,
+        query,
+      ),
   };
 }

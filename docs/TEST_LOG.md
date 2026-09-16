@@ -1777,3 +1777,85 @@ Dòng 10 và 11 là nội dung thật của mục này: preview **chạy thật*
 - Ước tính chỉ dùng được **sau** khi job đã tạo, tức sau khi mức dùng đã bị giữ. Ước tính **trước**
   khi tạo job — lúc người dùng còn quyết định được — chưa có đường nào.
 - Preview chỉ làm được thao tác tất định trên ảnh; video chưa có gì.
+
+---
+
+## 2026-09-16 (lần 20) — Phase 2: phân trang nhật ký kiểm toán
+
+MINI-SPEC `P2-MCP-32` · quyết định `D-047`. Nền: `4a8b443`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **51 tệp · 526 đạt** |
+| 4 | `pnpm build:web` | `0` | |
+
+### 2. Hai adapter đã lệch nhau sẵn — bộ test hai-adapter bắt đúng loại này
+
+PostgreSQL sắp xếp `ORDER BY occurred_at DESC, id DESC`. In-memory chỉ
+`sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))` — **không có** khoá phụ. Với sắp xếp ổn
+định của V8, hai mục cùng mốc giữ thứ tự chèn (id **tăng** dần), còn PostgreSQL trả id **giảm** dần.
+**Hai thứ tự ngược nhau.**
+
+Không quan trọng khi chỉ `slice(0, limit)`, nhưng với con trỏ thì thứ tự không ổn định làm **nhảy qua
+hoặc lặp lại** mục. Nhật ký kiểm toán là nơi các sự kiện trùng mốc xảy ra thường xuyên — một job hoàn
+tất ghi nhiều bút toán trong cùng mili-giây.
+
+**Đối chứng âm đã chạy.** Tạm bỏ khoá phụ `id` rồi chạy lại:
+
+```
+EXIT_KHI_BO_KHOA_PHU=1
+× Phan trang nhat ky — InMemoryPersistence > CUNG MOC THOI GIAN van co thu tu on dinh
+```
+
+Phép thử **có thể đỏ**, nên nó có giá trị. Đã khôi phục ngay sau khi đo.
+
+### 3. Đổi hình dạng response KHÔNG bị typecheck bắt
+
+Route đổi `data` từ **mảng** thành `{items, nextCursor}`. Giao diện `activity/page.tsx` đọc nó bằng
+`apiFetch<AuditRow[]>`.
+
+`apiFetch<T>` chỉ là **khẳng định kiểu** trên JSON nhận về — không ai kiểm. Kiểu máy chủ và kiểu giao
+diện là **hai khai báo rời nhau**, nên `tsc` ở cả hai bên đều **xanh** trong khi trang Hoạt động sẽ
+hỏng **lúc chạy**: `resource.data.length` trên một object là `undefined`, danh sách hiện **rỗng và
+không báo lỗi gì**.
+
+Tôi bắt được vì đi tìm mọi nơi đọc route này, **không phải** vì công cụ báo. Đã sửa trang đó (gom các
+trang đã đọc + nút "Xem thêm mục cũ hơn"), nhưng **lỗ hổng kiến trúc còn nguyên**: chưa có gì buộc
+hai khai báo khớp nhau. Ghi vào `D-047` và phần giới hạn của MINI-SPEC.
+
+### 4. Mười bốn phép thử, chạy trên cả hai adapter
+
+Phép thử chính là **đọc hết mọi trang rồi so tập hợp** — chỉ kiểm "trang đầu có đủ 2 mục" thì một con
+trỏ nhảy cóc vẫn xanh.
+
+| Test | Chặn điều gì |
+|---|---|
+| đi HẾT các trang ra đúng tập hợp | con trỏ nhảy cóc |
+| **cùng mốc thời gian vẫn ổn định** | đúng chỗ hai adapter lệch |
+| đọc lại cùng con trỏ cho cùng kết quả | con trỏ phụ thuộc lần đọc |
+| con trỏ hỏng ⇒ đọc từ đầu | trả rỗng, bị hiểu là không có nhật ký |
+| workspace khác không lọt vào trang nào | rò dữ liệu |
+
+### 5. Kiểm chứng live
+
+```
+da doc 3 trang, 13 su kien
+khong muc nao bi lap: true
+doc mot lan limit=100 duoc 13 su kien · khop tong so phan trang: true
+moi nhat truoc: project_created -> workspace_created
+```
+
+Đi hết ba trang ra **đúng** tập hợp mà một lần đọc `limit=100` cho — không thiếu, không lặp.
+
+### 6. Giới hạn của lần kiểm này
+
+- **Chưa có lọc** theo loại sự kiện / người thực hiện / khoảng thời gian. Với nhật ký dài, phân trang
+  **không thay thế được** lọc.
+- **Chưa có gì buộc kiểu giao diện khớp kiểu máy chủ** — xem mục 3. Đây là lỗ hổng còn mở.
+- Con trỏ **không ký**: lộ mốc thời gian và id, người dùng sửa tay được. Không rò dữ liệu workspace
+  khác vì truy vấn vẫn lọc theo workspace.
+- **Chưa bấm tay trang Hoạt động trên trình duyệt** sau khi sửa.

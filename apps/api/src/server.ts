@@ -461,7 +461,14 @@ export function buildServer(options: BuildServerOptions = {}) {
   app.get('/v1/workspaces/:workspaceId/audit-events', async (request, reply) => {
     const actor = await withActor(request, reply, 'audit.list', param(request, 'workspaceId'));
     if (!actor) return reply;
-    return respond(request, reply, 'audit.list', actor, await listAuditEvents(ctx, actor));
+    const query = request.query as Record<string, string | undefined>;
+    return respond(
+      request,
+      reply,
+      'audit.list',
+      actor,
+      await listAuditEvents(ctx, actor, { cursor: query.cursor ?? null, limit: Number(query.limit ?? 50) }),
+    );
   });
 
   /* ------------------------------------------------------------ projects --- */

@@ -193,7 +193,7 @@ describe('Han cua khoan giu muc dung', () => {
       url: `/v1/workspaces/${workspaceId}/audit-events`,
       headers: auth(token, workspaceId),
     });
-    const types = audit.json().data.map((e: { eventType: string }) => e.eventType);
+    const types = audit.json().data.items.map((e: { eventType: string }) => e.eventType);
     expect(types).toContain('usage_reservation_expired');
     expect(types).toContain('usage_released');
     await app.close();
