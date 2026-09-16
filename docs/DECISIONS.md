@@ -529,3 +529,32 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   **Phiên đăng nhập VẪN mất khi khởi động lại** vì `DevIdentityProvider` giữ phiên trong bộ nhớ —
   đó là Q-14, ngoài phạm vi mục này.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-038 — Object storage S3-compatible, giữ biên upload qua API (P2-MCP-24)
+
+- **Context**: Tệp gốc của người dùng nằm trên đĩa của đúng một máy (`local-fs-phase1`,
+  `production: false`). Mất máy là mất tệp. Owner decision Q-01 đã chốt từ Phase 0: object storage là
+  trừu tượng S3-compatible, đích production đầu tiên là Cloudflare R2.
+- **Decision**:
+  1. Thêm `S3CompatibleStorageAdapter` (R2 / MinIO / S3), tự khai `isProductionAdapter: true`.
+  2. **Giữ biên upload/download qua API bằng ticket HMAC.** Không đổi sang presigned URL tải thẳng ở
+     lượt này: đó là đổi kiến trúc biên, kéo theo CORS và **làm mất điểm kiểm** giới hạn kích thước
+     cùng bất biến I-1 vốn đang nằm gọn một chỗ.
+  3. Thêm `getObject` + `contentTypeOf` vào hợp đồng `ObjectStorageAdapter`. Route download trước đây
+     đọc bằng **đường dẫn tệp** — khái niệm chỉ tồn tại với đĩa local; hợp đồng chung phải là **byte**.
+  4. Tách phần ký ticket ra `upload-ticket.ts` dùng chung. Để nguyên trong adapter local thì adapter
+     thứ hai chỉ còn hai lối, đều tệ: chép đôi logic ký, hoặc kế thừa adapter local.
+  5. **Không tự tạo bucket** ở đường khởi động mặc định. Thiếu bucket ⇒ từ chối khởi động kèm hướng
+     dẫn. Chỉ tạo khi `MEDIACLEAR_S3_CREATE_BUCKET=1`.
+  6. Cấu hình **thiếu một mảnh bắt buộc thì coi như không cấu hình** ⇒ chạy đĩa local. Một cấu hình
+     thiếu một nửa còn nguy hiểm hơn không cấu hình: nó chạy được một lúc rồi hỏng giữa chừng.
+- **Alternatives considered**: (a) presigned URL tải thẳng lên S3 — hoãn, là MINI-SPEC riêng, lý do ở
+  (2); (b) dùng `@aws-sdk` hay tự ký SigV4 — chọn `@aws-sdk/client-s3`: SigV4 tự viết dễ sai ở chỗ
+  khó thấy, và đây là đường đi của **byte người dùng**; (c) bỏ adapter local — loại, dev và test không
+  nên bắt buộc có S3.
+- **Consequences**: byte nằm trên kho object thật, nhiều tiến trình API dùng chung được. Hợp đồng
+  storage rộng thêm hai phương thức. **Chưa kiểm trên R2 thật** — mới MinIO. `deleteObject` vẫn
+  không đường nào gọi, đúng theo quyết định giữ dry-run.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

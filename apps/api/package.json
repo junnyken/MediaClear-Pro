@@ -8,6 +8,8 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1133.0",
+    "@aws-sdk/s3-request-presigner": "^3.1133.0",
     "@mediaclear/contracts": "workspace:*",
     "fastify": "^5.2.0",
     "pg": "^8.23.0"

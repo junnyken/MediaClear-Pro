@@ -172,9 +172,20 @@ export class LocalFsStorageAdapter implements ObjectStorageAdapter {
     await rm(this.pathFor(ref, 'meta'), { force: true });
   }
 
-  /** Doc byte cua object (dung cho download boundary va cho probe). */
+  /** Duong dan that tren dia. CHI adapter local co khai niem nay - khong nam trong hop dong. */
   async objectPath(ref: StorageObjectRef): Promise<string> {
     return this.pathFor(ref, 'object');
+  }
+
+  /**
+   * P2-MCP-24: doc byte. Day moi la be mat CHUNG cho moi adapter - S3/R2 khong co duong dan tep.
+   */
+  async getObject(ref: StorageObjectRef): Promise<Uint8Array> {
+    try {
+      return new Uint8Array(await readFile(this.pathFor(ref, 'object')));
+    } catch {
+      throw new StorageError(apiError(ERROR_CODES.MCP_STORAGE_OBJECT_NOT_FOUND));
+    }
   }
 
   async contentTypeOf(ref: StorageObjectRef): Promise<string | null> {

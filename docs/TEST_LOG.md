@@ -768,3 +768,81 @@ còn nguyên**. Đây là Q-14 (auth provider production), ngoài phạm vi `P2-
 - Phiên đăng nhập vẫn mất khi restart (Q-14).
 - Giới hạn Phase 1.1 giữ nguyên: chưa có worker, benchmark provider `unknown`, chưa có provider AI
   production, **không có đường xoá dữ liệu nào**.
+
+---
+
+## 2026-09-16 (lần 10) — Phase 2: adapter object storage S3-compatible
+
+MINI-SPEC `P2-MCP-24` · quyết định `D-038`. Nền: `6451612`.
+
+### 1. Bốn lệnh kiểm, chạy RIÊNG từng lệnh
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (không hạ tầng) | `0` | **41 tệp · 383 đạt · 4 bỏ qua** |
+| 3b | `pnpm test` (**có** PostgreSQL + MinIO) | `0` | **41 tệp · 418 đạt · 0 bỏ qua** |
+| 4 | `pnpm build:web` | `0` | |
+
+`git diff --check`: sạch. Chênh **35 test** giữa hai lần chạy là phần chạy thật trên hạ tầng:
+22 (PostgreSQL) + 13 (MinIO).
+
+Môi trường: MinIO `quay.io/minio/minio:latest` trong Docker, cổng 59000. Ảnh `minio/minio` trên
+Docker Hub **kéo không được** (exit 7) — phải dùng `quay.io`.
+
+### 2. Bộ hợp đồng storage chạy trên CẢ HAI adapter
+
+13 ca, viết một lần, chạy hai lượt: `LocalFsStorageAdapter` và `S3CompatibleStorageAdapter`. Cùng
+khuôn đã trả công ở `P2-MCP-23`. Ca đáng giá nhất:
+
+> **Bất biến I-1 trên S3**: ghi đè object class `source` bị từ chối, **và** bản gốc phải còn
+> nguyên vẹn (không bị sửa một phần). Trước đây bất biến này chỉ được ép ở đĩa local.
+
+### 3. Lỗi thật lint bắt được
+
+Sau khi chuyển route download từ `objectPath()` + `readFile(path)` sang `getObject()`, import
+`readFile` trong `server.ts` thành thừa. `pnpm lint` báo đỏ, đã bỏ. Nhỏ, nhưng đúng loại rác mà
+việc đổi tầng hay để lại.
+
+### 4. Hai nhánh khởi động — kiểm riêng từng nhánh
+
+| Nhánh | Kết quả |
+|---|---|
+| Bucket không tồn tại, **không** cho tạo | server **từ chối khởi động**, exit `1`, in rõ: `Bucket "…" khong ton tai … dat MEDIACLEAR_S3_CREATE_BUCKET=1 neu muon he thong tu tao` |
+| Có cờ cho phép | `da tao bucket "mediaclear-live"` rồi mới nhận request |
+
+Đây là chủ ý: gõ nhầm tên bucket mà hệ thống tự tạo thì lỗi cấu hình sẽ thành "chạy được", và người
+vận hành phát hiện ra khi đã muộn.
+
+### 5. Live verification — byte có THẬT SỰ nằm trong MinIO không
+
+`/healthz` khai `storage: { id: 's3-compatible-phase2', production: true }` — **lần đầu tiên** adapter
+lưu trữ tự khai là production.
+
+Tải một tệp PNG 240×160 qua **giao diện thật**, rồi đọc **thẳng từ MinIO** (không qua API):
+
+| Phép đo | Giá trị |
+|---|---|
+| Số object trong bucket | `1` |
+| Khoá | `mediaclear-phase1/workspaces/wsp_4813d85c…/projects/prj_4c370186…/assets/ast_5448fd29…/source/src_802aaeda….png` |
+| Kích thước | `44101` byte — khớp tệp gốc |
+| `content-type` | `image/png` |
+| sha256 **lưu kèm object** | `67f50b02c98181351e240d234b45c093e376b6f00bd599700c0c95ea7df590ea` |
+| sha256 **tính lại từ byte thật trong MinIO** | chuỗi y hệt |
+| sha256 tệp gốc (tính **trước** khi tải lên) | chuỗi y hệt |
+
+Tải xuống qua API: HTTP `200`, `image/png`, `44101` byte, sha256 **vẫn khớp**. Vòng tròn khép kín.
+
+### 6. Điều KHÔNG đổi
+
+31 route · không route `DELETE` · không migration mới · biên upload/download vẫn là ticket HMAC qua
+API · văn bản ký v1/v2 · `RIGHTS_STATEMENT.version = 2` · lời khai quyền vẫn sống sót restart.
+
+### 7. Giới hạn của lần kiểm tra này
+
+- **Chưa kiểm trên Cloudflare R2 thật.** Mới MinIO. R2 khác ở `region` và virtual-host style; cần một
+  lượt kiểm riêng khi có khoá R2 — **đừng coi mục này là đã sẵn sàng cho R2**.
+- Byte vẫn **đi qua API**, chưa tải thẳng từ trình duyệt lên S3.
+- Chưa có CDN, chưa có vòng đời object, chưa đo hiệu năng dưới tải.
+- `deleteObject` có trên adapter nhưng **không đường nào gọi** — đúng theo quyết định giữ dry-run.

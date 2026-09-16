@@ -287,3 +287,21 @@ Adapter PostgreSQL (`P2-MCP-23`, D-037) đổi **tầng lưu trữ**, không đ�
 
 Biến môi trường mới: **`MEDIACLEAR_DATABASE_URL`**. Không đặt ⇒ chạy in-memory y như trước. Khi có,
 server chạy migration **trước khi** nhận request đầu tiên và in ra số migration đã áp dụng/bỏ qua.
+
+## 13. P2-MCP-24 — không có thay đổi API
+
+Adapter object storage S3-compatible (`P2-MCP-24`, D-038) đổi **chỗ byte nằm**, không đổi bề mặt API.
+
+| Hạng mục | Trước | Sau |
+|---|---|---|
+| Số route | 31 | 31 |
+| Biên upload/download | ticket HMAC qua API | **giữ nguyên** |
+| `/healthz` → `storage.production` | `false` | `true` **khi** có cấu hình `MEDIACLEAR_S3_*` |
+| Migration | `0001`…`0003` | không thêm bản nào |
+
+Biến môi trường mới: `MEDIACLEAR_S3_ENDPOINT` · `MEDIACLEAR_S3_ACCESS_KEY_ID` ·
+`MEDIACLEAR_S3_SECRET_ACCESS_KEY` · `MEDIACLEAR_S3_BUCKET` · `MEDIACLEAR_S3_REGION` (mặc định `auto`) ·
+`MEDIACLEAR_S3_FORCE_PATH_STYLE` · `MEDIACLEAR_S3_CREATE_BUCKET`.
+
+**Thiếu bất kỳ mảnh bắt buộc nào** (endpoint / khoá / bí mật / bucket) ⇒ chạy đĩa local như cũ.
+**Thiếu bucket trên đích S3** ⇒ server **từ chối khởi động**, không chạy nửa vời.

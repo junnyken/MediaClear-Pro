@@ -16,6 +16,24 @@ export interface ApiConfig {
    * Khong co che do "tu doan": co thi dung PostgreSQL, khong thi dung in-memory.
    */
   databaseUrl: string | null;
+  /**
+   * P2-MCP-24: cau hinh object storage S3-compatible (R2 / MinIO / S3).
+   * KHONG co endpoint => dung adapter dia local y nhu truoc. Khong co che do tu doan.
+   */
+  /**
+   * P2-MCP-24: cau hinh object storage S3-compatible (R2/MinIO/S3). Thieu BAT KY manh bat buoc
+   * nao => dung adapter dia local nhu cu. Khong co che do "tu doan".
+   */
+  s3: {
+    endpoint: string;
+    region: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    bucket: string;
+    forcePathStyle: boolean;
+    /** Chi tao bucket khi duoc cho phep ro rang. Mac dinh TAT. */
+    createBucket: boolean;
+  } | null;
   /** Khoa ky upload ticket. */
   uploadSecret: string;
   uploadSecretProvided: boolean;
@@ -44,6 +62,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     databaseUrl: env.MEDIACLEAR_DATABASE_URL && env.MEDIACLEAR_DATABASE_URL.length > 0
       ? env.MEDIACLEAR_DATABASE_URL
       : null,
+    s3: readS3Config(env),
     uploadSecret: secret.length > 0 ? secret : randomBytes(32).toString('hex'),
     uploadSecretProvided: secret.length > 0,
     // Mac dinh TAT o production: khong bao gio de cua dev auth mo tren that.
@@ -57,5 +76,30 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
       ? env.MEDIACLEAR_INTERNAL_TOKEN
       : null,
     environment,
+  };
+}
+
+/**
+ * P2-MCP-24. Thieu BAT KY manh nao trong bo bat buoc thi tra null - chay dia local.
+ * Khong tu dien mac dinh cho khoa truy cap: mot cau hinh thieu mot nua con nguy hiem hon
+ * la khong cau hinh, vi no chay duoc mot luc roi hong giua chung.
+ */
+function readS3Config(env: NodeJS.ProcessEnv): ApiConfig['s3'] {
+  const endpoint = env.MEDIACLEAR_S3_ENDPOINT ?? '';
+  const accessKeyId = env.MEDIACLEAR_S3_ACCESS_KEY_ID ?? '';
+  const secretAccessKey = env.MEDIACLEAR_S3_SECRET_ACCESS_KEY ?? '';
+  const bucket = env.MEDIACLEAR_S3_BUCKET ?? '';
+  if (endpoint.length === 0 || accessKeyId.length === 0 || secretAccessKey.length === 0 || bucket.length === 0) {
+    return null;
+  }
+  return {
+    endpoint,
+    region: env.MEDIACLEAR_S3_REGION ?? 'auto',
+    accessKeyId,
+    secretAccessKey,
+    bucket,
+    // MinIO can path-style; R2 chap nhan ca hai. Mac dinh bat cho an toan.
+    forcePathStyle: env.MEDIACLEAR_S3_FORCE_PATH_STYLE !== 'false' && env.MEDIACLEAR_S3_FORCE_PATH_STYLE !== '0',
+    createBucket: env.MEDIACLEAR_S3_CREATE_BUCKET === '1',
   };
 }

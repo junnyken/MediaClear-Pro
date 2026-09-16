@@ -5,7 +5,7 @@
  * va truyen xuong service qua tham so => test thay duoc tung manh, va doi
  * in-memory -> PostgreSQL hay local-fs -> R2 khong phai sua domain.
  */
-import { ProviderRegistry, NoopContractProvider } from '@mediaclear/contracts';
+import { ProviderRegistry, NoopContractProvider, type ObjectStorageAdapter } from '@mediaclear/contracts';
 import { loadConfig, type ApiConfig } from './config/env.js';
 import { DevIdentityProvider, type IdentityProvider } from './auth/identity.js';
 import { Pool } from 'pg';
@@ -13,14 +13,25 @@ import { InMemoryPersistence } from './persistence/in-memory.js';
 import { PostgresPersistence } from './persistence/postgres.js';
 import type { PersistencePort } from './persistence/port.js';
 import { LocalFsStorageAdapter } from './storage/local-fs-adapter.js';
+import { S3CompatibleStorageAdapter } from './storage/s3-adapter.js';
+import type { TicketResult, UploadTicketPayload } from './storage/upload-ticket.js';
 import { HeaderMediaProbe } from './media/header-probe.js';
 import type { MediaProbeAdapter } from './media/probe.js';
+
+/**
+ * P2-MCP-24: be mat luu tru ma API that su can. Ngoai hop dong chung `ObjectStorageAdapter`,
+ * bien upload/download con can ky/kiem ticket - ca hai adapter deu co.
+ */
+export type StorageAdapter = ObjectStorageAdapter & {
+  sign(payload: UploadTicketPayload): string;
+  verifyTicket(token: string, use: 'upload' | 'download', nowMs?: number): TicketResult;
+};
 
 export interface AppContext {
   config: ApiConfig;
   persistence: PersistencePort;
   identity: IdentityProvider;
-  storage: LocalFsStorageAdapter;
+  storage: StorageAdapter;
   probe: MediaProbeAdapter;
   providers: ProviderRegistry;
   bucket: string;
@@ -55,12 +66,24 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
   }
   const persistence = overrides.persistence ?? defaultPersistence;
   const bucket = 'mediaclear-phase1';
-  const storage = new LocalFsStorageAdapter({
-    rootDir: config.dataDir,
-    bucket,
-    publicBaseUrl: config.publicBaseUrl,
-    signingSecret: config.uploadSecret,
-  });
+  // Mac dinh KHONG doi: thieu cau hinh S3 thi van ghi ra dia local y nhu truoc.
+  const storage: StorageAdapter = config.s3
+    ? new S3CompatibleStorageAdapter({
+        endpoint: config.s3.endpoint,
+        region: config.s3.region,
+        accessKeyId: config.s3.accessKeyId,
+        secretAccessKey: config.s3.secretAccessKey,
+        bucket: config.s3.bucket,
+        forcePathStyle: config.s3.forcePathStyle,
+        publicBaseUrl: config.publicBaseUrl,
+        signingSecret: config.uploadSecret,
+      })
+    : new LocalFsStorageAdapter({
+        rootDir: config.dataDir,
+        bucket,
+        publicBaseUrl: config.publicBaseUrl,
+        signingSecret: config.uploadSecret,
+      });
   const providers = new ProviderRegistry();
   /*
    * Phase 1 CHI dang ky provider no-op (isProductionProvider = false).

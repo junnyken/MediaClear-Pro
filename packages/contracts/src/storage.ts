@@ -61,6 +61,15 @@ export interface ObjectStorageAdapter {
   /** Chi dung cho output/preview. Goi voi class 'source' da ton tai => loi. */
   putObject(ref: StorageObjectRef, body: Uint8Array, contentType: string): Promise<void>;
   deleteObject(ref: StorageObjectRef): Promise<void>;
+  /**
+   * P2-MCP-24: doc byte cua object.
+   *
+   * Truoc day bien download doc bang duong dan TEP (`objectPath`) - dieu do chi co nghia voi
+   * adapter local. Voi S3/R2 khong ton tai duong dan nao, nen be mat chung phai la BYTE.
+   */
+  getObject(ref: StorageObjectRef): Promise<Uint8Array>;
+  /** Content type da luu kem object; null neu khong biet (khong duoc doan). */
+  contentTypeOf(ref: StorageObjectRef): Promise<string | null>;
 }
 
 /** Khoa luu tru co cau truc: <workspaceId>/<class>/<id><ext>. */

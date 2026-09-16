@@ -8,7 +8,6 @@
  *
  * Client-agnostic: khong co route rieng cho web hay Chrome Extension.
  */
-import { readFile } from 'node:fs/promises';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import {
   API_ROUTES,
@@ -25,6 +24,7 @@ import {
 } from '@mediaclear/contracts';
 import { join } from 'node:path';
 import { runMigrations } from './db/migrate.js';
+import { S3CompatibleStorageAdapter } from './storage/s3-adapter.js';
 import { createAppContext, type AppContext } from './app-context.js';
 import { RequestLog } from './observability/request-log.js';
 import { resolveActor, resolveUser, type Actor } from './services/access.js';
@@ -453,9 +453,10 @@ export function buildServer(options: BuildServerOptions = {}) {
     if (!head.exists) {
       return sendError(request, reply, apiError(ERROR_CODES.MCP_STORAGE_OBJECT_NOT_FOUND), 'storage.download');
     }
-    const path = await ctx.storage.objectPath({ bucket: ticket.payload.bucket, key: ticket.payload.key });
+    // P2-MCP-24: doc BYTE qua hop dong chung. Truoc day doc bang duong dan tep, nen bien
+    // download chi chay duoc voi adapter local.
     const contentType = (await ctx.storage.contentTypeOf({ bucket: ticket.payload.bucket, key: ticket.payload.key })) ?? 'application/octet-stream';
-    const bytes = await readFile(path);
+    const bytes = Buffer.from(await ctx.storage.getObject({ bucket: ticket.payload.bucket, key: ticket.payload.key }));
     log(request, reply, { operation: 'storage.download' });
     return reply.header('content-type', contentType).send(bytes);
   });
@@ -664,6 +665,24 @@ if (isEntrypoint) {
             : ''),
       );
     }
+    // P2-MCP-24: bucket phai san sang TRUOC khi nhan request. Thieu bucket ma van khoi dong
+    // thi loi se no ra o giua luong upload cua nguoi dung - muon va kho hieu hon nhieu.
+    if (ctx.config.s3 && ctx.storage instanceof S3CompatibleStorageAdapter) {
+      const s3 = ctx.storage;
+      if (!(await s3.bucketExists())) {
+        if (!ctx.config.s3.createBucket) {
+          throw new Error(
+            `Bucket "${ctx.config.s3.bucket}" khong ton tai hoac khong doc duoc tren ` +
+              `${ctx.config.s3.endpoint}. Tao san bucket, hoac dat MEDIACLEAR_S3_CREATE_BUCKET=1 ` +
+              'neu muon he thong tu tao (chi nen dung o dev).',
+          );
+        }
+        await s3.createBucket();
+        console.log(`[mediaclear-api] da tao bucket "${ctx.config.s3.bucket}"`);
+      }
+      console.log(`[mediaclear-api] object storage: ${ctx.storage.id} · bucket ${ctx.config.s3.bucket}`);
+    }
+
     await app.listen({ port, host: '0.0.0.0' });
     console.log(
       `[mediaclear-api] ${PHASE} on :${port} · luu tru ${ctx.persistence.id} (${ctx.persistence.durability})`,

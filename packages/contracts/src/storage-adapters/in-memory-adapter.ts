@@ -62,4 +62,15 @@ export class InMemoryStorageAdapter implements ObjectStorageAdapter {
   async deleteObject(ref: StorageObjectRef): Promise<void> {
     this.objects.delete(InMemoryStorageAdapter.path(ref));
   }
+
+  /** P2-MCP-24: doc byte - be mat chung cho moi adapter. */
+  async getObject(ref: StorageObjectRef): Promise<Uint8Array> {
+    const found = this.objects.get(InMemoryStorageAdapter.path(ref));
+    if (!found) throw new Error(ERROR_CODES.MCP_STORAGE_OBJECT_NOT_FOUND);
+    return found.body;
+  }
+
+  async contentTypeOf(ref: StorageObjectRef): Promise<string | null> {
+    return this.objects.get(InMemoryStorageAdapter.path(ref))?.contentType ?? null;
+  }
 }
