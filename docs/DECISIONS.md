@@ -650,3 +650,40 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   nhưng có bản dựng sẵn cho linux-x64/glibc nên **đã kiểm build Docker thành công**. Ảnh kết quả có
   **4 kênh** (thêm alpha) do phép ghép, trong khi ảnh gốc 3 kênh — khác biệt có thật, đã ghi lại.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-042 — Hàng đợi job trên PostgreSQL bằng `FOR UPDATE SKIP LOCKED` (P2-MCP-28)
+
+- **Context**: `P2-MCP-27` làm job chạy được tới `completed`, nhưng **chỉ khi có người gọi tay** route
+  nội bộ. Job do người dùng tạo nằm `queued` mãi mãi. Với người dùng thật thì đó là sản phẩm không
+  chạy: tải tệp lên, bấm xử lý, rồi không có gì xảy ra.
+- **Decision**:
+  1. **Hàng đợi nằm trên PostgreSQL**, không thêm Redis. Cơ sở dữ liệu đã có sẵn và đã bền vững
+     (D-038); Vibe Host **không có** Redis. Thêm một hạ tầng nữa chỉ để xếp hàng là thêm một thứ có
+     thể chết riêng, phải sao lưu riêng, phải giải thích cho người vận hành riêng.
+  2. Nhận job bằng **`FOR UPDATE SKIP LOCKED` trong MỘT câu lệnh** `UPDATE … WHERE id = (SELECT …)`.
+     Tách làm hai câu (`SELECT` rồi `UPDATE`) để lại một khe hở mà worker khác chen vào được.
+     **`SKIP LOCKED` chứ không phải chờ khoá**: nếu chờ, worker thứ hai vẫn nhận đúng job đó sau khi
+     khoá được nhả — tức là vẫn xử lý hai lần, chỉ chậm hơn.
+  3. **Worker không chép lại logic xử lý.** `run-job.ts` tách thành `runJob` (tìm + chuyển trạng thái
+     + uỷ quyền, cho route nội bộ) và `executeClaimedJob` (làm việc trên job **đã** `processing`, cho
+     cả worker lẫn `runJob`). Hai bản logic sẽ trôi khác nhau, và chỗ trôi sẽ là chỗ tính mức dùng.
+  4. **Tiến trình riêng**, vai thứ ba của cùng một ảnh Docker (`MEDIACLEAR_ROLE=worker`, theo D-040).
+     Job nặng không được làm chậm đường phục vụ người dùng; tắt worker để bảo trì không được làm sập
+     API. Worker **không mở cổng mạng** và **không chạy migration** (migration thuộc về API — hai tiến
+     trình cùng chạy migration lúc khởi động sẽ đâm vào nhau).
+  5. **Một job hỏng không được làm chết worker.** Bắt lỗi trong vòng lặp, nghỉ một nhịp rồi đi tiếp —
+     nếu không, một lỗi lặp lại sẽ thành vòng quay chết đốt CPU và làm đầy nhật ký.
+  6. Worker **cảnh báo to** khi lưu trữ không bền vững: chạy tiến trình riêng với in-memory nghĩa là
+     nó nhìn vào một kho rỗng khác hẳn của API và **không bao giờ thấy job nào**, trong im lặng.
+- **Alternatives considered**: (a) Redis / BullMQ — loại, xem (1); (b) `LISTEN/NOTIFY` thay cho polling —
+  hoãn, tiết kiệm được vài giây độ trễ nhưng mất job nếu worker đang ngắt kết nối lúc có `NOTIFY`, nên
+  vẫn phải có polling làm nền; (c) chạy worker trong cùng tiến trình API bằng `setInterval` — loại, một
+  job nặng sẽ làm chậm mọi request; (d) `SELECT … FOR UPDATE` (chờ khoá) — loại, vẫn double-charge.
+- **Consequences**: job **tự chạy** không cần gọi tay — lần đầu tiên. Chưa có **retry có backoff**,
+  chưa có cơ chế **cứu job kẹt ở `processing`** khi worker chết giữa chừng, chưa có ưu tiên (FIFO
+  thuần, một workspace tải 1000 tệp sẽ chặn người phía sau). `SKIP LOCKED` chỉ chứng minh được trên
+  PostgreSQL thật — adapter in-memory không thể chứng minh nó đúng, nên hai test then chốt bỏ qua khi
+  không có `TEST_DATABASE_URL`.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

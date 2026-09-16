@@ -35,14 +35,20 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Route vận hành nội bộ tắt mặc định | `server.ts` | không khoá hoặc sai khoá đều trả 404 |
 | Index ID của MINI-SPEC | `docs/MINI_SPEC_INDEX.md` | 9 test chặn trùng ID, chặn tham chiếu mồ côi |
 | Câu chữ owner duyệt + phiên bản 2 của nội dung xác nhận | `policy.ts`, `packages/i18n/` | 11 test câu chữ; live: lời khai v1 bị từ chối là `stale` |
+| Worker tự nhận và chạy job (PostgreSQL `FOR UPDATE SKIP LOCKED`) | `worker/job-worker.ts`, `persistence/postgres.ts` | 8 test, trong đó 3 worker song song trên PG thật chỉ một bên nhận được; live: route nội bộ TẮT, job tạo qua API nằm `queued` 5 s rồi tự tới `completed` trong 1 s sau khi bật worker |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
-Auth provider production · Queue/worker · Preview render ·
+Auth provider production · Preview render ·
 Ước tính chi phí · Biên nhận xử lý · Phân trang audit · Resumable upload · OpenAPI ·
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
 **giao diện hiển thị hạn lưu giữ của tệp**.
 
+> **Đã ra khỏi mục này (P2-MCP-28, D-042): worker tự chạy job.** Hàng đợi nằm trên PostgreSQL
+> (`FOR UPDATE SKIP LOCKED`), worker là vai thứ ba của cùng ảnh Docker (`MEDIACLEAR_ROLE=worker`).
+> Job tạo qua API **tự chạy**, không còn phải gọi route nội bộ. **Chưa có** retry có backoff và
+> **chưa có** cơ chế cứu job kẹt ở `processing` khi worker chết giữa chừng.
+>
 > **Đã ra khỏi mục này (P2-MCP-27, D-041): xử lý ảnh THẬT.** Job nay đi tới `completed` với kết quả
 > thật — `crop`/`blur`/`brand_overlay` trên ảnh, chạy bằng libvips, **không dùng AI**. Video và các
 > thao tác cần AI vẫn chưa làm được.
@@ -58,7 +64,7 @@ Auth provider production · Queue/worker · Preview render ·
 ## 3. Chưa có bằng chứng (`unknown`)
 
 Provider AI nào đủ chất lượng · Giá thật mỗi ảnh/mỗi phút video · Tỷ lệ fail/retry thực tế · Thư viện
-đọc C2PA · Queue runtime (Q-02) · Auth provider cụ thể (Q-14) · Bộ media mẫu cho benchmark (Q-07).
+đọc C2PA · Bộ media mẫu cho benchmark (Q-07).
 
 ## 4. Chưa xác minh (`unconfirmed`)
 

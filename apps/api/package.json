@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "worker": "node dist/worker/main.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1133.0",

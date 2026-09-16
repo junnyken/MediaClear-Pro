@@ -101,6 +101,15 @@ export interface PersistencePort {
     findById(workspaceId: string, id: string): Promise<ProcessingJob | null>;
     findByIdempotencyKey(workspaceId: string, key: string): Promise<ProcessingJob | null>;
     update(job: ProcessingJob): Promise<ProcessingJob>;
+    /**
+     * P2-MCP-28 (owner decision Q-02): NHAN mot job dang `queued` va chuyen sang `processing`
+     * trong MOT thao tac nguyen tu, tra ve job da nhan. null = khong con gi de lam.
+     *
+     * Phai nguyen tu that su: hai worker chay song song KHONG duoc cung nhan mot job, neu khong
+     * mot tep se bi xu ly hai lan va muc dung bi tinh hai lan. Ban PostgreSQL dung
+     * `FOR UPDATE SKIP LOCKED` - khoa dong da nhan va BO QUA no thay vi doi.
+     */
+    claimQueued(now: string): Promise<ProcessingJob | null>;
   };
 
   /** P2-MCP-27: ban ket qua. Moi job dung mot ban - chay lai la job MOI (D-005). */

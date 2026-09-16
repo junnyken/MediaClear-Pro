@@ -506,6 +506,28 @@ export class PostgresPersistence implements PersistencePort {
       if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
       return toJob(rows[0]);
     },
+    claimQueued: async (now: string): Promise<ProcessingJob | null> => {
+      /*
+       * `FOR UPDATE SKIP LOCKED` la diem mau chot: dong nao worker khac dang giu thi BO QUA,
+       * khong xep hang doi. Neu doi, hai worker se lan luot cung nhan mot job va tep bi xu ly
+       * hai lan. `SKIP LOCKED` bien hang doi thanh thu ma nhieu worker chia nhau duoc that su.
+       *
+       * Ca viec chon va viec doi trang thai nam trong MOT cau lenh => khong co khe ho o giua.
+       */
+      const rows = await this.q<JobRow>(
+        `UPDATE processing_jobs SET state = 'processing', attempt_count = attempt_count + 1, updated_at = $1
+          WHERE id = (
+            SELECT id FROM processing_jobs
+             WHERE state = 'queued'
+             ORDER BY created_at ASC
+             LIMIT 1
+             FOR UPDATE SKIP LOCKED
+          )
+          RETURNING *`,
+        [now],
+      );
+      return rows[0] ? toJob(rows[0]) : null;
+    },
   };
 
   /* ------------------------------------------------------------------ usage */

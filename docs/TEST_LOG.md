@@ -1330,3 +1330,131 @@ mượt. Đó là lý do test đơn vị dùng ảnh **có sọc**, nơi blur l�
 - `brand_overlay` phủ **mảng màu đặc**, chưa nhận logo thay thế.
 - **Chưa có worker tự chạy** — hiện phải gọi route nội bộ (`P2-MCP-28`).
 - Chưa đo hiệu năng trên ảnh lớn, chưa giới hạn kích thước đầu vào cho xử lý.
+
+---
+
+## 2026-09-16 (lần 16) — Phase 2: worker tự chạy job trên PostgreSQL
+
+MINI-SPEC `P2-MCP-28` · quyết định `D-042`. Nền: `170b244`.
+
+### 1. Bốn lệnh kiểm
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | |
+| 2 | `pnpm lint` | `0` | |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | **47 tệp · 478 đạt · 0 bỏ qua** |
+| 4 | `pnpm build:web` | `0` | |
+
+Mỗi lệnh chạy **riêng một lượt**, mã thoát ghi ra tệp riêng — không đo `$?` giữa chuỗi lệnh.
+
+**Một lượt đo hỏng, ghi lại vì nó xanh giả.** Lần đầu tôi chạy `pnpm -r typecheck` và nhận `0`. Nhưng
+log nói thẳng: `None of the selected packages has a "typecheck" script`. Script `typecheck` nằm ở
+**gói gốc**, mà `-r` thì **bỏ qua gói gốc**. Mã thoát `0` ở đây nghĩa là *không có gì để chạy*, không
+phải *đã chạy và đạt*. Phải chạy `pnpm typecheck` (không `-r`) mới là phép đo thật.
+
+### 2. Hạ tầng phải dựng lại từ đầu
+
+Docker trong workspace **mất sạch ảnh lẫn container** giữa hai phiên (`docker ps -a` rỗng, `docker
+images` rỗng, daemon vẫn sống 29.1.3). Phải kéo lại `postgres:16` và `quay.io/minio/minio` rồi tạo lại
+bucket. Nghĩa là **mọi hiện vật của lần 15 đã biến mất** — nên lần này kiểm chứng live được chạy lại
+từ đầu, không trích dẫn lại số cũ.
+
+PostgreSQL: `16.15 (Debian 16.15-1.pgdg13+2)` · MinIO: health `200`.
+
+### 3. 8 test của worker — chạy thật, không ca nào bị bỏ qua
+
+| Test | Chặn điều gì |
+|---|---|
+| worker tự nhận job `queued` và chạy xong | vẫn phải gọi tay |
+| hết việc thì trả `null`, không quay vòng | đốt CPU khi rảnh |
+| nhận rồi thì job không còn ở hàng đợi | nhận hai lần |
+| **hai worker song song, chỉ một bên nhận được** | double-charge |
+| `stop()` dừng **sau khi** xong job hiện tại | bỏ job giữa chừng |
+| một job hỏng **không** làm chết worker | một lỗi giết cả hàng đợi |
+| **PG thật**: worker chạy xong job | chỉ đúng trên in-memory |
+| **PG thật**: ba worker song song, đúng một bên nhận, mức dùng tính đúng một lần | `SKIP LOCKED` không nguyên tử |
+
+Hai ca cuối chạy trên PostgreSQL **thật** — adapter in-memory **không thể** chứng minh `FOR UPDATE
+SKIP LOCKED` đúng, vì đó là hành vi của máy chủ cơ sở dữ liệu chứ không phải của mã ứng dụng.
+
+### 4. Kiểm chứng live — job tạo thuần qua API, KHÔNG gọi tay
+
+`/healthz` lúc chạy: `persistence: postgres-phase2 (durable)` · `storage: s3-compatible-phase2` ·
+**`internalApiEnabled: false`**. Dòng cuối quan trọng nhất: route nội bộ **tắt**, nên **không tồn tại
+đường nào** để gọi tay job này.
+
+Luồng đầy đủ qua HTTP: đăng ký → workspace → project → upload intent → **PUT 1090 byte thật** →
+validate → lời khai quyền v2 → tạo job `blur` với vùng `(0.1, 0.1, 0.3×0.3)`.
+
+```
+>>> job vua tao: job_b01232670d1f473194d45c6efe382031|queued
+```
+
+**Đối chứng âm trước.** Chưa bật worker, đợi 5 giây, hỏi thẳng cơ sở dữ liệu:
+
+```
+job_b01232670d1f473194d45c6efe382031|queued   ← sau 5s vẫn queued
+```
+
+Không có tiến trình worker nào. Job **không tự chạy** — đúng như mong đợi, và đây là điều làm cho
+bước sau có nghĩa.
+
+**Bật worker (tiến trình riêng):**
+
+```
+[mediaclear-worker] bat dau · luu tru postgres-phase2 (durable) · kho s3-compatible-phase2
+  sau 1s: completed
+[worker] job_b01232670d1f473194d45c6efe382031 -> completed
+```
+
+### 5. Đọc thẳng từ PostgreSQL và MinIO, không qua API
+
+| Phép đo | Kết quả |
+|---|---|
+| Job | `completed`, `output_asset_id = out_4bf05ed7…` |
+| Bản ghi `output_assets` | **1** dòng, `validated = t`, 5421 byte |
+| **Mức dùng** | đúng **1** `reserve` + đúng **1** `commit` (`image_unit`, số lượng 1) — **không tính hai lần** |
+| Object trong MinIO | 2: `…/source/src_a8a433f4….png` 1090 byte và `…/output/out_4bf05ed7….png` 5421 byte |
+| Checksum ghi trong DB | `f07785d4…` — **khớp byte thật đọc từ MinIO** |
+| **Tệp gốc** | sha256 `b859ac86…` — **y hệt lúc tải lên**, không bị đụng (bất biến I-1) |
+| **Vùng được chọn làm mờ** | lệch **78.39**/kênh — blur có tác dụng thật |
+| **Vùng không được chọn** | lệch **0.00**/kênh — **giống hệt từng byte** |
+
+Ảnh mẫu dùng **sọc 4px** chứ không phải mảng màu mượt: trên ảnh mượt, blur gần như không đổi gì và
+phép kiểm "blur có tác dụng không" sẽ mất nghĩa (bài học của lần 15). Số `78.39` này so được với
+`0.90` của lần trước chính là vì mẫu đã đổi.
+
+Vẫn giữ khác biệt đã ghi ở lần 15: ảnh kết quả **4 kênh** (thêm alpha), ảnh gốc 3 kênh. Phải chuẩn hoá
+về RGB rồi mới so byte, nếu không sẽ kết luận nhầm là vùng giữ nguyên cũng bị đổi.
+
+### 6. Một phép đo sai của tôi — suýt báo nhầm thành lỗi sản phẩm
+
+Kiểm `SIGTERM`, lần đầu tôi thấy worker chết **ngay lập tức** và **không in dòng dừng êm** nào. Tôi đã
+định ghi đây là lỗi.
+
+Nguyên nhân thật: tôi khởi động worker bằng `cd … && source … && nohup node … &`, rồi lấy `$!`. `$!`
+là pid của **shell con** chạy cả chuỗi lệnh, **không phải** pid của `node`. Tôi bắn `SIGTERM` vào
+shell bọc ngoài; `node` thành mồ côi và **vẫn sống**. Bằng chứng: `ps` cho thấy **hai** worker mồ côi
+còn chạy từ các lần đo hỏng.
+
+Lấy đúng pid của `node` rồi bắn lại:
+
+```
+node_pid THAT = 42568
+[mediaclear-worker] nhan SIGTERM, dung sau khi xong job hien tai
+[mediaclear-worker] da dung · {"cycles":2,"claimed":0,"completed":0,"failed":0}
+>> da thoat sach
+```
+
+Dừng êm **chạy đúng**. Bài học lặp lại y như cũ: **`$!` và `$?` trong một chuỗi lệnh ghép thường không
+trỏ vào thứ mình tưởng**. Phải lấy pid từ `ps` theo đúng dòng lệnh, đừng tin `$!` của một chuỗi `&&`.
+
+### 7. Giới hạn của lần kiểm này
+
+- **Chưa có retry.** `attempt_count` có tăng, nhưng job hỏng đi thẳng tới `failed`/`blocked` và nằm đó.
+- **Chưa cứu được job kẹt.** Worker chết **giữa lúc** đang xử lý thì job nằm `processing` vĩnh viễn —
+  chưa có thời gian chờ để đòi lại.
+- **Chưa đo tải.** Ba worker song song là test tính đúng, **không phải** test hiệu năng.
+- **Chưa chạy trên Vibe Host.** Lần này chỉ chạy local; triển khai worker lên online là bước kế tiếp.
+- Hàng đợi **FIFO thuần**, chưa có ưu tiên.

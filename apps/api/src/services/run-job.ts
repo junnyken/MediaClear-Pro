@@ -49,6 +49,11 @@ function pickOperation(
   return job.request.operations.find((op) => provider.supports(op, job.mediaType)) ?? null;
 }
 
+/**
+ * Chay mot job theo id: tu tim, tu chuyen sang `processing`, roi thuc hien.
+ * Dung cho duong goi TAY (route noi bo). Worker khong di duong nay - no NHAN job truoc
+ * bang `claimQueued` roi goi thang `executeClaimedJob`.
+ */
 export async function runJob(ctx: AppContext, workspaceId: string, jobId: string): Promise<RunJobOutcome> {
   const job = await ctx.persistence.jobs.findById(workspaceId, jobId);
   if (!job) {
@@ -63,6 +68,26 @@ export async function runJob(ctx: AppContext, workspaceId: string, jobId: string
       error: apiError(ERROR_CODES.MCP_STATE_INVALID_TRANSITION, { from: job.state, to: 'processing' }),
     };
   }
+  const claimed: ProcessingJob = {
+    ...job,
+    state: 'processing',
+    attemptCount: job.attemptCount + 1,
+    updatedAt: ctx.now().toISOString(),
+  };
+  await ctx.persistence.jobs.update(claimed);
+  return executeClaimedJob(ctx, claimed);
+}
+
+/**
+ * Thuc hien mot job DA o trang thai `processing`.
+ *
+ * Tach ra de worker (P2-MCP-28) va route noi bo dung CHUNG dung mot ban logic. Neu de worker
+ * tu viet lai, hai ban se troi khac nhau - va cho troi se la cho tinh muc dung hoac cho kiem
+ * ket qua, tuc la cho dat nhat de sai.
+ */
+export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Promise<RunJobOutcome> {
+  const workspaceId = job.workspaceId;
+  const jobId = job.id;
 
   const provider = ctx.providers.get('deterministic-image');
   if (!(provider instanceof DeterministicImageProvider)) {
@@ -77,8 +102,7 @@ export async function runJob(ctx: AppContext, workspaceId: string, jobId: string
   }
 
   const now = () => ctx.now().toISOString();
-  let current: ProcessingJob = { ...job, state: 'processing', updatedAt: now(), attemptCount: job.attemptCount + 1 };
-  await ctx.persistence.jobs.update(current);
+  let current: ProcessingJob = job;
 
   try {
     const source = await ctx.persistence.sourceFiles.findById(workspaceId, job.sourceFileId);

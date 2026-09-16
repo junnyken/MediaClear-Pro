@@ -239,6 +239,21 @@ export class InMemoryPersistence implements PersistencePort {
       this.jobRows[index] = job;
       return job;
     },
+    claimQueued: async (now: string): Promise<ProcessingJob | null> => {
+      // Khong co `await` giua luc tim va luc doi trang thai => khong co cho nao de hai lenh
+      // xen vao nhau. Trong mot tien trinh Node, day la nguyen tu that su.
+      const index = this.jobRows.findIndex((j) => j.state === 'queued');
+      const row = this.jobRows[index];
+      if (!row) return null;
+      const claimed: ProcessingJob = {
+        ...row,
+        state: 'processing',
+        attemptCount: row.attemptCount + 1,
+        updatedAt: now,
+      };
+      this.jobRows[index] = claimed;
+      return claimed;
+    },
   };
 
   readonly outputs = {
