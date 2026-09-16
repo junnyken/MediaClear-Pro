@@ -726,3 +726,36 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   i18n mới là **tôi viết, chưa được owner duyệt** — cần rà lại như đã làm với Q-20/Q-22. Dấu vết đếm
   URL đã phát, nên một URL không ai dùng vẫn được tính.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-044 — `unknown` không bao giờ được thành `verified` trong đánh giá bảo toàn (sửa lỗi Phase 0)
+
+- **Context**: Tìm ra khi chuẩn bị làm biên nhận (`P2-MCP-30`). `evaluatePreservation()` của MCP-05
+  gộp `'unknown'` chung với `'absent'` ở điều kiện
+  `provenanceHeld = before.ai !== 'present' || after.ai === 'present'`. **Đo thật cho ra:**
+
+  ```
+  ai=unknown cả hai phía        -> {"result":"preserved","evidenceStatus":"verified"}
+  ai trước=unknown, sau=absent  -> {"result":"preserved","evidenceStatus":"verified"}
+  ```
+
+  Dòng thứ hai là nặng nhất: bộ đo **đã thấy dấu vết AI biến mất** sau khi xử lý, nhưng vì trước đó
+  không đọc được nên hệ thống vẫn đóng dấu *"đã kiểm chứng: giữ nguyên"*. 8 test cũ **không ca nào**
+  chạm tới `'unknown'`.
+- **Vì sao nó sắp gây hậu quả thật**: hệ thống **không đọc được C2PA** (Q-12 còn mở), nên bộ đo thật
+  **luôn** trả `aiProvenancePresence: 'unknown'`. Nối thẳng vào hàm này thì **mọi biên nhận** sẽ mang
+  một lời khai "đã kiểm chứng" không có cơ sở nào — đúng điều tệ nhất sản phẩm này có thể làm.
+- **Decision**: `'unknown'` ở **bất kỳ phía nào** của `aiProvenancePresence` ⇒ `result: 'unknown'`,
+  `evidenceStatus: 'unknown'`. Ý định gốc *"không có gì thì không mất gì"* **được giữ**, nhưng phải
+  **đo được** là không có (`'absent'`) mới kết luận được. Phát hiện thật vẫn phải nói: metadata mất
+  vẫn báo `'lost'` kể cả khi dấu vết AI không đo được.
+- **Alternatives considered**: (a) để nguyên và mô tả giới hạn trong tài liệu — loại, người dùng đọc
+  biên nhận chứ không đọc tài liệu; (b) ép bộ đo trả `'absent'` khi không có bộ đọc C2PA — loại, đó là
+  bịa ra một phép đo chưa từng chạy; (c) bỏ hẳn trường dấu vết AI khỏi biên nhận — loại, im lặng còn
+  khó hiểu hơn nói "chưa đo được".
+- **Consequences**: đây là sửa **logic hợp đồng Phase 0 đã ký**, owner duyệt ngày 2026-09-16. Thêm 5
+  test cho các ca `'unknown'` trước đây không được kiểm. Ba test cũ liên quan **vẫn đạt** — bằng chứng
+  ý định gốc còn nguyên. Hệ quả nhìn thấy được: biên nhận sẽ nói *"chưa đo được dấu vết AI"* thay vì
+  *"đã kiểm chứng"*, cho tới khi Q-12 (thư viện đọc C2PA) được chốt.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

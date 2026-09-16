@@ -53,6 +53,23 @@ export function evaluatePreservation(
   if (probeBefore.originalMetadataPresence === 'present' && probeAfter.originalMetadataPresence === 'absent') {
     return { requested: true, attempted: true, result: 'lost', evidenceStatus: 'verified' };
   }
+  /*
+   * D-044. 'unknown' KHONG phai 'absent'.
+   *
+   * Ban dau dieu kien duoi day gop chung hai gia tri do: `before.ai !== 'present'` dung cho ca
+   * "do duoc la khong co" lan "khong do duoc". Hau qua do duoc that: voi
+   * `before.ai='unknown', after.ai='absent'` ham tra ve `preserved` / `verified` - tuc la khai
+   * DA KIEM CHUNG rang dau vet AI con nguyen, ngay trong ca bo do vua thay no BIEN MAT.
+   *
+   * He thong nay KHONG doc duoc C2PA (Q-12 con mo), nen bo do that luon tra 'unknown'. Neu
+   * khong chan o day, MOI bien nhan se mang mot loi khai khong co co so nao.
+   *
+   * Y dinh goc ("khong co gi thi khong mat gi") duoc giu - nhung phai DO DUOC la khong co.
+   */
+  if (probeBefore.aiProvenancePresence === 'unknown' || probeAfter.aiProvenancePresence === 'unknown') {
+    return { requested: true, attempted: true, result: 'unknown', evidenceStatus: 'unknown' };
+  }
+
   const provenanceHeld =
     probeBefore.aiProvenancePresence !== 'present' || probeAfter.aiProvenancePresence === 'present';
   return {

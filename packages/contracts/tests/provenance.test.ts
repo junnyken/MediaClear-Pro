@@ -50,6 +50,58 @@ describe('MCP-05 metadata / provenance', () => {
     expect(evaluatePreservation(probe(), probe(), true).result).toBe('preserved');
   });
 
+  /*
+   * D-044. Bon ca duoi day TRUOC DAY khong ca nao duoc kiem, va ham tra ve 'verified' cho ca
+   * bon. Do la loi khai "da kiem chung" ve thu chua he duoc do.
+   */
+  describe('khong do duoc dau vet AI thi KHONG duoc bao verified (D-044)', () => {
+    it('khong do duoc ca truoc lan sau => unknown', () => {
+      const r = evaluatePreservation(
+        probe({ aiProvenancePresence: 'unknown' }),
+        probe({ aiProvenancePresence: 'unknown' }),
+        true,
+      );
+      expect(r.result).toBe('unknown');
+      expect(r.evidenceStatus).toBe('unknown');
+    });
+
+    it('CA NANG NHAT: truoc khong do duoc, sau do duoc la MAT => van khong duoc bao preserved', () => {
+      const r = evaluatePreservation(
+        probe({ aiProvenancePresence: 'unknown' }),
+        probe({ aiProvenancePresence: 'absent' }),
+        true,
+      );
+      expect(r.result).not.toBe('preserved');
+      expect(r.evidenceStatus).not.toBe('verified');
+      expect(r.result).toBe('unknown');
+    });
+
+    it('truoc do duoc, sau khong do duoc => unknown', () => {
+      const r = evaluatePreservation(probe(), probe({ aiProvenancePresence: 'unknown' }), true);
+      expect(r.result).toBe('unknown');
+      expect(r.evidenceStatus).toBe('unknown');
+    });
+
+    it('DO DUOC la khong co tu dau => van duoc bao preserved (y dinh goc con nguyen)', () => {
+      const r = evaluatePreservation(
+        probe({ aiProvenancePresence: 'absent' }),
+        probe({ aiProvenancePresence: 'absent' }),
+        true,
+      );
+      expect(r.result).toBe('preserved');
+      expect(r.evidenceStatus).toBe('verified');
+    });
+
+    it('metadata MAT van bao "lost" du dau vet AI khong do duoc - phat hien that phai duoc noi', () => {
+      const r = evaluatePreservation(
+        probe({ aiProvenancePresence: 'unknown' }),
+        probe({ originalMetadataPresence: 'absent', aiProvenancePresence: 'unknown' }),
+        true,
+      );
+      expect(r.result).toBe('lost');
+    });
+  });
+
   it('preview khong dong vao file goc (I-5)', () => {
     expect(previewTouchesSourceFile()).toBe(false);
   });
