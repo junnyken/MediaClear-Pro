@@ -2071,3 +2071,62 @@ Migration `0007` tự chạy khi API khởi động: `schema_migrations` có đ�
 - **Chưa nối vào giao diện** — mới có API; giao diện vẫn dùng đường tải lên một lần.
 - Chưa có `abort` để client chủ động huỷ phiên.
 - **Chưa thử với tệp gần trần 199 MB**, và chưa thử gửi nhiều mảnh **song song**.
+
+---
+
+## 2026-09-17 — Follow-up gate Phase 3 (`D-063`)
+
+Môi trường: workspace Coder, PostgreSQL 16 (Docker `:55432`), MinIO (Docker `:59000`).
+Chạy **riêng từng lệnh**, đo mã thoát riêng chứ không lấy mã thoát của lệnh cuối chuỗi.
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | PASS |
+| 2 | `pnpm lint` | `0` | PASS |
+| 3 | `pnpm test` (có PostgreSQL + MinIO) | `0` | PASS — **63 tệp · 667 test** |
+| 4 | `pnpm build:web` | `0` | PASS |
+| 5 | `git diff --check` | `0` | sạch |
+
+> Script `pnpm vitest run` **không tồn tại** ở gốc repo; lệnh canonical là **`pnpm test`**
+> (`pnpm build` cũng không tồn tại — đúng tên là `pnpm build:web`).
+
+### Đo bản online — `2026-09-16T18:43:20Z`
+
+`curl -s https://mediaclear-api.cmc-1.vibenode.matbao.ai/healthz` → **HTTP 200**.
+
+| Trường | Giá trị đo được | Nghĩa |
+|---|---|---|
+| `storage.id` | `local-fs-phase1` | **chưa** có kho object dùng chung |
+| `storage.production` | `false` | — |
+| `routes` / `implementedRoutes` / `plannedRoutes` | `35` / `28` / `3` | **build cũ hơn Phase 2** |
+| bảng route của mã hiện tại | `46` / `42` / `0` | lệch 11 route |
+
+Biến storage trong environment của workspace: **không có biến nào**
+(`env | grep -E '^STORAGE_|^MEDIACLEAR_S3|^R2_|^AWS_'` → rỗng).
+⇒ `Q-23` = `blocked_by_missing_environment`. **Không** chạy xác minh online.
+**Không secret nào được ghi vào repo, tài liệu hay log.**
+
+### Đối chứng âm đã chạy thật
+
+| # | Đột biến | Kết quả |
+|---|---|---|
+| A | đặt `goLive: 'GO_LIVE'` trong mã | **2 đỏ** |
+| B | đặt `technical: 'READY_FOR_PHASE_4'` trong mã | **2 đỏ** |
+| C | mã nói câu chữ đã được owner duyệt, tài liệu không đổi | **1 đỏ** |
+| D | tài liệu bỏ `owner_decision_required` khỏi `Q-P3-08` | **1 đỏ** |
+| E | tài liệu tự đóng `Q-23` | **1 đỏ** |
+| F | khối khai báo gate đổi thành `READY_FOR_PHASE_4` | **2 đỏ** |
+| G | bỏ đường lui của `auditEventLabel()` | **1 đỏ** |
+
+C và D là **hai chiều của cùng một luật** — đổi bên nào mà quên bên kia cũng đỏ.
+Sau mỗi đột biến đều khôi phục tệp và chạy lại.
+
+### KHÔNG chạy được trong lượt này, và vì sao
+
+- **Xác minh online upload/read/write/download** — thiếu kho object (`Q-23`).
+- **Worker/API dùng chung bucket** — như trên.
+- **Sống sót qua deploy lại** — như trên.
+- **Đường lỗi của kho lưu trữ khi chạy online** — như trên.
+- **Bấm tay lại trên Chrome** — lượt này **không đổi đường online** và thay đổi giao diện duy nhất
+  là `auditEventLabel()` ở trang Nhật ký, đã có test phủ cả ca sự kiện lạ. Chưa bấm tay lại; ghi
+  đúng là **chưa**, không ghi là đạt.

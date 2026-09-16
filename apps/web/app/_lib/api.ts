@@ -143,6 +143,21 @@ export function translate(key: string, params?: Record<string, string | number>,
   return t(locale, key, params);
 }
 
+/**
+ * Nhan cho mot loai su kien o trang Nhat ky.
+ *
+ * Vi sao khong goi thang `translate()`: `recordAudit` nhan `eventType: string` chu KHONG phai mot
+ * union, va `t()` tra ve CHINH KHOA khi thieu. Nen mot loai su kien la — dong cu trong co so du
+ * lieu, hoac mot cho goi moi quen them nhan — se hien nguyen `audit_event.<gi do>` ra man hinh
+ * nguoi dung. Phep chan i18n chi soi danh sach `AUDIT_EVENTS` DANG co trong ma; no khong the bao
+ * ve luc chay truoc mot gia tri chua tung biet. Day la duong lui cuoi cung.
+ */
+export function auditEventLabel(eventType: string): string {
+  const key = `audit_event.${eventType}`;
+  const text = translate(key);
+  return text === key ? translate('audit_event.unknown') : text;
+}
+
 /** Hien thi loi cho nguoi dung: luon qua translation key, khong bao gio in ma loi tho. */
 export function errorText(error: ApiErrorShape): string {
   return translate(error.messageKey, error.params);

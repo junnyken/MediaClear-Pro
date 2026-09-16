@@ -351,6 +351,7 @@
   "audit_event.processing_job_completed": "Lượt xử lý đã xong",
   "audit_event.processing_job_failed": "Lượt xử lý thất bại",
   "audit_event.processing_job_reclaimed": "Lượt xử lý được nhận lại sau gián đoạn",
+  "audit_event.unknown": "Sự kiện hệ thống khác",
   "audit_event.processing_job_review_required": "Lượt xử lý cần xem lại",
   "audit_event.output_download_url_issued": "Phát quyền tải tệp kết quả",
   "audit_event.usage_reserved": "Giữ trước mức dùng",

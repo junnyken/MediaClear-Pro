@@ -351,6 +351,7 @@
   "audit_event.processing_job_completed": "Run finished",
   "audit_event.processing_job_failed": "Run failed",
   "audit_event.processing_job_reclaimed": "Run picked up again after an interruption",
+  "audit_event.unknown": "Other system event",
   "audit_event.processing_job_review_required": "Run needs review",
   "audit_event.output_download_url_issued": "Download access issued for the result",
   "audit_event.usage_reserved": "Usage held",

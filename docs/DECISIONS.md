@@ -1302,3 +1302,65 @@ báo cáo, **không xoá** — giữ nguyên như vậy.
 đúng phần nó phải làm đỏ: bỏ lời gọi bảo trì (4 đỏ) · bỏ khối `try` riêng (1) · bỏ tôn trọng chu kỳ (1).
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-063 — Follow-up gate Phase 3: mở lại `Q-P3-08`, đặt gate vào mã, và một lỗ rò khoá thô
+
+Thực hiện theo prompt follow-up của owner. **Không** làm lại Phase 3, **không** bắt đầu Phase 4,
+**không** đụng `Rights Statement v1/v2`, **không** tạo route xoá.
+
+**A. `Q-P3-08` mở lại — `owner_decision_required`.** Owner quy định rõ: *"Không tự đóng `Q-P3-08`
+nếu chưa có wording được owner duyệt"*. Trước lượt này tài liệu ghi **"`Q-P3-08` đóng"**, trong khi
+**chính §18 của cùng tài liệu** vẫn liệt *"câu chữ chưa duyệt"* là blocker go-live — tài liệu **tự
+mâu thuẫn**. Phân biệt đã thiếu: **rà ≠ duyệt**. Agent rà được (và `D-059` đã tìm ra một lỗi thật),
+nhưng **duyệt là thẩm quyền owner/BA**, không phải thứ agent tự cấp cho mình. `D-059` **giữ nguyên,
+không viết lại lịch sử**; chỉ **trạng thái** của câu hỏi đổi. **100 khoá** đang chờ duyệt, liệt kê
+kèm nơi giao diện dùng ở `PHASE_3_CLOSURE.md` §12.
+
+**B. `Q-P3-09` giữ đã chốt.** Owner **đã xác nhận trực tiếp** quy ước ID `P3-`. Đây là điều kiện mà
+follow-up đòi (*"không ghi resolved nếu chưa có xác nhận owner"*) và nó **có**. Không ID lịch sử nào
+bị đổi, không MINI-SPEC nào bị đổi tên.
+
+**C. Gate chuyển từ CHỮ sang MÃ.** Trước lượt này gate chỉ tồn tại dưới dạng câu văn trong
+`PHASE_3_CLOSURE.md` — sửa lúc nào cũng được, không ai đối chiếu. Nay `PHASE_3_GATE` nằm trong
+`packages/contracts/src/phase3-gate.ts`, và `phase3-gate.test.ts` bắt tài liệu khớp mã **hai chiều**.
+`gateViolations()` chặn thẳng các tổ hợp bị cấm: `GO_LIVE` khi online chưa `VERIFIED`,
+`READY_FOR_PHASE_4` trần khi online chưa `VERIFIED`, `GO_LIVE` khi câu chữ chưa được duyệt.
+
+*Một chi tiết đáng ghi*: bản đầu của phép chắn quét **cả tài liệu** tìm `READY_FOR_PHASE_4` trần —
+và nó **bắt oan chính câu trung thực** ở §17 (*"không khai `READY_FOR_PHASE_4` trần"*), một câu **nói
+về** token chứ không phải lời khai. Đây là lần thứ ba dự án gặp dạng lỗi *"liệt kê từ khoá cũng bị
+tính là vi phạm"*. Đã đổi sang đọc **đúng một khối khai báo**.
+
+**D. Lỗ rò raw translation key — lỗi thật, tìm ra trong lượt này.** `recordAudit` nhận
+`eventType: string` chứ không phải union, còn `t()` **trả về chính khoá** khi thiếu. Nên một loại sự
+kiện lạ — dòng audit cũ trong cơ sở dữ liệu, hoặc một chỗ gọi mới quên thêm nhãn — sẽ hiện nguyên
+`audit_event.<gì đó>` ra màn hình người dùng. Đã chứng minh cụ thể: khoá `audit_event.rights.attested`
+(tên đang được dùng làm fixture thật trong `p2-persistence-contract.test.ts`) **không có** trong từ
+điển. Phép chắn i18n của `D-061` **không đủ**: nó soi danh sách `AUDIT_EVENTS` *đang* có trong mã,
+không bảo vệ được lúc chạy. Đã thêm `auditEventLabel()` có đường lui + `audit_event.unknown` ×2 ngôn
+ngữ + test, có đối chứng âm. Vi phạm guardrail *"Không raw translation key"* nay **không còn đường
+xảy ra**.
+
+**E. Q-23 / Q-P3-05 — `blocked_by_missing_environment`, và một phát hiện mới.** Đo lại
+`2026-09-16T18:43:20Z`: `/healthz` online trả `storage.id=local-fs-phase1`, `production=false`;
+workspace **không có biến storage nào**. Ngoài ra, cùng lượt đo cho thấy **bản online đang chạy build
+cũ hơn Phase 2** (`routes=35/28/3 planned` so với `46/42/0` của mã hiện tại) ⇒ **kể cả khi có kho
+object, xác minh online vẫn sẽ đo nhầm một build không chứa Phase 3**; phải deploy lại trước. Trường
+`phase` của `/healthz` trả `phase-1-saas-shell` **không phải** bằng chứng build cũ — đó là hằng số
+cứng còn sót trong mã hiện tại; đã kiểm trước khi kết luận.
+
+**F. Tên biến storage trong follow-up không khớp mã.** Follow-up liệt `STORAGE_ENDPOINT`,
+`STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_BUCKET`. Mã đọc `MEDIACLEAR_S3_*`
+(`apps/api/src/config/env.ts`). Đặt theo tên trong follow-up sẽ **không có tác dụng gì**. Bảng tên
+đúng ở `PHASE_3_CLOSURE.md` §10. **Không secret nào được ghi vào repo, tài liệu hay log.**
+
+**G. `Q-P3-04` giữ mở.** Đối chiếu lại: bằng chứng **pipeline nội bộ** đo được và có test; bằng
+chứng **từ nền tảng** không có và **không đo được từ repo**; các trường `maxDuration`/`maxFileSize`/
+`targetResolution` = `null` ở cả 5 preset. Không suy giới hạn từ tài liệu quảng cáo.
+
+**Gate sau lượt này — không đổi**: `READY_FOR_PHASE_4_EXCEPT_ONLINE` · `BLOCKED_BY_Q23` ·
+`NOT_READY_FOR_GO_LIVE`.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

@@ -3,7 +3,7 @@
 import { AUDIT_PAGE_SCHEMA, type schema } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { DEFAULT_LOCALE, formatDateTime } from '@mediaclear/i18n';
-import { apiFetchChecked, readSession, translate } from '../_lib/api';
+import { apiFetchChecked, auditEventLabel, readSession, translate } from '../_lib/api';
 import { useResource } from '../_lib/use-resource';
 import { Button, Card, Empty, ErrorNotice, Loading, PageTitle } from '../_components/Ui';
 
@@ -70,7 +70,7 @@ export default function ActivityPage() {
                     * tieng Anh `snake_case` cho nguoi dung Viet. Co phep chan doc THANG danh sach
                     * loai su kien tu ma may chu, nen them loai moi ma quen nhan la test do.
                     */}
-                  <strong>{translate(`audit_event.${event.eventType}`)}</strong>
+                  <strong>{auditEventLabel(event.eventType)}</strong>
                   <span style={{ color: 'var(--mcp-text-secondary)', marginLeft: 'var(--mcp-space-3)' }}>
                     {event.subjectType} · {formatDateTime(DEFAULT_LOCALE, event.occurredAt)}
                   </span>

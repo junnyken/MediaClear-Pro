@@ -5,6 +5,15 @@
 - **Gate**: **`READY_FOR_PHASE_4_EXCEPT_ONLINE`** (chi tiết §17)
 - **Go-live**: **`NOT_READY_FOR_GO_LIVE`** — xem §18
 
+Khối khai báo dưới đây là **nguồn duy nhất** mà phép chắn `phase3-gate.test.ts` đọc. Nó phải khớp
+đúng `PHASE_3_GATE` trong `packages/contracts/src/phase3-gate.ts`; lệch một bên là test đỏ.
+
+```
+Technical gate: READY_FOR_PHASE_4_EXCEPT_ONLINE
+Online verification: BLOCKED_BY_Q23
+Go-live: NOT_READY_FOR_GO_LIVE
+```
+
 ## 1. Phạm vi thực tế đã triển khai
 
 Pipeline video **không AI**: tải lên → proxy xem trước → chọn vùng chuẩn hoá → mask / crop / blur →
@@ -65,10 +74,43 @@ Không có luồng credit. Mức dùng: job `completed` tính **đúng một l�
 
 ## 10. Kho lưu trữ và Q-23
 
-**`Q-23` VẪN MỞ. Tài liệu này KHÔNG đóng nó.** Bản online vẫn `local-fs-phase1`.
+**`Q-23` VẪN MỞ. Tài liệu này KHÔNG đóng nó.**
 
-**`blocked_by_Q23`**: (a) proxy/output sống sót qua một lần deploy lại; (b) worker chạy **tiến
-trình/container riêng** đọc được tệp do API ghi. Không tự tạo bucket, không tự điền khoá.
+**Đo lại `2026-09-16T18:43:20Z`** (`curl /healthz` bản online, HTTP 200):
+`storage.id = "local-fs-phase1"`, `storage.production = false`. Không có biến storage nào trong
+environment của workspace này ⇒ **`blocked_by_missing_environment`**, không phải "chưa thử".
+
+**Hai thứ chặn xác minh online, không phải một** — đây là phát hiện mới của lượt follow-up:
+
+1. **Chưa có kho object dùng chung** (`Q-23`) — như trên.
+2. **Bản online đang chạy build cũ hơn Phase 2.** Cùng lượt đo: `/healthz` trả
+   `routes=35 implemented=28 planned=3`, trong khi bảng route của mã hiện tại là
+   `46 / 42 implemented / 0 planned`. `planned=3` là dấu vết của **Phase 1** — Phase 2 đã xoá hết
+   route `planned`. Nghĩa là **kể cả khi có kho object, xác minh online lúc này vẫn sẽ đo nhầm
+   một build không chứa Phase 3.** Phải deploy lại trước.
+
+> Lưu ý: trường `phase` của `/healthz` trả `phase-1-saas-shell`, nhưng đó là **hằng số cứng còn sót
+> trong mã hiện tại** (`server.ts`), **không** phải bằng chứng build cũ. Bằng chứng build cũ là số
+> route. Đã kiểm trước khi kết luận.
+
+**Tên biến — chỗ dễ mất công vô ích.** Follow-up liệt kê `STORAGE_ENDPOINT`,
+`STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_BUCKET`. **Mã không đọc những tên
+đó.** Tên mã thật sự đọc (`apps/api/src/config/env.ts`):
+
+| Biến | Bắt buộc |
+|---|---|
+| `MEDIACLEAR_S3_ENDPOINT` | ✔ |
+| `MEDIACLEAR_S3_ACCESS_KEY_ID` | ✔ |
+| `MEDIACLEAR_S3_SECRET_ACCESS_KEY` | ✔ |
+| `MEDIACLEAR_S3_BUCKET` | ✔ |
+| `MEDIACLEAR_S3_REGION` | mặc định `auto` |
+| `MEDIACLEAR_S3_FORCE_PATH_STYLE` | tuỳ nhà cung cấp |
+
+Đặt tên theo danh sách trong follow-up sẽ **không có tác dụng gì** và hệ thống vẫn chạy `local-fs`.
+
+**Còn lại của `blocked_by_Q23`**: (a) proxy/output sống sót qua một lần deploy lại; (b) worker chạy
+**tiến trình/container riêng** đọc được tệp do API ghi. Không tự tạo bucket, không tự điền khoá,
+không ghi khoá vào repo hay log.
 
 ## 11. Trạng thái provider
 
@@ -78,12 +120,27 @@ trình/container riêng** đọc được tệp do API ghi. Không tự tạo bu
 
 ## 12. Câu chữ
 
-**Đã rà (`Q-P3-08` đóng, `D-059`).** Owner giao agent rà; agent đã rà **77 khoá** thêm từ `170b244`
+**`Q-P3-08` = `owner_decision_required`. Việc RÀ đã xong; việc DUYỆT thì chưa — và duyệt không
+phải thẩm quyền agent tự cấp cho mình** (`D-063`). Trước lượt follow-up, mục này ghi "`Q-P3-08`
+đóng", mâu thuẫn với chính §18 vốn vẫn liệt "câu chữ chưa duyệt" là blocker go-live. Đã sửa theo
+đúng quy định của owner trong follow-up.
+
+**Đã rà (`D-059`, giữ nguyên, không viết lại lịch sử).** Owner giao agent rà; agent đã rà **77 khoá** thêm từ `170b244`
 bằng **5 phép kiểm chạy được** — xem `docs/WORDING_REVIEW_P3.md`. Tìm và sửa **1 lỗi thật** (lọt
 thuật ngữ `C2PA` ra màn hình người dùng), mở rộng phép chắn thuật ngữ, có đối chứng âm.
 
-**Vẫn còn nguyên**: câu chữ **xác nhận quyền** (`Q-11`) — có sức nặng pháp lý, cần người chịu trách
-nhiệm đọc và duyệt; agent **không thay thế được**. `Rights Statement v1/v2` không bị đụng vào.
+**Đang chờ owner/BA duyệt — danh sách cụ thể, kèm nơi giao diện đang dùng:**
+
+| Nhóm khoá | Số khoá | Giao diện dùng ở đâu |
+|---|---|---|
+| `audit_event.*` (`D-061`, mới) | 19 | `apps/web/app/activity/page.tsx` — trang Nhật ký |
+| `provenance.limitation.no_c2pa_reader` (viết lại ở `D-059`) | 1 | thẻ biên nhận, màn hình kết quả |
+| Nhãn preset mang tên thương hiệu `preset.tiktok_vertical` / `preset.reels_vertical` / `preset.shorts_vertical` | 3 | `app/assets/[assetId]/video/page.tsx` — ô chọn preset |
+| 77 khoá Phase 3 đã rà (`WORDING_REVIEW_P3.md`) | 77 | các màn hình Phase 3 |
+
+**Vẫn còn nguyên và KHÔNG nằm trong phạm vi agent**: câu chữ **xác nhận quyền** (`Q-11`) — có sức
+nặng pháp lý, cần người chịu trách nhiệm đọc và duyệt. `Rights Statement v1/v2` **không bị đụng vào,
+không tạo v3**.
 
 ## 13. Lệnh kiểm và số test
 
@@ -91,7 +148,7 @@ nhiệm đọc và duyệt; agent **không thay thế được**. `Rights Statem
 |---|---|
 | `pnpm typecheck` | `0` |
 | `pnpm lint` | `0` |
-| `pnpm test` (có PostgreSQL + MinIO) | `0` — **59 tệp · 636 test đạt** |
+| `pnpm test` (có PostgreSQL + MinIO) | `0` — **63 tệp · 667 test đạt** (`2026-09-17`; lúc đóng Phase 3 là 59 tệp · 636 test) |
 | `pnpm build:web` | `0` |
 | `git diff --check` | sạch |
 
@@ -180,7 +237,10 @@ cấp kho object dùng chung**. Đây là chặn **bên ngoài Phase 3**, không
 họ MP4 · `h264` · `aac`) · `Q-P3-03` (dung sai audio có cơ sở) · `Q-P3-06` (**chưa** dọn dữ liệu lần
 nào, và **không có** lệnh xoá nào trong mã) · `Q-P3-07` (**0** provider dùng AI).
 
-**`Q-P3-08` và `Q-P3-09` nay đã chốt** (`D-059`): owner giao agent rà câu chữ và xác nhận quy ước ID.
+**`Q-P3-09` đã chốt** (`D-059`): owner **xác nhận** quy ước ID `P3-`. Không ID lịch sử nào bị đổi.
+
+**`Q-P3-08` KHÔNG chốt — `owner_decision_required`** (`D-063`). Agent đã **rà** (và tìm ra một lỗi
+thật), nhưng **duyệt** câu chữ là thẩm quyền owner/BA. Danh sách khoá đang chờ duyệt ở §12.
 
 **Hai câu còn mở, mỗi câu có lý do cụ thể**: `Q-P3-04` cần dữ liệu **từ chính nền tảng** ·
 `Q-P3-05` cần **kho object của owner**. Không câu nào mở vì chưa ai đi tìm.

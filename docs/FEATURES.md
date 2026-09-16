@@ -53,6 +53,8 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Cứu job kẹt ở `processing` (nhịp tim · nhận lại · trần số lần thử) | `worker/job-worker.ts`, `persistence/{port,postgres,in-memory}.ts` | 8 test + 3 test hợp đồng trên **cả hai** adapter (PG thật kiểm `SKIP LOCKED`); **5 đối chứng âm**, mỗi cái làm đỏ đúng phần nó phải làm đỏ; `D-060` |
 | Nhãn câu chữ cho loại sự kiện ở trang Nhật ký | `i18n/locales/{vi,en}.json`, `app/activity/page.tsx` | 19 nhãn ×2 ngôn ngữ; phép chắn đọc `AUDIT_EVENTS` thẳng từ mã máy chủ — tự bắt sự kiện mới của `D-060` ngay trong lượt làm; `D-061` |
 | Worker tự hoàn trả khoản giữ quá hạn | `worker/job-worker.ts`, `services/usage.ts` | 4 test + **3 đối chứng âm**; trước đó hàm đã đúng nhưng **chỉ chạy khi gọi tay route nội bộ** — trên máy thật không ai gọi; `D-062` |
+| Phép chắn gate Phase 3 (gate nằm trong mã, tài liệu phải khớp) | `contracts/phase3-gate.ts`, `contracts/tests/phase3-gate.test.ts` | 9 test + **6 đối chứng âm** hai chiều; chặn `GO_LIVE`/`READY_FOR_PHASE_4` trần khi online chưa xác minh; `D-063` |
+| Nhãn sự kiện lạ không lọt khoá thô ra màn hình | `web/app/_lib/api.ts` (`auditEventLabel`) | 3 test + đối chứng âm; `recordAudit` nhận `string` nên phép chắn i18n không đủ; `D-063` |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
