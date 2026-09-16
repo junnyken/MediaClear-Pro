@@ -12,8 +12,13 @@ const INDEX_PATH = join(ROOT, 'docs/MINI_SPEC_INDEX.md');
 /**
  * Canonical ID: `P<phase>-MCP-<nn>`, hoac `P<phase>-Q<nn>-MCP-<nn>` cho MINI-SPEC sinh ra
  * tu mot cau hoi da chot (vd P1.1-Q20-MCP-20).
+ *
+ * `<phase>` la MOT SO bat ky (co the co phan thap phan nhu `1.1`), KHONG phai mot danh sach ghim
+ * cung. Ban dau bieu thuc nay liet ke `0|1|1.1|2`, va no do ngay khi Phase 3 xuat hien — vi mot ly
+ * do KHONG lien quan gi toi tinh chat dang kiem. Cung dang loi voi `ApiRouteStatus` o D-046:
+ * "cac gia tri CO THE co" bi dinh nghia bang "cac gia tri DANG co".
  */
-const CANONICAL = /^P(?:0|1|1\.1|2)(?:-Q\d{1,3})?-MCP-\d{2}$/;
+const CANONICAL = /^P\d+(?:\.\d+)?(?:-Q\d{1,3})?-MCP-\d{2}$/;
 
 interface Row {
   canonical: string;

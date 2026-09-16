@@ -951,3 +951,89 @@ Mỗi quyết định: bối cảnh → quyết định → lý do → hệ qu�
   **Chưa có checksum cho từng mảnh** — một mảnh hỏng đúng cỡ sẽ lọt tới bước đo cuối. **Chưa nối vào
   giao diện**; giao diện vẫn dùng đường tải lên một lần.
 - **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-051 — Hợp đồng dùng chung + kiểm lúc chạy tại biên (đóng D-047 trong phạm vi Phase 3)
+
+- **Context**: `D-047` ghi nhận kiểu của giao diện và kiểu của máy chủ là **hai khai báo rời nhau**;
+  `tsc` hai bên đều xanh trong khi trang hỏng lúc chạy. Đề bài Phase 3 bắt xử lý lỗ hổng này **trước**
+  khi mở rộng job flow.
+- **Decision**: chọn **phương án 3** của đề bài — canonical contract trong module dùng chung — vì
+  `apps/web` **đã** phụ thuộc `@mediaclear/contracts`. Không tách package mới, **không thêm thư viện
+  kiểm** (cùng lý do đã chọn `scrypt` thay `argon2` ở D-039: thêm phụ thuộc là thêm thứ có thể hỏng
+  khi dựng ảnh).
+  1. `schema.ts`: bộ kiểm lúc chạy viết tay, **kiểu SUY RA từ chính lịch kiểm** (`Infer<typeof …>`).
+     Không thể sửa một bên mà quên bên kia **vì chúng không phải hai bên**.
+  2. `JOB_STATE_SCHEMA` đọc **thẳng** từ `JOB_STATES` — không chép lại danh sách.
+  3. `checkEnvelope` là **chỗ duy nhất** giao diện được phép tin dữ liệu từ máy chủ.
+  4. Trường **thừa bị bỏ qua** (máy chủ thêm field không làm hỏng giao diện cũ); trường **thiếu báo
+     lỗi** — đó mới là thứ phá giao diện.
+  5. **Không dùng `as` để che lệch, không nới kiểu thành `any`.**
+- **Consequences**: đóng lỗ hổng **cho các endpoint Phase 3**. **25 interface do giao diện tự khai**
+  ở các màn hình cũ **vẫn còn** — phạm vi đó nằm ngoài Phase 3, ghi rõ ở `PHASE_3_CLOSURE.md`.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-052 — ffmpeg là phụ thuộc bắt buộc, và thiếu nó là `blocked` chứ không phải `failed`
+
+- **Context**: toàn bộ Phase 3 là video; kho chỉ có `sharp` (**chỉ ảnh**). `ffmpeg` **không có** trong
+  môi trường **lẫn** trong ảnh Docker.
+- **Decision**:
+  1. Thêm `ffmpeg` vào **chặng `runtime`** của `Dockerfile` (không phải chặng build) — worker mới là
+     thứ cần nó. Thiếu nó thì worker nhận job video rồi **hỏng ngay** trên bản online.
+  2. Hỏi `ffmpegAvailable()` **TRƯỚC khi nhận job**, không phải giữa chừng.
+  3. Thiếu `ffmpeg` ⇒ job thành **`blocked`** (phụ thuộc thiếu), **không** phải `failed` (xử lý thất
+     bại). Gộp hai cái làm người vận hành đi sai hướng.
+  4. `probeVideo` trả `unreadable: true` khi không đọc được — **không** suy ra là "không có gì".
+- **Đo được, không suy đoán**: `ffprobe` **vẫn đọc được** `corrupt.png` (`png,video`). "Đọc được bằng
+  ffprobe" **không** đồng nghĩa "là video hợp lệ" — cổng kiểm media của hệ thống mới quyết định điều đó.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-053 — Ba chế độ tất định trên video, và hai lỗi chỉ lộ ra khi render
+
+- **Decision**: `mask` (= `brand_overlay` trên vùng cố định, **đúng cách Q-15 đã chốt** — không tạo
+  enum mới) · `crop` (lấy giữa, làm tròn về số chẵn cho `yuv420p`) · `blur` (làm mờ **đúng vùng**,
+  không mờ toàn khung). Không cái nào là "AI cleanup", và có test khẳng định điều đó.
+- **Hai lỗi thật, không thể bắt bằng đọc mã**:
+  1. `boxblur` bán kính **cố định 12** bị ffmpeg từ chối trên vùng nhỏ: *"Invalid chroma_param radius
+     value 12, must be >= 0 and <= 7"* — giới hạn tính theo mặt phẳng **chroma** (chỉ bằng nửa luma
+     với `yuv420p`). Bán kính phải **co theo kích thước vùng**.
+  2. **Một vùng thì chạy, hai vùng thì hỏng**: nhãn đầu ra của bộ lọc (`[step0]`) chỉ được **tiêu thụ
+     một lần**, khác nhãn luồng (`[0:v]`) mà ffmpeg tự nhân bản. Phải chèn `split`.
+  Cả hai đã có test hồi quy.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-054 — Audio là một CỔNG, không phải một trường ghi cho vui
+
+- **Context**: đề bài nói *"không xuất video nếu audio bị mất ngoài ý muốn"*.
+- **Decision**: kết luận audio **quyết định** job đi đâu — `lost` ⇒ **`failed`**; `duration_drift` /
+  `unknown` / `changed_by_preset` ⇒ **`review_required`**; `preserved` / `absent_by_design` ⇒
+  `completed`.
+  1. **Phân biệt `absent_by_design` với `lost`** là điều quan trọng nhất: gộp hai cái biến một lỗi
+     thật thành chuyện bình thường — cùng họ với `D-044`.
+  2. Đo trên **byte đã đọc lại từ kho**, không trên buffer trong bộ nhớ: cái người dùng nhận được là
+     tệp trong kho.
+  3. Mọi đường ghi dùng `-c:a copy` — không mã hoá lại thì không thể mất tiếng vì encode hỏng.
+  4. Dung sai thời lượng **`0,25` giây** (`Q-P3-03`) — **mặc định của agent, chưa được owner duyệt**.
+- **Consequences**: **chưa so nội dung tiếng** — một bản render giữ đúng độ dài nhưng **tiếng bị méo**
+  sẽ lọt qua. Chưa đo số kênh sau render (stereo bị ép mono).
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-055 — Preset nói về pipeline, KHÔNG nói về nền tảng
+
+- **Decision**: `status` của preset nói về điều **hệ thống tự đo được** (tỉ lệ, codec, container mà
+  pipeline thật sự sinh ra), **không** nói về việc nền tảng có chấp nhận tệp hay không.
+  1. **Không preset nào mang `verified`** — tất cả `partially_verified`.
+  2. `maxDurationSeconds` / `maxFileSizeBytes` đều **`null`**: giới hạn nền tảng là thứ **không đo
+     được** từ repo này. Điền số lấy từ tài liệu quảng cáo chính là thứ đề bài cấm (`Q-P3-04`).
+  3. `evidence` của mọi preset trỏ tới **bộ test chứng minh** pipeline sinh đúng giá trị đã khai.
+  4. Tên "TikTok/Reels/Shorts" là **nhãn gợi ý** về tỉ lệ, **không phải** cam kết tương thích.
+- **Status**: `confirmed` · **Date**: 2026-09-16 · **Owner**: Owner MediaClear Pro

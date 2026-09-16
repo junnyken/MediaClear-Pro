@@ -1,6 +1,6 @@
 # FEATURES — MediaClear Pro
 
-- **Date**: 2026-09-16 · **Phase**: 2 (tới `P2-MCP-35`)
+- **Date**: 2026-09-16 · **Phase**: 3 (tới `P3-MCP-34`)
 
 Bảng dưới là **trạng thái thật trong repository này**, không phải kế hoạch bán hàng.
 `implemented` = có code chạy được, có test, và đã được gọi thật ít nhất một lần.
@@ -43,9 +43,15 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Giao diện: xem trước · biên nhận · hạn lưu giữ | `app/jobs/[jobId]/page.tsx`, `app/assets/[assetId]/page.tsx` | bấm tay trên Chrome thật: xem trước render ảnh, mức dùng không đổi, tải về ra đúng một tệp; 4 lỗi tìm được mà 528 test không bắt |
 | Tài liệu OpenAPI sinh từ bảng route | `packages/contracts/src/openapi.ts` | 8 test gồm phép đối chiếu NGƯỢC với Fastify thật + đối chứng âm; live: 34 đường dẫn, 48 mã lỗi |
 | Tải lên nhiều mảnh, nối lại được sau khi mất kết nối | `services/resumable-upload.ts`, `db/migrations/0007_*.sql` | 11 test gồm mô phỏng đứt kết nối; live: đứt ở 14/29 mảnh rồi nối lại, tệp ghép khớp từng byte |
+| Xử lý VIDEO tất định: mask · crop · blur (ffmpeg) | `providers/deterministic-video.ts`, `media/ffmpeg.ts` | 29 test trên video thật; audio giữ nguyên qua cả ba chế độ; 2 lỗi chỉ lộ khi render đã có test hồi quy |
+| Audio là CỔNG: mất tiếng thì job KHÔNG được `completed` | `services/run-video-job.ts`, `contracts/phase3.ts` | đối chứng âm đã chạy: ép bỏ audio ⇒ job `failed` kèm `reason: audio_lost` |
+| Bản proxy xem trước cho video | `services/video-proxy.ts` | 10 test; proxy ở lớp `preview`, tệp gốc khớp từng byte sau khi sinh |
+| Preset xuất (TikTok/Reels/Shorts/vuông/ngang) | `contracts/presets.ts` | 13 test; KHÔNG preset nào khai `verified`; giới hạn nền tảng đều `null` |
+| Hợp đồng dùng chung UI ↔ server + kiểm lúc chạy | `contracts/{schema,phase3}.ts` | 25 test gồm thiếu trường/sai enum/sai kiểu; đóng D-047 **trong phạm vi Phase 3** |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
+**giao diện Phase 3 (chọn vùng · xem trước · chọn preset · reset)** — API đã xong, giao diện chưa ·
 **worker tự chạy việc hoàn trả khoản giữ quá hạn** · **worker dọn dữ liệu theo luật lưu giữ** ·
 **worker dọn phiên tải lên quá hạn** (P2-MCP-35 để lại mảnh thừa) ·
 **nhãn câu chữ cho loại sự kiện ở trang Nhật ký** (chờ owner/BA duyệt) ·

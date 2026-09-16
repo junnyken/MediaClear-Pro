@@ -169,6 +169,14 @@ export const API_ROUTES = [
   { method: 'PUT', path: '/v1/storage/upload/:uploadToken', status: 'implemented', mcp: 'P1-MCP-15' },
   { method: 'GET', path: '/v1/assets/:assetId/download-url', status: 'implemented', mcp: 'P1-MCP-15' },
 
+  // --- P3-MCP-30: ban proxy do phan giai thap de xem truoc video ---
+  { method: 'POST', path: '/v1/assets/:assetId/proxy', status: 'implemented', mcp: 'P3-MCP-30' },
+  { method: 'GET', path: '/v1/assets/:assetId/proxy', status: 'implemented', mcp: 'P3-MCP-30' },
+  { method: 'GET', path: '/v1/assets/:assetId/proxy/download-url', status: 'implemented', mcp: 'P3-MCP-30' },
+
+  // --- P3-MCP-34: preset xuat. Cong khai: day la nang luc he thong, khong phai du lieu cua ai ---
+  { method: 'GET', path: '/v1/export-presets', status: 'implemented', mcp: 'P3-MCP-34' },
+
   // --- P2-MCP-35: tai len noi lai duoc. Mot request PUT duy nhat khong song noi voi tep lon
   //     tren duong truyen keu - mat ket noi la mat toan bo.
   { method: 'POST', path: '/v1/source-files/:sourceFileId/upload-session', status: 'implemented', mcp: 'P2-MCP-35' },

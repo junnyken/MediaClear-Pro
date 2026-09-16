@@ -1,6 +1,6 @@
 # MINI_SPEC_INDEX — MediaClear Pro
 
-- **Cập nhật**: 2026-09-16 (Phase 2, tới `P2-MCP-35`) · **Quyết định**: Q-16 / D-029
+- **Cập nhật**: 2026-09-16 (Phase 3, tới `P3-MCP-34`) · **Quyết định**: Q-16 / D-029
 
 Đây là **nguồn tra cứu duy nhất** cho ID của MINI-SPEC.
 
@@ -59,6 +59,11 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
 | `P2-MCP-33` | — | Phase 2 | Preview, Receipt and Retention in the UI | `docs/mini-specs/phase-2/P2-MCP-33.md` | completed |
 | `P2-MCP-34` | — | Phase 2 | OpenAPI Document Generated From the Route Table | `docs/mini-specs/phase-2/P2-MCP-34.md` | completed |
 | `P2-MCP-35` | — | Phase 2 | Resumable Upload | `docs/mini-specs/phase-2/P2-MCP-35.md` | completed |
+| `P3-MCP-30` | — | Phase 3 | Video Upload and Proxy Preview | `docs/mini-specs/phase-3/P3-MCP-30.md` | completed |
+| `P3-MCP-31` | — | Phase 3 | Static Logo Mask | `docs/mini-specs/phase-3/P3-MCP-31.md` | completed |
+| `P3-MCP-32` | — | Phase 3 | Crop and Blur Fallback | `docs/mini-specs/phase-3/P3-MCP-32.md` | completed |
+| `P3-MCP-33` | — | Phase 3 | Audio Preservation | `docs/mini-specs/phase-3/P3-MCP-33.md` | completed |
+| `P3-MCP-34` | — | Phase 3 | Social Export Presets | `docs/mini-specs/phase-3/P3-MCP-34.md` | completed |
 
 ## Điểm mơ hồ duy nhất còn lại
 
@@ -69,7 +74,7 @@ theo thư mục chứa nó. Từ Phase 1.1 trở đi, mọi tham chiếu mới p
 ## ID đã dùng — không được tái sử dụng
 
 `MCP-00` … `MCP-15` (cả hai phase), `P0-MCP-00` … `P0-MCP-10`, `P1-MCP-10` … `P1-MCP-15`,
-`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`, `P2-MCP-23`, `P2-MCP-24`, `P2-MCP-25`, `P2-MCP-26`, `P2-MCP-27`, `P2-MCP-28`, `P2-MCP-29`, `P2-MCP-30`, `P2-MCP-31`, `P2-MCP-32`, `P2-MCP-33`, `P2-MCP-34`, `P2-MCP-35`.
+`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`, `P2-MCP-23`, `P2-MCP-24`, `P2-MCP-25`, `P2-MCP-26`, `P2-MCP-27`, `P2-MCP-28`, `P2-MCP-29`, `P2-MCP-30`, `P2-MCP-31`, `P2-MCP-32`, `P2-MCP-33`, `P2-MCP-34`, `P2-MCP-35`, `P3-MCP-30` … `P3-MCP-34`.
 
 > Lưu ý: số `20` đã dùng bởi `P1.1-Q20-MCP-20`, số `21` bởi `P1.1-Q21-MCP-21`, số `22` bởi
 > `P1.1-Q22-MCP-22`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-23`** (đã dùng; tiếp theo là `P2-MCP-36`).
@@ -81,6 +86,11 @@ theo thư mục chứa nó. Từ Phase 1.1 trở đi, mọi tham chiếu mới p
 > Bốn ID của Q-21/Q-22 **đã được đánh số lại một lần** theo chỉ đạo của owner (ngoại lệ có ghi chép
 > đối với D-029, chỉ được phép vì repo chưa push). Bảng đối chiếu cũ ↔ mới ở
 > `PHASE_1_1_Q21_Q22_CLOSURE.md` §2. Từ đây về sau **không đánh số lại** ID đã phát hành nữa.
+>
+> **Phase 3 dùng lại các số 30…34 — CÓ CHỦ ĐÍCH, không phải nhầm.** Đề bài Phase 3 đặt tên
+> `MCP-30`…`MCP-34`, trong khi Phase 2 đã dùng `P2-MCP-30`…`P2-MCP-34`. Theo đúng luật ngay dưới
+> đây, `P3-MCP-30` và `P2-MCP-30` là **hai ID khác nhau** và không bao giờ đụng nhau. **Không ID
+> lịch sử nào bị đổi.** Cách hiểu này được ghi ở `Q-P3-09` để owner xác nhận.
 >
 > Canonical ID là **chuỗi đầy đủ**, không phải con số cuối: `P1.1-Q22-MCP-22` và `P2-MCP-21` là hai ID
 > khác nhau và không bao giờ đụng nhau. Quy ước "Phase 2 bắt đầu từ số kế tiếp" chỉ để người đọc lướt

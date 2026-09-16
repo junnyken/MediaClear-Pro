@@ -48,6 +48,8 @@ import { runJob } from './services/run-job.js';
 import { cancelJob, createJob, getJob } from './services/jobs.js';
 import { createJobOutputDownloadUrl, estimateJob, getJobOutput, getJobReceipt } from './services/outputs.js';
 import { previewJob } from './services/preview.js';
+import { createVideoProxy, createVideoProxyDownloadUrl, getVideoProxy } from './services/video-proxy.js';
+import { EXPORT_PRESETS } from '@mediaclear/contracts';
 import {
   completeUploadSession,
   getUploadSession,
@@ -641,6 +643,42 @@ export function buildServer(options: BuildServerOptions = {}) {
       actor,
       subjectId: result.data.assetId,
     });
+  });
+
+  /* ---------------------------------------- P3-MCP-30: ban proxy xem truoc --- */
+
+  app.post('/v1/assets/:assetId/proxy', async (request, reply) => {
+    const actor = await withActor(request, reply, 'proxy.create', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'proxy.create', actor, await createVideoProxy(ctx, actor, param(request, 'assetId')));
+  });
+
+  app.get('/v1/assets/:assetId/proxy', async (request, reply) => {
+    const actor = await withActor(request, reply, 'proxy.read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'proxy.read', actor, await getVideoProxy(ctx, actor, param(request, 'assetId')));
+  });
+
+  app.get('/v1/assets/:assetId/proxy/download-url', async (request, reply) => {
+    const actor = await withActor(request, reply, 'proxy.download', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(
+      request,
+      reply,
+      'proxy.download',
+      actor,
+      await createVideoProxyDownloadUrl(ctx, actor, param(request, 'assetId')),
+    );
+  });
+
+  /*
+   * P3-MCP-34: danh sach preset. Cong khai va KHONG can dang nhap — day la thong tin ve nang luc
+   * cua he thong, khong phai du lieu cua ai. `status` cua moi preset noi ve dieu he thong TU DO
+   * DUOC, khong phai ve viec nen tang co chap nhan tep hay khong (Q-P3-04).
+   */
+  app.get('/v1/export-presets', async (request, reply) => {
+    log(request, reply, { operation: 'preset.list' });
+    return reply.send({ ok: true, data: { presets: EXPORT_PRESETS } });
   });
 
   app.get('/v1/assets/:assetId/download-url', async (request, reply) => {
