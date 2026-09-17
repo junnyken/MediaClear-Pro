@@ -12,14 +12,22 @@ import { JobWorker } from './job-worker.js';
 
 async function main(): Promise<void> {
   const ctx = createAppContext();
+  /*
+   * `D-070`: cong tac XOA BYTE. Phai dat dung chuoi `'1'` moi bat — khong nhan 'true', 'yes',
+   * chuoi rong hay bat ky thu gi mo ho. Mot cong tac pha huy du lieu khong duoc bat vi go nham.
+   */
+  const cleanupEnabled = process.env.MEDIACLEAR_CLEANUP_ENABLED === '1';
+
   const worker = new JobWorker(ctx, {
     idleDelayMs: Number(process.env.MEDIACLEAR_WORKER_IDLE_MS ?? 2000),
+    cleanupEnabled,
     log: (message) => console.log(message),
   });
 
   console.log(
     `[mediaclear-worker] bat dau · luu tru ${ctx.persistence.id} (${ctx.persistence.durability})` +
-      ` · kho ${ctx.storage.id}`,
+      ` · kho ${ctx.storage.id}` +
+      ` · don du lieu: ${cleanupEnabled ? 'BAT — SE XOA BYTE THAT' : 'tat (chi chay thu)'}`,
   );
   if (ctx.persistence.durability !== 'durable') {
     /*

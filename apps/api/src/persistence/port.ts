@@ -87,6 +87,14 @@ export interface PersistencePort {
     touchAccess(workspaceId: string, id: string, at: string): Promise<void>;
     /** P1.1: quet cho bao cao luu giu. Khong workspaceId = pham vi noi bo. */
     listForRetention(workspaceId?: string | null): Promise<SourceFileRecord[]>;
+    /**
+     * P3 (`D-070`): danh dau tep DA BI XOA BYTE. Ban ghi O LAI lam bia mo.
+     *
+     * KHONG xoa dong: dong con lai la dau vet duy nhat chung minh tep tung ton tai va da bi don
+     * theo luat nao. Xoa dong la xoa ca bang chung. `measured` cung duoc giu de con biet tep cu
+     * to bao nhieu — chi BYTE trong kho la bi xoa.
+     */
+    markDeleted(workspaceId: string, id: string, at: string): Promise<SourceFileRecord>;
   };
 
   validations: {
@@ -161,6 +169,12 @@ export interface PersistencePort {
     findBySourceFile(workspaceId: string, sourceFileId: string): Promise<UploadSessionRecord | null>;
     recordChunk(workspaceId: string, id: string, chunkIndex: number): Promise<UploadSessionRecord>;
     setState(workspaceId: string, id: string, state: UploadSessionRecord['state']): Promise<UploadSessionRecord>;
+    /**
+     * P3 (`D-070`): phien con MO ma da qua han. Day la nguon ro manh thua trong kho.
+     *
+     * Chi lay phien `open`: phien `completed` da tu xoa manh, phien `aborted` cung vay.
+     */
+    listExpired(now: string, limit: number): Promise<UploadSessionRecord[]>;
   };
 
   /**

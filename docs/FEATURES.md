@@ -54,13 +54,13 @@ Bảng dưới là **trạng thái thật trong repository này**, không phải
 | Nhãn câu chữ cho loại sự kiện ở trang Nhật ký | `i18n/locales/{vi,en}.json`, `app/activity/page.tsx` | 19 nhãn ×2 ngôn ngữ; phép chắn đọc `AUDIT_EVENTS` thẳng từ mã máy chủ — tự bắt sự kiện mới của `D-060` ngay trong lượt làm; `D-061` |
 | Worker tự hoàn trả khoản giữ quá hạn | `worker/job-worker.ts`, `services/usage.ts` | 4 test + **3 đối chứng âm**; trước đó hàm đã đúng nhưng **chỉ chạy khi gọi tay route nội bộ** — trên máy thật không ai gọi; `D-062` |
 | Đo dấu hiệu "tệp do AI tạo ra" (dò hiện diện, không xác thực) | `api/src/media/c2pa-probe.ts` | 6 test + **4 đối chứng âm**; ca "không có dấu" dùng **tệp thật trong repo**; JPEG/PNG/WebP/MP4/MOV nói được `absent`, WebM vẫn `unknown` theo `D-044`; `D-069` |
+| Dọn dữ liệu (theo luật lưu giữ + phiên tải lên quá hạn) — **đường duy nhất xoá byte** | `api/src/services/cleanup.ts`, `db/migrations/0009` | 9 test + **4 đối chứng âm** (2 cái lộ ra lớp chặn chưa được canh); 5 lớp chặn; `dryRun` mặc định BẬT, công tắc worker mặc định TẮT; bản ghi ở lại làm bia mộ; `D-070` |
 | Phép chắn gate Phase 3 (gate nằm trong mã, tài liệu phải khớp) | `contracts/phase3-gate.ts`, `contracts/tests/phase3-gate.test.ts` | 9 test + **6 đối chứng âm** hai chiều; chặn `GO_LIVE`/`READY_FOR_PHASE_4` trần khi online chưa xác minh; `D-063` |
 | Nhãn sự kiện lạ không lọt khoá thô ra màn hình | `web/app/_lib/api.ts` (`auditEventLabel`) | 3 test + đối chứng âm; `recordAudit` nhận `string` nên phép chắn i18n không đủ; `D-063` |
 
 ## 2. Đã có contract/schema, chưa nối vào runtime (`planned`)
 
-**worker dọn dữ liệu theo luật lưu giữ** · **worker dọn phiên tải lên quá hạn** (P2-MCP-35 để lại
-mảnh thừa) — **cả hai đều xoá byte thật nên chờ owner cho phép** (`D-062`) ·
+
 **giao diện dùng đường tải lên nối lại được** (mới có API).
 
 > Sửa một mục khai sai: *"Auth provider production"* vẫn nằm ở đây trong khi `P2-MCP-25` đã làm xong

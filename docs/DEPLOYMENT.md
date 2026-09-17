@@ -60,6 +60,9 @@ biến cũng tính là thay đổi**, nên sau khi `set_env` thì `redeploy` đ�
   sai mật khẩu ⇒ chưa có gì chặn thử mật khẩu hàng loạt.
 - Chưa có sao lưu, chưa theo dõi, chưa đo tải.
 - **Chưa có xử lý AI** (`productionAiProcessingEnabled: false`); không job nào tới `completed`.
+- **`MEDIACLEAR_CLEANUP_ENABLED`** (`D-070`): đặt đúng chuỗi `1` thì worker **XOÁ BYTE THẬT** của tệp
+  đã hết thời hạn lưu giữ. **Mặc định tắt.** Khi tắt, worker vẫn chạy thử mỗi vòng bảo trì và đếm số
+  tệp sắp bị dọn — xem con số đó **trước** khi bật.
 - **Câu chữ xác nhận quyền CHƯA từng được người có chuyên môn pháp lý đọc.** `Q-11` đã đóng bằng
   **quyết định của owner** (`D-068`), không phải bằng thẩm định — nó thôi chặn go-live, nhưng rủi ro
   thì vẫn nguyên và thuộc về owner.

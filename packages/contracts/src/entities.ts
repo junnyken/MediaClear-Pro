@@ -254,7 +254,10 @@ export interface AuditEvent {
     | 'attestation'
     | 'usage'
     | 'audit'
-    | 'provider_run';
+    | 'provider_run'
+    /* Moi tu `D-070`: viec don du lieu sinh su kien ve hai loai chu the nay. */
+    | 'source_file'
+    | 'upload_session';
   subjectId: Id;
   /** CHI metadata phi nhay cam. Cam log media bytes, API key, PII (guardrail 15). */
   detail: Record<string, string | number | boolean | null>;

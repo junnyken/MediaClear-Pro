@@ -406,6 +406,25 @@ export class PostgresPersistence implements PersistencePort {
       );
       return rows.map(toSourceFileRecord);
     },
+
+    markDeleted: async (workspaceId: string, id: string, at: string): Promise<SourceFileRecord> => {
+      /*
+       * KHONG `DELETE FROM`. Dong o lai lam bia mo — no la dau vet duy nhat chung minh tep tung
+       * ton tai va da bi don theo luat nao. Chi BYTE trong kho bi xoa.
+       *
+       * `retention_state <> 'deleted'` trong WHERE lam thao tac nay CHI CHAY MOT LAN: goi lai
+       * khong ghi de moc `deleted_at` cu, nen moc do van la moc that.
+       */
+      const rows = await this.q<SourceFileRow>(
+        `UPDATE source_files
+            SET retention_state = 'deleted', deleted_at = $3, scheduled_deletion_at = NULL
+          WHERE workspace_id = $1 AND id = $2 AND retention_state <> 'deleted'
+          RETURNING *`,
+        [workspaceId, id, at],
+      );
+      if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      return toSourceFileRecord(rows[0]);
+    },
   };
 
   /* ------------------------------------------------------------ validations */
@@ -686,6 +705,17 @@ export class PostgresPersistence implements PersistencePort {
       );
       if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
       return toUploadSession(rows[0]);
+    },
+
+    listExpired: async (now: string, limit: number): Promise<UploadSessionRecord[]> => {
+      const rows = await this.q<UploadSessionRow>(
+        `SELECT * FROM upload_sessions
+          WHERE state = 'open' AND expires_at < $1
+          ORDER BY expires_at ASC
+          LIMIT $2`,
+        [now, limit],
+      );
+      return rows.map(toUploadSession);
     },
   };
 

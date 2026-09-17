@@ -246,8 +246,13 @@ nào, và **không có** lệnh xoá nào trong mã) · `Q-P3-07` (**0** provide
 
 ## 18. Gate này KHÔNG phải GO_LIVE
 
-**Khẳng định riêng**: `NOT_READY_FOR_GO_LIVE` **giữ nguyên**. Hai blocker go-live **còn lại**:
-kho object dùng chung (`Q-23`) · chưa có việc dọn dữ liệu nào chạy thật.
+**Khẳng định riêng**: `NOT_READY_FOR_GO_LIVE` **giữ nguyên**. **Một** blocker go-live còn lại:
+**kho object dùng chung (`Q-23`)**.
+
+> **Dọn dữ liệu thôi là blocker riêng** (`D-070`): đường dọn nay **đã có** và có test — trước đó
+> **không có đường nào**, nghĩa là dữ liệu tích tụ mãi và lời hứa về thời hạn lưu giữ không thực hiện
+> được. Việc **bật nó trên bản online** thì nằm **bên trong** `Q-23`: cần dịch vụ worker và kho dùng
+> chung, cả hai đều chưa có. Công tắc mặc định **tắt**, và nó **chưa từng chạy thật trên bản online**.
 
 > **Dấu vết AI thôi là blocker** (`D-069`): nay đã có bộ đo thật, biên nhận khai `verified` có cơ sở.
 > Nhưng bộ đo **chỉ dò sự hiện diện, không xác thực chữ ký**, và **chưa từng đối chiếu với tệp do

@@ -110,4 +110,27 @@ describe('P3 (D-062) — worker tu chay viec bao tri', () => {
     expect(worker.stats.maintenanceRuns, 'quet so muc dung moi vong lap la dot CPU vo ich').toBe(1);
     await app.close();
   });
+
+  it('worker KHONG xoa byte khi cong tac chua duoc bat — mac dinh phai la TAT', async () => {
+    const { app, ctx } = await makeApp();
+    const token = await signIn(app, `o-${Date.now()}@matbao.com`);
+    const ws = await createWorkspace(app, token, 'Studio');
+    const prj = await createProject(app, token, ws, 'Du an');
+    const up = await uploadFixture(app, token, ws, prj, 'sample.png', { mimeType: 'image/png', mediaType: 'image' });
+
+    // Dua tep vuot han luu giu.
+    const rec = await ctx.persistence.sourceFiles.findById(ws, up.sourceFileId);
+    const long = new Date(Date.now() - 400 * 24 * 3600_000).toISOString();
+    await ctx.persistence.sourceFiles.create({ ...rec!, createdAt: long, lastAccessedAt: long });
+
+    // KHONG truyen `cleanupEnabled` — dung canh mot worker dung cau hinh mac dinh.
+    const worker = new JobWorker(ctx, { maxCycles: 1, idleDelayMs: 1 });
+    await worker.start();
+
+    expect(worker.stats.cleanupCandidates, 'phai VAN dem duoc, de nguoi van hanh biet truoc khi bat').toBe(1);
+    expect(worker.stats.sourceFilesDeleted, 'cong tac chua bat ma da xoa byte').toBe(0);
+    await expect(ctx.storage.getObject({ bucket: ctx.bucket, key: rec!.storageKey })).resolves.toBeDefined();
+    expect((await ctx.persistence.sourceFiles.findById(ws, up.sourceFileId))?.retentionState).not.toBe('deleted');
+    await app.close();
+  });
 });

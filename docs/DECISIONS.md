@@ -1623,3 +1623,56 @@ hình (kể cả SynthID) — câu miễn trừ vẫn đi kèm mọi biên nhậ
 cho Matroska · trả `absent` cho container lạ) — hai cái sau là phép kiểm trực tiếp cho `D-044`.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-070 — Mở đường DỌN DỮ LIỆU: thứ duy nhất trong repo thực sự xoá byte
+
+Owner cho phép (`2026-09-17`). Cho tới lúc này, luật lưu giữ **chỉ có đường "thử mà không xoá"**
+(`P1.1-MCP-18`, `D-031`) vì chưa ai cho phép xoá. Đường xoá nay tồn tại — và được dựng với giả định
+rằng **chính nó là thứ nguy hiểm nhất trong repo này**.
+
+**Năm lớp chặn, mỗi lớp chặn một kiểu hỏng khác nhau:**
+
+| # | Lớp chặn | Chặn kiểu hỏng nào |
+|---|---|---|
+| 1 | `dryRun` mặc định **`true`** | quên một tham số ⇒ mất dữ liệu |
+| 2 | Worker chỉ xoá thật khi `MEDIACLEAR_CLEANUP_ENABLED=1` (đúng chuỗi `'1'`) | bật nhầm vì gõ `true`/`yes` |
+| 3 | Trần mỗi lượt (mặc định 50) | một lỗi logic quét sạch kho |
+| 4 | **Hỏi lại luật ngay trước khi xoá từng bản ghi** | danh sách dựng lúc T, xoá lúc T+n — giữ-theo-pháp-lý vừa được đặt trong khoảng đó |
+| 5 | **Xoá byte TRƯỚC, đánh dấu bản ghi SAU** | sự cố giữa chừng để lại hồ sơ nói "đã xoá" trong khi byte vẫn nằm đó |
+
+**Không bao giờ `DELETE FROM`.** Bản ghi ở lại làm **bia mộ**: `retention_state='deleted'` +
+`deleted_at`. Xoá dòng là xoá luôn bằng chứng rằng tệp từng tồn tại và đã bị dọn theo luật nào. Bản
+PostgreSQL còn có `WHERE retention_state <> 'deleted'` nên mốc `deleted_at` **chỉ ghi được một lần**
+— gọi lại không đè lên mốc thật.
+
+**Luật không nằm ở đây.** `runRetentionCleanup` không tự quyết định gì: nó lấy dữ liệu, hỏi
+`retentionDecisionFor` của contract, rồi thi hành. Giữ-theo-pháp-lý được chính luật đó loại ra
+**trước mọi điều kiện khác**, và ở lớp 4 còn được hỏi lại lần nữa.
+
+**Hai việc dọn, hai mức nguy hiểm khác nhau.** Dọn theo luật lưu giữ đụng vào **tệp gốc của người
+dùng**. Dọn phiên tải lên quá hạn chỉ đụng **mảnh `staging` của một lượt tải chưa bao giờ xong** —
+nhẹ hơn hẳn, nhưng vẫn giữ nguyên `dryRun` mặc định và trần mỗi lượt: *"ít nguy hiểm hơn"* không phải
+*"vô hại"*. Bản dọn phiên chỉ xoá **những mảnh đã nhận**, không đi hết `totalChunks` — đi hết sẽ gọi
+xoá lên cả khoá chưa từng được ghi, biến mọi lượt dọn thành một tràng lỗi giả.
+
+**Chạy thử VẪN chạy khi công tắc tắt** — có chủ đích. Nó cho người vận hành thấy trước **có bao nhiêu
+tệp sắp bị dọn**, trước khi họ bật công tắc. Bật một công tắc xoá mà không biết nó sẽ xoá bao nhiêu
+là cách để mất dữ liệu. `stats.cleanupCandidates` đếm cả khi chỉ chạy thử.
+
+**Migration `0009`.** Hai loại chủ thể audit mới (`source_file`, `upload_session`). Ràng buộc
+`subject_type` ở `0001` không có chúng ⇒ **mọi dòng audit của việc dọn đều sẽ bị từ chối** — đúng
+dạng lỗi `D-066` vừa gặp. **Không** ép vào `'asset'` cho đủ field: chú thích ở `entities.ts` cấm điều
+đó, và nó đúng. Đã kiểm trên PostgreSQL thật: hai loại mới ghi được, `'asset'` không hỏng, và một giá
+trị lạ **vẫn bị từ chối** — tức `DROP` + `ADD` không làm mất răng của ràng buộc.
+
+**Bằng chứng.** 9 test mới + **4 đối chứng âm**. Hai đối chứng đầu (`dryRun` mặc định, hỏi lại luật)
+đỏ ngay. **Hai đối chứng sau — đảo thứ tự xoá, và đảo công tắc worker — lúc đầu KHÔNG đỏ**: hai lớp
+chặn đó chưa có test nào canh. Đã viết thêm hai phép kiểm, rồi chạy lại: cả hai đỏ đúng chỗ. Đây là
+giá trị thật của đối chứng âm — nó chỉ ra chỗ *tôi tưởng đã được bảo vệ mà thực ra chưa*.
+
+**Chưa chạy thật trên bản online, và không thể chạy được lúc này**: bản online chưa có dịch vụ worker
+và chưa có kho dùng chung (`Q-23`). Công tắc mặc định **tắt**.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

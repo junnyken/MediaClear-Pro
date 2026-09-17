@@ -32,6 +32,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0006_phase2_provenance_receipts.sql',
       '0007_phase2_resumable_upload.sql',
       '0008_phase3_video_proxy_and_receipt.sql',
+      '0009_phase3_cleanup_subject_types.sql',
     ]);
   });
 
@@ -54,6 +55,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0006_phase2_provenance_receipts',
       '0007_phase2_resumable_upload',
       '0008_phase3_video_proxy_and_receipt',
+      '0009_phase3_cleanup_subject_types',
     ]);
   });
 
@@ -98,6 +100,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
       '0006_phase2_provenance_receipts.sql',
       '0007_phase2_resumable_upload.sql',
       '0008_phase3_video_proxy_and_receipt.sql',
+      '0009_phase3_cleanup_subject_types.sql',
     ]);
     expect(out.skipped).toEqual([]);
 

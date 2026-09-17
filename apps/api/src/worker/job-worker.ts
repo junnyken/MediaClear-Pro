@@ -16,6 +16,7 @@ import type { AppContext } from '../app-context.js';
 import { executeClaimedJob, failJob, type RunJobOutcome } from '../services/run-job.js';
 import { AUDIT_EVENTS, recordAudit } from '../services/audit.js';
 import { expireReservations } from '../services/usage.js';
+import { runRetentionCleanup, runUploadSessionCleanup } from '../services/cleanup.js';
 
 export interface JobWorkerOptions {
   /** Nghi bao lau khi khong con gi de lam. Qua ngan thi quay CPU, qua dai thi job cho lau. */
@@ -34,6 +35,14 @@ export interface JobWorkerOptions {
   maxAttempts?: number;
   /** Khoang cach giua hai lan chay viec bao tri dinh ky. */
   maintenanceIntervalMs?: number;
+  /**
+   * BAT don du lieu THAT SU (xoa byte). MAC DINH `false`.
+   *
+   * Tat thi worker van chay ban "thu khong xoa" moi vong bao tri — nho vay nguoi van hanh nhin
+   * duoc CO BAO NHIEU tep sap bi don TRUOC khi bat cong tac. Bat mot cong tac xoa ma khong biet
+   * no se xoa bao nhieu la cach de mat du lieu.
+   */
+  cleanupEnabled?: boolean;
 }
 
 export interface JobWorkerStats {
@@ -49,6 +58,12 @@ export interface JobWorkerStats {
   maintenanceRuns: number;
   /** So khoan giu qua han da duoc hoan tra that su. */
   reservationsReleased: number;
+  /** So tep nguon het han luu giu DA BI XOA BYTE. `cleanupEnabled=false` => luon 0. */
+  sourceFilesDeleted: number;
+  /** So phien tai len qua han da duoc don manh thua. */
+  uploadSessionsCleaned: number;
+  /** So tep DU DIEU KIEN don o lan bao tri gan nhat — dem ca khi chi chay thu. */
+  cleanupCandidates: number;
 }
 
 const DEFAULT_IDLE_MS = 2000;
@@ -80,6 +95,7 @@ export class JobWorker {
   readonly stats: JobWorkerStats = {
     cycles: 0, claimed: 0, completed: 0, failed: 0, reclaimed: 0, abandoned: 0,
     maintenanceRuns: 0, reservationsReleased: 0,
+    sourceFilesDeleted: 0, uploadSessionsCleaned: 0, cleanupCandidates: 0,
   };
   /** null = chua chay lan nao => vong dau tien chay ngay. */
   private lastMaintenanceMs: number | null = null;
@@ -197,6 +213,21 @@ export class JobWorker {
     this.lastMaintenanceMs = this.ctx.now().getTime();
     const result = await expireReservations(this.ctx);
     this.stats.reservationsReleased += result.releasedNow;
+
+    /*
+     * Don du lieu (`D-070`). MAC DINH CHI CHAY THU.
+     *
+     * Chay thu VAN chay khi cong tac tat — co chu dinh: no cho nguoi van hanh thay truoc CO BAO
+     * NHIEU tep sap bi don, truoc khi ho bat cong tac. Bat mot cong tac xoa ma khong biet no se
+     * xoa bao nhieu la cach de mat du lieu.
+     */
+    const dryRun = !(this.options.cleanupEnabled ?? false);
+    const retention = await runRetentionCleanup(this.ctx, { dryRun });
+    const sessions = await runUploadSessionCleanup(this.ctx, { dryRun });
+    this.stats.cleanupCandidates = retention.candidates + sessions.candidates;
+    this.stats.sourceFilesDeleted += retention.deleted;
+    this.stats.uploadSessionsCleaned += sessions.deleted;
+
     return result.releasedNow;
   }
 

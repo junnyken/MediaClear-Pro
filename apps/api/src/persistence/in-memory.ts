@@ -263,6 +263,16 @@ export class InMemoryPersistence implements PersistencePort {
     },
     listForRetention: async (workspaceId?: string | null): Promise<SourceFileRecord[]> =>
       [...this.sourceFileRows.values()].filter((r) => !workspaceId || r.workspaceId === workspaceId),
+    markDeleted: async (workspaceId: string, id: string, at: string): Promise<SourceFileRecord> => {
+      const row = this.sourceFileRows.get(id);
+      if (!row || row.workspaceId !== workspaceId) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      // Chi chay MOT lan, giong rang buoc `retention_state <> 'deleted'` cua ban PostgreSQL:
+      // goi lai khong duoc ghi de moc `deletedAt` cu.
+      if (row.retentionState === 'deleted') throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      const next: SourceFileRecord = { ...row, retentionState: 'deleted', deletedAt: at, scheduledDeletionAt: null };
+      this.sourceFileRows.set(id, next);
+      return next;
+    },
   };
 
   readonly validations = {
@@ -398,6 +408,13 @@ export class InMemoryPersistence implements PersistencePort {
       row.state = state;
       return { ...row, receivedChunks: [...row.receivedChunks] };
     },
+
+    listExpired: async (now: string, limit: number): Promise<UploadSessionRecord[]> =>
+      this.uploadSessionRows
+        .filter((r) => r.state === 'open' && r.expiresAt < now)
+        .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt))
+        .slice(0, limit)
+        .map((r) => ({ ...r, receivedChunks: [...r.receivedChunks] })),
   };
 
   readonly videoProxies = {

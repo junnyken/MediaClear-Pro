@@ -97,6 +97,15 @@ export const AUDIT_EVENTS = {
   USAGE_RELEASED: 'usage_released',
   /** P1.1: reservation qua han 30 phut va duoc hoan tra tu dong. */
   USAGE_RESERVATION_EXPIRED: 'usage_reservation_expired',
+  /**
+   * P3 (`D-070`): BYTE cua mot tep nguon da bi xoa theo luat luu giu.
+   *
+   * Day la su kien khong the hoan tac. Ban ghi o lai lam bia mo, va dong audit nay la thu noi ro
+   * TAI SAO no bi xoa — thieu no thi khong ai kiem lai duoc mot quyet dinh xoa.
+   */
+  SOURCE_FILE_DELETED: 'source_file_deleted',
+  /** P3 (`D-070`): manh thua cua mot phien tai len qua han da duoc don. */
+  UPLOAD_SESSION_CLEANED: 'upload_session_cleaned',
   PERMISSION_DENIED: 'permission_denied',
 } as const;
 
