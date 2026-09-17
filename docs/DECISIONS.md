@@ -1511,8 +1511,21 @@ nêu **ba rủi ro** kèm câu đề xuất song ngữ: (1) câu được ký kh
 quyết định đó là cố ý hay mất mát; (3) việc hệ thống **không thẩm định** quyền chưa nằm trong chuỗi
 được ký.
 
-Cố ý **không** đề xuất: giới hạn trách nhiệm, bồi thường, luật áp dụng, cơ quan tài phán, dữ liệu cá
-nhân/khuôn mặt người. Đó là phần phải do luật sư viết.
+**Cập nhật cùng ngày — owner bỏ giới hạn phạm vi và yêu cầu soạn thêm bốn phần**, nay có ở §4:
+**giới hạn trách nhiệm** · **bồi thường** · **luật áp dụng và cơ quan giải quyết tranh chấp** ·
+**dữ liệu cá nhân và hình ảnh người thật**. Ban đầu tôi đã nêu lý do không đụng vào; owner quyết
+khác, và đây là quyết định của owner.
+
+Phần **4.4 là phần nặng nhất và nó liên quan tới hệ thống ngay hôm nay**, không phải tương lai: hệ
+thống **không** chỉnh sửa khuôn mặt, nhưng tệp người dùng tải lên **vẫn có thể chứa hình ảnh người
+thật** và hệ thống **lưu trữ 365 ngày** (`D-019`) — lưu trữ đã là một hoạt động xử lý dữ liệu cá
+nhân. Bản nháp nêu bốn điểm để luật sư xác nhận (trong đó có Nghị định **13/2023/NĐ-CP**) và **không
+kết luận thay** họ.
+
+**Chỗ để trống `«…»` là cố ý**: tên pháp nhân, địa chỉ, mức trần trách nhiệm, toà án cụ thể — agent
+**không có nguồn** để lấy. Điền bừa sẽ tạo ra một văn bản trông như thật nhưng **sai chủ thể**, đúng
+dạng lỗi mà luật không-bịa-dữ-liệu cấm. Đây là giới hạn **kỹ thuật** (thiếu dữ liệu), không phải né
+việc.
 
 `Q-11` **vẫn mở** cho tới khi có người chịu trách nhiệm ghi duyệt/sửa/bác cho từng mục. Nếu họ bác
 toàn bộ, `Q-11` vẫn đóng được — bằng một câu xác nhận rằng v2 đã đủ.

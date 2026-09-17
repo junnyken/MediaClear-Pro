@@ -70,18 +70,107 @@ cho bên vận hành.
 **Đề xuất (en).**
 > MediaClear Pro does not verify or confirm your rights to this content.
 
-## 4. Những chỗ agent **cố ý không đụng vào**
+## 4. Bốn phần owner yêu cầu soạn thêm
 
-- **Không** đề xuất câu về giới hạn trách nhiệm, bồi thường, luật áp dụng hay cơ quan tài phán —
-  đó là phần phải do luật sư viết, không phải phần "viết lại cho dễ hiểu".
-- **Không** đề xuất câu về dữ liệu cá nhân / hình ảnh người thật. Hệ thống hiện xử lý **logo và dấu
-  hiệu nhận diện nhìn thấy được** (`policy.visible_identity_scope`); nếu phạm vi mở rộng sang khuôn
-  mặt người, đó là một câu hỏi pháp lý **mới** và nặng hơn.
-- **Không** đề xuất đổi thời hạn 365 ngày — đó là quyết định đã chốt (`D-019`).
+> Owner đã bỏ giới hạn phạm vi trước đó và yêu cầu soạn cả bốn phần này. Đây **vẫn là bản nháp**:
+> agent không phải luật sư, và **không** phần nào dưới đây có hiệu lực cho tới khi người chịu trách
+> nhiệm pháp lý đọc và ký.
+>
+> **Chỗ để trống là cố ý.** `«…»` là thông tin agent **không được phép tự điền** — tên pháp nhân,
+> địa chỉ, mã số doanh nghiệp, mức trần trách nhiệm. Điền bừa những chỗ này sẽ tạo ra một văn bản
+> trông như thật nhưng sai chủ thể.
+
+### 4.1 Giới hạn trách nhiệm
+
+**Rủi ro cần chặn.** Hệ thống xoá logo/dấu hiệu nhận diện **nhìn thấy được**. Nó **không** bảo đảm
+kết quả đủ điều kiện để người dùng đăng ở bất kỳ nền tảng nào, và **không** thẩm định quyền của họ
+(`Q-P3-04` ghi rõ: không có bằng chứng nào từ nền tảng). Nếu người dùng đăng bản đã xử lý rồi bị
+khiếu nại, ranh giới trách nhiệm phải rõ từ trước.
+
+**Đề xuất (vi).**
+> «TÊN PHÁP NHÂN» cung cấp công cụ xử lý tệp theo yêu cầu của bạn. Chúng tôi không bảo đảm kết quả
+> xử lý đáp ứng yêu cầu của bất kỳ nền tảng, bên thứ ba hay cơ quan nào, và không chịu trách nhiệm
+> về thiệt hại phát sinh từ việc bạn sử dụng tệp kết quả. Trong mọi trường hợp, tổng trách nhiệm của
+> chúng tôi đối với một tệp không vượt quá «MỨC TRẦN».
+
+**Đề xuất (en).**
+> «LEGAL ENTITY» provides a tool that processes files at your request. We do not warrant that the
+> result meets the requirements of any platform, third party or authority, and we are not liable for
+> damages arising from your use of the resulting file. Our total liability for any one file shall not
+> exceed «CAP».
+
+**Luật sư cần quyết:** mức trần tính theo phí đã trả cho tệp đó, theo tháng, hay một số cố định; và
+giới hạn này có bị vô hiệu với lỗi cố ý / vi phạm nghiêm trọng hay không.
+
+### 4.2 Bồi thường
+
+**Rủi ro cần chặn.** Người dùng tải lên nội dung **họ không có quyền**, hệ thống xử lý theo yêu cầu,
+bên thứ ba khiếu nại. Xác nhận ở §2 đã nói người dùng tự khai quyền, nhưng lời khai đó **chưa gắn
+với nghĩa vụ bồi hoàn**.
+
+**Đề xuất (vi).**
+> Bạn chịu trách nhiệm bồi thường cho «TÊN PHÁP NHÂN» đối với khiếu nại của bên thứ ba phát sinh từ
+> nội dung bạn tải lên hoặc từ cách bạn sử dụng tệp kết quả, trong phạm vi khiếu nại đó bắt nguồn từ
+> việc bạn không có quyền như đã xác nhận.
+
+**Đề xuất (en).**
+> You will indemnify «LEGAL ENTITY» against third-party claims arising from the content you upload
+> or from your use of the resulting file, to the extent the claim stems from your not holding the
+> rights you confirmed.
+
+**Luật sư cần quyết:** phạm vi bồi hoàn (có gồm chi phí luật sư không), và có đối ứng nghĩa vụ nào từ
+phía nhà cung cấp hay không.
+
+### 4.3 Luật áp dụng và cơ quan giải quyết tranh chấp
+
+**Đề xuất (vi).**
+> Các điều khoản này được điều chỉnh bởi pháp luật Việt Nam. Tranh chấp phát sinh sẽ được giải quyết
+> tại «TOÀ ÁN / TRUNG TÂM TRỌNG TÀI CÓ THẨM QUYỀN».
+
+**Đề xuất (en).**
+> These terms are governed by the laws of Vietnam. Disputes shall be resolved at «COMPETENT COURT /
+> ARBITRATION CENTRE».
+
+**Luật sư cần quyết:** toà án hay trọng tài (VIAC); nếu có người dùng ngoài Việt Nam thì điều khoản
+này có bị hạn chế bởi luật bảo vệ người tiêu dùng nước sở tại hay không.
+
+### 4.4 Dữ liệu cá nhân và hình ảnh người thật
+
+**Đây là phần nặng nhất, và nó liên quan tới hệ thống NGAY HÔM NAY chứ không phải tương lai.**
+
+Phạm vi xử lý hiện tại là **logo và dấu hiệu nhận diện nhìn thấy được**
+(`policy.visible_identity_scope`) — hệ thống **không** chỉnh sửa khuôn mặt. Nhưng ảnh/video người
+dùng tải lên **vẫn có thể chứa hình ảnh người thật**, và hệ thống **lưu trữ** chúng (hiện là 365
+ngày theo `D-019`). Lưu trữ đã là một hoạt động xử lý dữ liệu cá nhân, kể cả khi không ai chỉnh sửa
+khuôn mặt.
+
+**Điểm luật sư cần xác nhận — agent nêu để không bị bỏ sót, không kết luận thay:**
+
+1. Nghị định **13/2023/NĐ-CP** về bảo vệ dữ liệu cá nhân có áp dụng cho hoạt động lưu trữ này không,
+   và nếu có thì cần **cơ sở pháp lý** nào (sự đồng ý của chủ thể dữ liệu, hay cơ sở khác).
+2. Người dùng tải tệp lên **không phải** chủ thể dữ liệu của người xuất hiện trong tệp. Xác nhận ở
+   §2 hiện chỉ nói về **quyền chỉnh sửa nội dung**, **không** nói gì về người trong ảnh.
+3. Có cần **hồ sơ đánh giá tác động** xử lý dữ liệu cá nhân hay không.
+4. Nếu sau này mở phạm vi sang **chỉnh sửa khuôn mặt**, đây là câu hỏi pháp lý **mới và nặng hơn
+   hẳn** — không nằm trong bản nháp này.
+
+**Đề xuất câu bổ sung vào phần xác nhận (vi).**
+> Nếu tệp của bạn có hình ảnh người khác, bạn xác nhận bạn có cơ sở hợp pháp để tải lên và xử lý tệp
+> đó. MediaClear Pro chỉ xử lý logo và dấu hiệu nhận diện nhìn thấy được, không chỉnh sửa khuôn mặt.
+
+**Đề xuất câu bổ sung (en).**
+> If your file contains images of other people, you confirm you have a lawful basis to upload and
+> process it. MediaClear Pro only processes visible logos and branding; it does not edit faces.
+
+### 4.5 Phần agent vẫn KHÔNG đề xuất, và lý do là kỹ thuật chứ không phải né
+
+- **Đổi thời hạn 365 ngày** — đã chốt ở `D-019`, đổi là quyết định sản phẩm, không phải câu chữ.
+- **Con số, tên pháp nhân, địa chỉ, toà án cụ thể** — agent không có nguồn nào để lấy. Bịa ra sẽ tạo
+  văn bản sai chủ thể, đúng dạng lỗi mà `feedback_absolute_no_fake_data` cấm.
 
 ## 5. Việc cần làm sau khi có người duyệt
 
-1. Người duyệt ghi rõ **duyệt / sửa / bác** cho **từng mục** 3.1–3.3.
+1. Người duyệt ghi rõ **duyệt / sửa / bác** cho **từng mục** 3.1–3.3 **và** 4.1–4.4, và điền các chỗ `«…»`.
 2. Nếu có mục nào được duyệt ⇒ **tạo `Rights Statement v3`** theo đúng quy trình version hoá; **không**
    sửa v1/v2 (chúng là bằng chứng của những lần ký đã xảy ra).
 3. Cập nhật `Q-11` trong `OPEN_QUESTIONS.md` và ghi một quyết định mới trong `DECISIONS.md`.
