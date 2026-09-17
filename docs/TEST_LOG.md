@@ -2130,3 +2130,48 @@ Sau mỗi đột biến đều khôi phục tệp và chạy lại.
 - **Bấm tay lại trên Chrome** — lượt này **không đổi đường online** và thay đổi giao diện duy nhất
   là `auditEventLabel()` ở trang Nhật ký, đã có test phủ cả ca sự kiện lạ. Chưa bấm tay lại; ghi
   đúng là **chưa**, không ghi là đạt.
+
+---
+
+## 2026-09-17 — Kích hoạt `Q-23`: DỪNG ở cổng điều kiện
+
+Chạy theo `Q23_DEPLOY_AND_VERIFY_PROMPT.md`. **Dừng ở "Điều kiện bắt đầu" bước 1.3** — không deploy,
+không đo nghiệp vụ. Không secret nào được đọc, in hay ghi.
+
+### Ba blocker, mỗi cái kiểm bằng HAI cách độc lập
+
+**1. Biến `MEDIACLEAR_S3_*` KHÔNG có trên Vibe Host.**
+
+| Cách kiểm | Kết quả |
+|---|---|
+| `list_env` trên `mediaclear-api` | không có `MEDIACLEAR_S3_ENDPOINT`, `..._ACCESS_KEY_ID`, `..._SECRET_ACCESS_KEY`, `..._BUCKET` |
+| `list_env` trên `mediaclear-web` | như trên |
+| Nhật ký chạy của API | khởi động **thành công** — mà theo `server.ts`, thiếu bucket thì server **từ chối khởi động**; khởi động được nghĩa là **không** đi vào nhánh S3 |
+| `/healthz` | `storage.id = local-fs-phase1`, `production = false` |
+
+Biến **duy nhất** có tên gần giống là **`MEDIACLEAR_TEST_S3_SECRET_KEY`** — đó là biến của **bộ
+test** (`p2-storage-contract.test.ts`), **mã chạy thật không đọc nó**, và cũng chỉ có mỗi khoá bí mật
+chứ không có endpoint/access key/bucket.
+
+**2. Bản online là build cũ.**
+
+| Cách kiểm | Bản online | Mã hiện tại |
+|---|---|---|
+| `/healthz` số route | `35 / 28 implemented / 3 planned` | `46 / 42 / 0` |
+| Nhật ký chạy: `migration: ap dung 0, bo qua 5` | biết **5** migration | repo có **8** (thiếu `0006` biên nhận, `0007` tải nối lại, `0008` video Phase 3) |
+
+**3. KHÔNG CÓ dịch vụ worker.** `list_projects` chỉ có `mediaclear-api` và `mediaclear-web`. Bước 1.2
+của prompt đòi deploy **cả API và worker**; bước 3.2 đòi chứng minh worker đọc/ghi **cùng bucket** với
+API. Không có worker thì **không kiểm được**, và cũng không có gì chạy job trên bản online.
+
+### Kết luận
+
+```text
+BLOCKED_BY_Q23
+Missing: MEDIACLEAR_S3_ENDPOINT, MEDIACLEAR_S3_ACCESS_KEY_ID,
+         MEDIACLEAR_S3_SECRET_ACCESS_KEY, MEDIACLEAR_S3_BUCKET
+Missing service: worker (MEDIACLEAR_ROLE=worker)
+Deploy: stale (5/8 migration, 35/46 route)
+```
+
+`Q-23` và `Q-P3-05` **giữ nguyên `blocked`**. Không tạo bucket, không tự điền giá trị, không deploy.
