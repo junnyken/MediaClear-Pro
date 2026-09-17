@@ -299,3 +299,171 @@ export function qualityReviewVerdict(input: QualityGateInput): QualityGateResult
   const fatal = counts.frames_missing > 0 || counts.frames_failed > 0 || counts.audio_not_preserved > 0;
   return { verdict: fatal ? 'failed' : 'review_required', reasons, counts };
 }
+
+/* ------------------------------------------- canonical keyframe correction (MCP-42) */
+
+/**
+ * `D-074` — LUAT DUY NHAT cho mot lan sua keyframe.
+ *
+ * Truoc `D-074` co HAI ban hien thuc: `applyCorrection` o tang service (co tinh lai lan can) va
+ * `correctJobFrame` o tang API (ghi `reinterpolated: []`, KHONG tinh lai gi). Hai ban cho ket qua
+ * khac nhau tren cung mot thao tac cua nguoi dung — do la `Q-P4-05`. Ham nay la ban duy nhat;
+ * ca hai duong deu goi vao day va khong duong nao duoc tu tinh lay.
+ *
+ * Ham nay THUAN: khong doc DB, khong ghi gi. Nguoi goi nhan ke hoach roi tu quyet dinh luu the nao.
+ */
+
+/** Ban kinh lan can bi tinh lai moi ben. */
+export const CORRECTION_NEIGHBOUR_RADIUS = 2;
+
+/**
+ * SU THAT VE CON SO `2`: day la **UOC LUONG**, khong phai ket qua do — giong het
+ * `FRAME_CONFIDENCE_THRESHOLD` va `MAX_MASK_SPEED_PER_SECOND`.
+ *
+ * No duoc THUA KE tu tham so mac dinh cua `applyCorrection` co, khong phai do tu hanh vi nguoi dung
+ * that. Chua co ai do xem sua mot frame thi thuc te anh huong lan bao xa. Doi lai khi co du lieu that.
+ */
+export const CORRECTION_NEIGHBOUR_RADIUS_IS_MEASURED = false;
+
+/** Mot frame duoi goc nhin cua phep sua. Trung hinh dang voi ban ghi luu tru va voi view cua UI. */
+export interface CorrectionFrame {
+  index: number;
+  state: FrameState;
+  box: MaskBox | null;
+  confidence: number | null;
+  source: MaskSource;
+}
+
+/** Vi sao mot frame lan can KHONG duoc tinh lai. Noi ro ly do, khong im lang bo qua. */
+export const CORRECTION_SKIP_REASONS = [
+  /** Frame hong decode va khong co mask — khong co gi de noi suy, va khong duoc "hoi sinh". */
+  'frame_failed_no_box',
+  /** Nguoi khac da tu sua frame nay — khong de len quyet dinh cua nguoi that. */
+  'manual_frame',
+  /** Het timeline ve phia do. */
+  'timeline_boundary',
+] as const;
+export type CorrectionSkipReason = (typeof CORRECTION_SKIP_REASONS)[number];
+
+export interface CorrectionSkip {
+  index: number;
+  reason: CorrectionSkipReason;
+}
+
+export interface CorrectionPlan {
+  /** Frame nguoi that sua truc tiep. */
+  corrected: CorrectionFrame;
+  /** Gia tri cua frame do TRUOC khi sua. */
+  correctedBefore: CorrectionFrame;
+  /** Frame lan can duoc tinh lai, kem gia tri truoc/sau — du de dung lai ho so. */
+  reinterpolated: Array<{ before: CorrectionFrame; after: CorrectionFrame }>;
+  /** Lan can bi bo qua, kem ly do. */
+  skipped: CorrectionSkip[];
+  /** Toan bo timeline SAU khi sua. */
+  frames: CorrectionFrame[];
+}
+
+function lerpBox(from: MaskBox, to: MaskBox, t: number): MaskBox {
+  return {
+    x: from.x + (to.x - from.x) * t,
+    y: from.y + (to.y - from.y) * t,
+    width: from.width + (to.width - from.width) * t,
+    height: from.height + (to.height - from.height) * t,
+  };
+}
+
+/**
+ * Lap ke hoach cho mot lan sua keyframe.
+ *
+ * Tra `null` khi `frameIndex` khong co trong timeline — nguoi goi bao loi, ham nay khong doan.
+ *
+ * LUAT, viet ra het vi tung diem deu la cho de lam sai:
+ *
+ *  1. **Frame sua truc tiep** -> `manual` · `frame_correction_applied` · `confidence: null`.
+ *     Nguoi that dat tay vao thi "do tin cay cua may" khong con y nghia; bia mot so cao la noi doi.
+ *
+ *  2. **Lan can trong ban kinh** -> noi suy tuyen tinh tu hop vua sua ve phia hop cu cua lan can,
+ *     trong so `t = buoc / (ban kinh + 1)`. Danh dau `interpolated`, KHONG phai `tracked`:
+ *     mot gia tri SUY RA khong duoc tron voi mot gia tri DO DUOC.
+ *
+ *  3. **Confidence cua lan can -> `null`.** Day la cho `D-074` SUA hanh vi cu.
+ *     Ban cu giu nguyen so confidence cua lan can trong khi hop da doi — tuc la con so dang mo ta
+ *     mot hop KHONG CON TON TAI. Do la loi `D-044` o mot tang khac. Hop moi chua he duoc do,
+ *     nen cau tra loi dung la "khong biet".
+ *
+ *  4. **Lan can dang bi gan co review KHONG duoc thang len trang thai TOT.** Day la cho thu hai
+ *     `D-074` sua hanh vi cu, va la cho nguy hiem nhat. Do duoc tren ban cu: timeline 7 frame voi
+ *     frame 2 va 4 o `frame_low_confidence`, sua frame 3 mot lan ->
+ *     `lowConfidence: 2 -> 0` va `canComplete: false -> true`. Mot thao tac tren frame 3 da XOA
+ *     cau hoi dang treo o frame 2 va 4 — hai frame nguoi dung chua he nhin. Noi suy lam hop muot
+ *     hon; no KHONG tra loi duoc cau hoi "frame nay co dung khong". Nen hop duoc cap nhat con
+ *     trang thai gan co thi GIU NGUYEN, va cong chan van hoi.
+ *
+ *  5. **Frame hong decode khong co mask** -> bo qua, ghi `frame_failed_no_box`. Noi suy len mot
+ *     frame khong giai ma duoc la gia vo phuc hoi byte da hong.
+ *
+ *  6. **Gap frame `manual`** -> DUNG han ve phia do. Khong de len quyet dinh cua nguoi khac.
+ */
+export function planFrameCorrection(
+  frames: readonly CorrectionFrame[],
+  frameIndex: number,
+  box: MaskBox,
+  neighbourRadius: number = CORRECTION_NEIGHBOUR_RADIUS,
+): CorrectionPlan | null {
+  const byIndex = new Map(frames.map((f) => [f.index, { ...f }]));
+  const before = byIndex.get(frameIndex);
+  if (!before) return null;
+
+  const corrected: CorrectionFrame = {
+    index: frameIndex,
+    state: 'frame_correction_applied',
+    box,
+    confidence: null, // luat 1
+    source: 'manual',
+  };
+  byIndex.set(frameIndex, corrected);
+
+  const reinterpolated: CorrectionPlan['reinterpolated'] = [];
+  const skipped: CorrectionSkip[] = [];
+
+  for (const direction of [-1, 1] as const) {
+    for (let step = 1; step <= neighbourRadius; step += 1) {
+      const index = frameIndex + direction * step;
+      const neighbour = byIndex.get(index);
+      if (!neighbour) {
+        skipped.push({ index, reason: 'timeline_boundary' });
+        break; // luat: het timeline thi dung han ve phia do
+      }
+      if (neighbour.source === 'manual') {
+        skipped.push({ index, reason: 'manual_frame' }); // luat 6
+        break;
+      }
+      if (neighbour.box === null) {
+        skipped.push({ index, reason: 'frame_failed_no_box' }); // luat 5
+        continue;
+      }
+
+      const next: CorrectionFrame = {
+        index,
+        /*
+         * Luat 4. `frameStateIsOk` la phep hoi duy nhat o day: trang thai da TOT thi ghi nhan la
+         * da co nguoi sua ke ben; trang thai dang GAN CO thi giu nguyen de cong chan con hoi.
+         */
+        state: frameStateIsOk(neighbour.state) ? 'frame_correction_applied' : neighbour.state,
+        box: lerpBox(box, neighbour.box, step / (neighbourRadius + 1)), // luat 2
+        confidence: null, // luat 3
+        source: 'interpolated',
+      };
+      byIndex.set(index, next);
+      reinterpolated.push({ before: neighbour, after: next });
+    }
+  }
+
+  return {
+    corrected,
+    correctedBefore: before,
+    reinterpolated,
+    skipped,
+    frames: [...byIndex.values()].sort((a, b) => a.index - b.index),
+  };
+}

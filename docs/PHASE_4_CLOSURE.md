@@ -138,7 +138,31 @@ ra. Đã thêm `LinkButton` ở đúng nhánh `review_required`; đã bấm th�
 đủ và vẫn xanh hết** — vì mọi test đều đi qua cùng một cửa mà giao diện đi. Hai câu không ai hỏi:
 *"nếu bỏ qua giao diện thì sao"* và *"làm sao tới được màn hình này"*.
 
-## 8. Không đụng tới
+## 8. `D-074` — hội tụ hai đường sửa keyframe (đóng `Q-P4-05`)
+
+`Q-P4-05` ghi một điểm lệch: hàm thuần `applyCorrection` tính lại frame lân cận, đường API
+`correctJobFrame` thì ghi `reinterpolated: []` và không tính gì. Yêu cầu là hội tụ.
+
+**Đo hàm đích trước khi hội tụ** — và phép đo lộ ra hàm được chọn làm chuẩn cũng sai: timeline 7
+frame với frame 2 và 4 ở `frame_low_confidence`, sửa **frame 3** một lần thì `lowConfidence: 2 → 0`
+và `canComplete: false → true`. Một thao tác trên frame 3 xoá cờ review của hai frame người dùng
+chưa hề nhìn. Hội tụ vào đó sẽ nhân rộng lỗi thay vì sửa.
+
+Luật canonical mới nằm ở `planFrameCorrection` (hàm thuần, trong contract). Hai điểm **sửa hành vi**:
+confidence của frame nội suy về `null` (số cũ mô tả một hộp đã đổi), và lân cận **đang bị gắn cờ**
+giữ nguyên trạng thái — nội suy làm hộp mượt hơn, nó không trả lời được câu hỏi đã gắn cờ frame đó.
+
+Ghi là **một giao dịch** (`applyCorrectionAtomically`), có phép chắn trên **cả hai** bản lưu trữ.
+Migration `0011` thêm `neighbours` / `flicker_*` / `gate_verdict_*` — chỉ thêm cột, bảng vẫn
+APPEND-ONLY.
+
+**Đo lại trên hệ thống chạy thật**: sửa frame 4 → lân cận `3 · 2 · 5 · 6` được tính lại, frame 2 và
+6 **giữ** cờ `frame_low_confidence`, màn hình hiện `Độ tin cậy thấp: 3 → 2` chứ không phải `0`. Sửa
+tạo cú nhảy → cổng chạy lại, báo *"Vùng che nhảy bất thường — 6"*, hồ sơ ghi `0 trước · 6 sau`.
+
+Chi tiết và 12 đối chứng âm: `D-074` và `TEST_LOG.md`.
+
+## 9. Không đụng tới
 
 `MEDIACLEAR_CLEANUP_ENABLED` vẫn **tắt** · `Q-23` vẫn **blocked** · go-live vẫn
 **`NOT_READY_FOR_GO_LIVE`** · Rights Statement v1/v2 **không đổi một ký tự** · không ID lịch sử nào

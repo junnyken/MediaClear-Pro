@@ -334,3 +334,40 @@ Biến môi trường mới: `MEDIACLEAR_S3_ENDPOINT` · `MEDIACLEAR_S3_ACCESS_K
 
 **Thiếu bất kỳ mảnh bắt buộc nào** (endpoint / khoá / bí mật / bucket) ⇒ chạy đĩa local như cũ.
 **Thiếu bucket trên đích S3** ⇒ server **từ chối khởi động**, không chạy nửa vời.
+---
+
+## Sửa khung hình — ngữ nghĩa `reinterpolated` (`D-074`)
+
+`POST /v1/jobs/:jobId/frames/:frameIndex/correction`
+
+Một lần sửa **không chỉ đụng tới một khung hình**. Luật canonical `planFrameCorrection` tính lại các
+khung lân cận trong bán kính `CORRECTION_NEIGHBOUR_RADIUS = 2` mỗi bên, nội suy tuyến tính từ vùng
+che vừa sửa về phía vùng che cũ của khung lân cận.
+
+Cả `POST` (ghi) lẫn `GET /v1/jobs/:jobId/frames` (đọc) trả **cùng một hình dạng**, gồm
+`lastCorrection`:
+
+| Trường | Ý nghĩa |
+|---|---|
+| `frameIndex` | khung hình người dùng sửa trực tiếp |
+| `reinterpolated` | chỉ số các khung lân cận **thực sự** được tính lại. Trước `D-074` đường API luôn ghi `[]` dù không tính gì — đó là `Q-P4-05` |
+| `flickerBefore` / `flickerAfter` | số đoạn mask nhảy bất thường, đo ngay trước và ngay sau lần sửa. `null` = không đo được |
+| `gateVerdictBefore` / `gateVerdictAfter` | kết quả cổng chặn chất lượng ở hai vế. `null` = không đo được |
+
+`lastCorrection` là `null` khi chưa ai sửa.
+
+**Bốn quy tắc người gọi cần biết:**
+
+1. Khung sửa trực tiếp có `source: "manual"` và `confidence: null` — người thật đặt tay vào thì độ
+   tin cậy của máy không còn ý nghĩa.
+2. Khung nội suy có `source: "interpolated"` và `confidence: null` — vùng che mới **chưa** được đo.
+3. Khung lân cận **đang bị gắn cờ** (`frame_low_confidence`, `frame_review_required`) giữ nguyên
+   trạng thái: vùng che được cập nhật, nhưng nội suy không trả lời được câu hỏi đã gắn cờ nó.
+4. Khung `frame_failed` không có vùng che thì **bị bỏ qua** — không giả vờ phục hồi byte đã hỏng.
+
+Cổng chặn chất lượng và phép kiểm tính liên tục **chạy lại** sau mỗi lần sửa. Một lần sửa tạo ra cú
+nhảy sẽ khiến `gate.verdict` rời khỏi `completed`, và `GET /v1/jobs/:jobId/output/download-url` trả
+`409 MCP_STATE_QUALITY_REVIEW_REQUIRED` (`D-073`).
+
+Toàn bộ thao tác ghi trong **một giao dịch**: hồ sơ và mọi khung hình bị đụng tới cùng đứng hoặc
+cùng đổ.

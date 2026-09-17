@@ -223,6 +223,21 @@ export interface PersistencePort {
     updateFrame(record: JobFrameRecord): Promise<JobFrameRecord>;
     /** APPEND-ONLY: khong co duong sua hay xoa. */
     appendCorrection(record: JobFrameCorrectionRecord): Promise<JobFrameCorrectionRecord>;
+    /**
+     * `D-074` — mot lan sua keyframe la MOT giao dich.
+     *
+     * Mot lan sua dong toi NHIEU dong: frame duoc sua, cac frame lan can duoc tinh lai, va mot dong
+     * audit. Ghi tung cai roi hy vong khong co gi hong o giua se de lai trang thai nua voi — vi du
+     * frame da doi ma audit chua ghi, tuc la mat vinh vien gia tri cu. Ca loat phai cung dung hoac
+     * cung do.
+     *
+     * Audit ghi TRUOC frame trong cung giao dich: thu tu do van co y nghia neu ai do sau nay thao
+     * giao dich ra.
+     */
+    applyCorrectionAtomically(input: {
+      audit: JobFrameCorrectionRecord;
+      frames: readonly JobFrameRecord[];
+    }): Promise<void>;
     listCorrections(workspaceId: string, jobId: string): Promise<JobFrameCorrectionRecord[]>;
   };
 

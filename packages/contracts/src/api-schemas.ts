@@ -325,12 +325,32 @@ export const QUALITY_GATE_SCHEMA = object({
   counts: object(Object.fromEntries(QUALITY_GATE_REASONS.map((r) => [r, number()]))),
 });
 
+/**
+ * `D-074` — ket qua cua LAN SUA gan nhat.
+ *
+ * Co mat trong ca phan hoi doc lan phan hoi ghi, cung mot hinh dang. `null` = chua ai sua.
+ *
+ * `reinterpolated` la danh sach THAT cac frame lan can da duoc tinh lai. Truoc `D-074` duong API
+ * luon ghi `[]` du no khong tinh gi — mot o trong noi doi im lang, va do chinh la `Q-P4-05`.
+ */
+export const CORRECTION_SUMMARY_SCHEMA = object({
+  frameIndex: number(),
+  reinterpolated: arrayOf(number()),
+  /** So doan mask nhay, do ngay truoc va ngay sau lan sua. `null` = khong do duoc. */
+  flickerBefore: nullable(number()),
+  flickerAfter: nullable(number()),
+  gateVerdictBefore: nullable(enumOf(QUALITY_GATE_VERDICTS)),
+  gateVerdictAfter: nullable(enumOf(QUALITY_GATE_VERDICTS)),
+  correctedAt: string(),
+});
+
 export const FRAME_TRACKING_VIEW_SCHEMA = object({
   jobId: string(),
   jobState: JOB_STATE_SCHEMA,
   timeline: FRAME_TIMELINE_SCHEMA,
   frames: arrayOf(FRAME_VIEW_SCHEMA),
   gate: QUALITY_GATE_SCHEMA,
+  lastCorrection: nullable(CORRECTION_SUMMARY_SCHEMA),
 });
 
 export type FrameTrackingView = Infer<typeof FRAME_TRACKING_VIEW_SCHEMA>;

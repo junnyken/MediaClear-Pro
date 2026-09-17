@@ -22,7 +22,7 @@ import type {
   Workspace,
   WorkspaceMembership,
 } from '@mediaclear/contracts';
-import type { ApiError, FrameState, MaskBox, MaskSource, MediaType, RetentionState } from '@mediaclear/contracts';
+import type { ApiError, FrameState, MaskBox, MaskSource, MediaType, QualityGateVerdict, RetentionState } from '@mediaclear/contracts';
 
 export interface MeasuredSourceFile {
   /** MIME doc tu magic bytes, KHONG phai tu client. */
@@ -215,7 +215,38 @@ export interface JobFrameCorrectionRecord {
   beforeBox: MaskBox | null;
   beforeConfidence: number | null;
   afterBox: MaskBox;
+  /**
+   * Chi so cac frame lan can DA THUC SU duoc tinh lai.
+   *
+   * Truoc `D-074` duong API luon ghi `[]` du no khong he tinh gi — mot o trong noi doi im lang.
+   * Nay no phai khop dung voi `neighbours` duoi day.
+   */
   reinterpolated: number[];
+  /**
+   * `D-074` — gia tri TRUOC va SAU cua tung frame lan can bi dung toi.
+   *
+   * Chi luu danh sach chi so la khong du de dung lai ho so: biet "frame 3 bi tinh lai" ma khong
+   * biet no tu gia tri nao thanh gia tri nao thi khong doi chieu duoc quyet dinh nao ca.
+   */
+  neighbours: JobFrameCorrectionNeighbour[];
+  /** Ket qua cong chan va so doan nhay, do NGAY TRUOC va NGAY SAU lan sua nay. */
+  flickerBefore: number | null;
+  flickerAfter: number | null;
+  gateVerdictBefore: QualityGateVerdict | null;
+  gateVerdictAfter: QualityGateVerdict | null;
   correctedAt: IsoTimestamp;
   actorUserId: Id | null;
+}
+
+/** Mot frame lan can trong ho so mot lan sua. Giu ca hai ve — thieu mot ve la khong doi chieu duoc. */
+export interface JobFrameCorrectionNeighbour {
+  frameIndex: number;
+  beforeState: FrameState;
+  beforeSource: MaskSource;
+  beforeBox: MaskBox | null;
+  beforeConfidence: number | null;
+  afterState: FrameState;
+  afterSource: MaskSource;
+  afterBox: MaskBox | null;
+  afterConfidence: number | null;
 }

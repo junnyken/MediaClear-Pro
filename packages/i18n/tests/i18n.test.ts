@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_LOCALE, MESSAGES, formatBytes, formatDuration, t } from '../src/index.js';
 import { ALL_ERROR_CODES, errorI18nKey } from '../../contracts/src/errors.js';
 import { EVIDENCE_STATUSES, JOB_STATES } from '../../contracts/src/vocabulary.js';
+import { FRAME_STATES, MASK_SOURCES, QUALITY_GATE_REASONS, QUALITY_GATE_VERDICTS } from '../../contracts/src/phase4.js';
 
 describe('i18n foundation', () => {
   it('tieng Viet la locale mac dinh', () => {
@@ -33,6 +34,31 @@ describe('i18n foundation', () => {
   it('moi job state va evidence status deu co nhan hien thi', () => {
     for (const s of JOB_STATES) expect(MESSAGES.vi[`job_state.${s}`]).toBeDefined();
     for (const s of EVIDENCE_STATUSES) expect(MESSAGES.vi[`evidence.${s}`]).toBeDefined();
+  });
+
+  /*
+   * `D-074`. Giao dien dich cac gia tri nay bang KHOA DONG — `translate(`gate_verdict.${v}`)`.
+   *
+   * Phep chan i18n ben `apps/web` chi quet duoc `translate('chuoi tinh')`, nen khoa dong nam ngoai
+   * tam nhin cua no: them mot gia tri vao enum ma quen them ban dich se lam man hinh hien nguyen
+   * `gate_verdict.<gi do>` cho nguoi dung, va KHONG test nao do duoc. Day la duong chan con lai.
+   */
+  it('moi gia tri enum Phase 4 duoc dich bang khoa DONG deu co nhan o ca hai ngon ngu', () => {
+    const bang: Array<[string, readonly string[]]> = [
+      ['gate_verdict', QUALITY_GATE_VERDICTS],
+      ['gate_reason', QUALITY_GATE_REASONS],
+      ['frame_state', FRAME_STATES],
+      ['mask_source', MASK_SOURCES],
+    ];
+    const thieu: string[] = [];
+    for (const [tienTo, values] of bang) {
+      for (const v of values) {
+        const key = `${tienTo}.${v}`;
+        if (MESSAGES.vi[key] === undefined) thieu.push(`vi: ${key}`);
+        if (MESSAGES.en[key] === undefined) thieu.push(`en: ${key}`);
+      }
+    }
+    expect(thieu, 'man hinh se hien khoa tho thay vi cau chu').toEqual([]);
   });
 
   it('wording tieng Viet khong ro ri thuat ngu ky thuat cho nguoi dung cuoi', () => {

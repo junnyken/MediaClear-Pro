@@ -264,3 +264,23 @@ không trả về số nào"*. Gộp hai thứ này là lặp lại `D-044` ở 
 **`job_frame_corrections` giữ CẢ trước lẫn sau** (`before_state`, `before_source`, `before_box`,
 `before_confidence`, `after_box`). Thiếu vế "trước" thì không ai đối chiếu lại được quyết định của
 người dùng. Không có đường `UPDATE` hay `DELETE` nào cho bảng này trong toàn bộ mã.
+
+---
+
+## `job_frame_corrections` — cột thêm ở `D-074` (migration `0011`)
+
+Bảng vẫn **APPEND-ONLY**: không có đường `UPDATE` hay `DELETE` nào trong toàn bộ mã.
+
+| Cột | Kiểu | Ý nghĩa |
+|---|---|---|
+| `reinterpolated` | `integer[]` | chỉ số các khung lân cận **thực sự** được tính lại. Trước `D-074` đường API luôn ghi `[]` dù không tính gì |
+| `neighbours` | `jsonb` | mảng, mỗi phần tử giữ **cả hai vế** của một khung lân cận: `beforeState/Source/Box/Confidence` và `afterState/Source/Box/Confidence` |
+| `flicker_before` / `flicker_after` | `integer` | số đoạn mask nhảy, đo ngay trước và ngay sau lần sửa. `NULL` = **không đo được**, khác hẳn `0` (`D-044`) |
+| `gate_verdict_before` / `gate_verdict_after` | `text` | kết quả cổng chặn ở hai vế, ràng buộc `CHECK` theo `QUALITY_GATE_VERDICTS`. `NULL` = không đo được |
+
+**Vì sao cần cả hai vế**: biết *"khung 3 bị tính lại"* mà không biết nó **từ giá trị nào thành giá
+trị nào** thì không đối chiếu lại được quyết định nào cả — một dòng log, không phải một bằng chứng.
+Cặp `before/after` của cổng chặn trả lời câu hỏi thật sự của người dùng: *lần sửa vừa rồi làm tình
+hình tốt lên hay xấu đi*.
+
+Dòng ghi **trước** `D-074` giữ `neighbours = '[]'` và bốn cột còn lại `NULL`.

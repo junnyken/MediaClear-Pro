@@ -110,6 +110,33 @@ async function seedBase(db: PersistencePort): Promise<void> {
   }
 }
 
+/** Mot dong ho so sua keyframe (`D-074`). Du ca hai ve de doi chieu lai duoc. */
+function aCorrection(id: string, frameIndex: number, reinterpolated: number[]) {
+  const box = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+  return {
+    id, jobId: 'job_1', workspaceId: WS, frameIndex,
+    beforeState: 'frame_low_confidence' as const,
+    beforeSource: 'tracked' as const,
+    beforeBox: box,
+    beforeConfidence: 0.21,
+    afterBox: { x: 0.5, y: 0.5, width: 0.2, height: 0.2 },
+    reinterpolated,
+    neighbours: reinterpolated.map((i) => ({
+      frameIndex: i,
+      beforeState: 'frame_tracked' as const, beforeSource: 'tracked' as const,
+      beforeBox: box, beforeConfidence: 0.9,
+      afterState: 'frame_correction_applied' as const, afterSource: 'interpolated' as const,
+      afterBox: { x: 0.3, y: 0.3, width: 0.2, height: 0.2 }, afterConfidence: null,
+    })),
+    flickerBefore: 1,
+    flickerAfter: 0,
+    gateVerdictBefore: 'review_required' as const,
+    gateVerdictAfter: 'completed' as const,
+    correctedAt: at(2),
+    actorUserId: 'usr_1',
+  };
+}
+
 /** Bo hop dong. Moi adapter chay het bo nay. */
 function contractSuite(label: string, make: () => Promise<PersistencePort>): void {
   describe(`PersistencePort — ${label}`, () => {
@@ -396,6 +423,74 @@ function contractSuite(label: string, make: () => Promise<PersistencePort>): voi
       expect(rows.map((e) => e.id)).toEqual(['aud_3', 'aud_2']);
       expect(rows[0]?.detail).toEqual({ statementVersion: 2 });
       expect((await db.audit.listByWorkspace(OTHER_WS)).items).toEqual([]);
+    });
+
+    /*
+     * `D-074` — mot lan sua keyframe la MOT giao dich, tren CA HAI ban luu tru.
+     *
+     * Day la cho bo doi chieu hai ban luu tru tung bat duoc `D-066`: PostgreSQL ep rang buoc con
+     * in-memory thi nhan im lang, nen mot loi chi lo ra o mot ben. Giao dich cung vay — neu ban
+     * trong bo nho ghi tung dong theo vong lap, no se de lai du lieu nua voi trong khi PostgreSQL
+     * thi khong, va khac biet do chi lo ra tren production.
+     */
+    it('jobFrames: mot lan sua ghi audit + moi frame trong MOT giao dich', async () => {
+      await db.jobFrames.saveTimeline({
+        jobId: 'job_1', workspaceId: WS, expectedFrameCount: 3, declaredFrameCount: 3,
+        decodedFrameCount: 3, undecodableFrames: 0, fps: 10, variableFrameRate: false, createdAt: at(1),
+      });
+      await db.jobFrames.replaceFrames(WS, 'job_1', [0, 1, 2].map((i) => ({
+        jobId: 'job_1', workspaceId: WS, frameIndex: i, state: 'frame_tracked' as const,
+        box: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }, confidence: 0.9,
+        source: 'tracked' as const, updatedAt: at(1),
+      })));
+
+      await db.jobFrames.applyCorrectionAtomically({
+        audit: aCorrection('aud_1', 1, [0, 2]),
+        frames: [0, 1, 2].map((i) => ({
+          jobId: 'job_1', workspaceId: WS, frameIndex: i,
+          state: 'frame_correction_applied' as const,
+          box: { x: 0.5, y: 0.5, width: 0.2, height: 0.2 }, confidence: null,
+          source: i === 1 ? ('manual' as const) : ('interpolated' as const), updatedAt: at(2),
+        })),
+      });
+
+      const frames = await db.jobFrames.listFrames(WS, 'job_1');
+      expect(frames.every((f) => f.box?.x === 0.5)).toBe(true);
+      const corrections = await db.jobFrames.listCorrections(WS, 'job_1');
+      expect(corrections).toHaveLength(1);
+      expect(corrections[0]?.reinterpolated).toEqual([0, 2]);
+      expect(corrections[0]?.neighbours).toHaveLength(2);
+      expect(corrections[0]?.gateVerdictBefore).toBe('review_required');
+      expect(corrections[0]?.gateVerdictAfter).toBe('completed');
+    });
+
+    it('jobFrames: HONG giua chung thi KHONG ghi gi ca — khong audit, khong frame', async () => {
+      await db.jobFrames.saveTimeline({
+        jobId: 'job_1', workspaceId: WS, expectedFrameCount: 2, declaredFrameCount: 2,
+        decodedFrameCount: 2, undecodableFrames: 0, fps: 10, variableFrameRate: false, createdAt: at(1),
+      });
+      await db.jobFrames.replaceFrames(WS, 'job_1', [0, 1].map((i) => ({
+        jobId: 'job_1', workspaceId: WS, frameIndex: i, state: 'frame_tracked' as const,
+        box: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }, confidence: 0.9,
+        source: 'tracked' as const, updatedAt: at(1),
+      })));
+      const truoc = await db.jobFrames.listFrames(WS, 'job_1');
+
+      /*
+       * Frame 0 ghi duoc, frame 99 KHONG ton tai => loat ghi hong o giua. Neu khong co giao dich,
+       * frame 0 se doi va dong audit da nam lai trong bang.
+       */
+      await expect(db.jobFrames.applyCorrectionAtomically({
+        audit: aCorrection('aud_hong', 0, [99]),
+        frames: [0, 99].map((i) => ({
+          jobId: 'job_1', workspaceId: WS, frameIndex: i, state: 'frame_correction_applied' as const,
+          box: { x: 0.9, y: 0.9, width: 0.05, height: 0.05 }, confidence: null,
+          source: 'manual' as const, updatedAt: at(2),
+        })),
+      })).rejects.toThrow();
+
+      expect(await db.jobFrames.listFrames(WS, 'job_1'), 'frame da doi trong khi loat ghi that bai').toEqual(truoc);
+      expect(await db.jobFrames.listCorrections(WS, 'job_1'), 'dong audit nam lai sau mot lan ghi hong').toEqual([]);
     });
   });
 }

@@ -1889,3 +1889,99 @@ Provider thật vẫn **`blocked`** (`Q-P4-01`) · `FRAME_CONFIDENCE_THRESHOLD_I
 không đổi một ký tự · không route DELETE mới · không đánh số lại ID lịch sử · **chưa bắt đầu Phase 5**.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-074 — Một luật duy nhất cho một lần sửa keyframe (đóng `Q-P4-05`)
+
+**Bối cảnh**: `Q-P4-05` ghi một điểm lệch đã đo được: `applyCorrection` (hàm thuần) tính lại frame
+lân cận, còn `correctJobFrame` (đường API) ghi `reinterpolated: []` và **không tính lại gì**. Cùng
+một thao tác của người dùng cho hai kết quả khác nhau tuỳ nó đi qua đường nào.
+
+Yêu cầu là hội tụ hai đường. Nhưng trước khi hội tụ, phải **đo hàm đích** — và phép đo lộ ra rằng
+hàm được chọn làm chuẩn cũng đang sai.
+
+### Đo trước khi tin
+
+Timeline 7 frame, frame 2 và 4 ở `frame_low_confidence` (0.21). Sửa **frame 3** một lần:
+
+| | `ok` | `lowConfidence` | `canComplete` |
+|---|---|---|---|
+| Trước | 5 | **2** | **false** |
+| Sau | 7 | **0** | **true** |
+
+Một thao tác trên frame 3 đã **xoá cờ review của frame 2 và 4** — hai frame người dùng chưa hề nhìn
+— và lật `canComplete` thành `true`. Nội suy làm hộp mượt hơn; nó **không** trả lời được câu hỏi
+"frame này có đúng không". Đây là một đường vòng qua cổng chặn chất lượng, mở bằng một thao tác
+không liên quan.
+
+Kèm theo: confidence cũ (`0.21`) được giữ nguyên trong khi hộp đã đổi — con số đang mô tả một hộp
+**không còn tồn tại**. Đó là lỗi `D-044` ở một tầng khác.
+
+**Không test nào khẳng định hành vi này** — nó là tai nạn, không phải thiết kế. Hội tụ đường API vào
+hàm đó sẽ **nhân rộng** lỗi thay vì sửa nó.
+
+### Luật canonical — `planFrameCorrection`
+
+Hàm **thuần**, nằm ở `packages/contracts/src/phase4.ts`. Cả `applyCorrection` lẫn `correctJobFrame`
+đều gọi nó và không đường nào tự tính lấy.
+
+| # | Luật | Ghi chú |
+|---|---|---|
+| 1 | Frame sửa trực tiếp → `manual` · `frame_correction_applied` · `confidence: null` | không đổi |
+| 2 | Lân cận bán kính 2, nội suy tuyến tính `t = bước/(bán kính+1)`, đánh dấu `interpolated` | không đổi |
+| 3 | Confidence của frame nội suy → **`null`** | **SỬA**: giữ số cũ = mô tả một hộp không tồn tại |
+| 4 | Lân cận **đang bị gắn cờ** giữ nguyên trạng thái, chỉ cập nhật hộp | **SỬA**: chống đường vòng ở trên |
+| 5 | `frame_failed` không có mask → bỏ qua, ghi lý do | không đổi |
+| 6 | Gặp frame `manual` → dừng hẳn về phía đó | không đổi |
+
+`CORRECTION_NEIGHBOUR_RADIUS = 2` được **thừa kế** từ tham số mặc định cũ, không phải số đo. Đánh
+dấu `CORRECTION_NEIGHBOUR_RADIUS_IS_MEASURED = false`, cùng cách xử lý `FRAME_CONFIDENCE_THRESHOLD`.
+
+### Ghi là MỘT giao dịch
+
+Một lần sửa nay động tới nhiều dòng (frame được sửa + 4 frame lân cận + 1 dòng hồ sơ). Ghi rời rạc
+sẽ để lại timeline nửa cũ nửa mới. Thêm `applyCorrectionAtomically` vào cổng lưu trữ; PostgreSQL
+dùng `BEGIN/COMMIT/ROLLBACK`, bản trong bộ nhớ dùng bản sao rồi mới hoán đổi — **cả hai** đều có
+phép chắn trong bộ đối chiếu hai bản lưu trữ.
+
+Migration `0011` thêm `neighbours jsonb`, `flicker_before/after`, `gate_verdict_before/after`. Chỉ
+thêm cột. Bảng vẫn APPEND-ONLY.
+
+### Đo lại trên hệ thống chạy thật
+
+Timeline 10 frame, frame 2/4/6 ở `frame_low_confidence`. Sửa frame 4 → `x = 0.16`:
+
+```
+frame 2  frame_low_confidence  interpolated  conf=null  x=0.12   ← GIỮ cờ
+frame 3  frame_correction_applied interpolated conf=null x=0.14
+frame 4  frame_correction_applied manual      conf=null  x=0.16
+frame 5  frame_correction_applied interpolated conf=null x=0.14
+frame 6  frame_low_confidence  interpolated  conf=null  x=0.12   ← GIỮ cờ
+```
+
+Màn hình: `Độ tin cậy thấp: 3 → 2`, **không phải 0**. Nút tải về vẫn khoá. Nội suy đúng công thức:
+bước 1 → `0.16 − 0.06/3 = 0.14`, bước 2 → `0.16 − 0.12/3 = 0.12`.
+
+Sửa tiếp frame 4 → `x = 0.65` (tạo cú nhảy): cổng chạy lại, báo *"Vùng che nhảy bất thường — 6"*,
+và hồ sơ ghi **`0 trước · 6 sau`** — nói thẳng rằng chính lần sửa đó làm tình hình xấu đi.
+
+### Hai phép thử của chính tôi bị đối chứng âm bác bỏ
+
+- **`NC5`** (gỡ `detectFlicker` khỏi đường ghi hồ sơ) **vẫn xanh**: tôi chỉ khẳng định
+  `.not.toBeNull()`, mà `[].length` là `0` chứ không phải `null`. Đã siết lại thành một con số có
+  nghĩa (`flickerAfter > 0` khi cú nhảy được tạo ra).
+- **`NC9`** (gỡ `resource.reload()` sau khi lưu) **vẫn xanh**: không phép chắn nào hỏi *"sau khi lưu,
+  màn hình có còn đúng không"*. Đã thêm phép chắn đọc mã nguồn nhánh lưu thành công.
+
+Lần thứ năm liên tiếp đối chứng âm chỉ ra một lớp chặn chưa thật sự tồn tại (`D-070`…`D-074`).
+
+### Không đụng tới
+
+Provider thật vẫn **`blocked`** (`Q-P4-01`) · `FRAME_CONFIDENCE_THRESHOLD_IS_MEASURED` vẫn **`false`**
+(`Q-P4-02`) · `MEDIACLEAR_CLEANUP_ENABLED` vẫn **tắt** (nhật ký worker xác nhận *"dọn dữ liệu: tắt
+(chỉ chạy thử)"*) · `Q-23` vẫn **blocked** · go-live vẫn **`NOT_READY_FOR_GO_LIVE`** · Rights
+Statement không đổi một ký tự · không route DELETE mới · không đánh số lại ID lịch sử ·
+**Phase 5 vẫn `NOT_STARTED`**.
+
+- **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro

@@ -507,6 +507,29 @@ export class InMemoryPersistence implements PersistencePort {
         .filter((r) => r.jobId === jobId && r.workspaceId === workspaceId)
         .sort((a, b) => a.correctedAt.localeCompare(b.correctedAt))
         .map((r) => ({ ...r })),
+
+    /*
+     * `D-074`. Ban trong bo nho cung phai co ranh gioi giao dich THAT, khong phai mot vong lap.
+     * Dung mot ban sao: moi kiem tra chay tren ban sao, hong o bat cu buoc nao thi ban that khong
+     * he bi dung toi. Neu bo qua viec nay, bo test doi chieu hai ban luu tru se cho ket qua khac
+     * nhau o dung tinh chat dang duoc bao ve — dung kieu lech da sinh ra `D-066`.
+     */
+    applyCorrectionAtomically: async (input: {
+      audit: JobFrameCorrectionRecord;
+      frames: readonly JobFrameRecord[];
+    }): Promise<void> => {
+      const draft = this.frameRows.map((r) => ({ ...r }));
+      for (const frame of input.frames) {
+        const i = draft.findIndex(
+          (r) => r.jobId === frame.jobId && r.workspaceId === frame.workspaceId && r.frameIndex === frame.frameIndex,
+        );
+        if (i < 0) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+        draft[i] = { ...frame };
+      }
+      // Chi khi moi dong deu ghi duoc moi doi ban that — va audit la buoc cuoi cung khong the hong.
+      this.frameCorrectionRows.push({ ...input.audit });
+      this.frameRows = draft;
+    },
   };
 
   readonly audit = {

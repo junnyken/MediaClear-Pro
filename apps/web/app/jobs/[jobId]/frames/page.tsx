@@ -139,6 +139,54 @@ export default function FrameReviewPage() {
         </div>
       </Card>
 
+      {/*
+        ---------------- `D-074`: ket qua cua lan sua gan nhat ----------------
+
+        Truoc `D-074` duong API khong tinh lai frame lan can nao va luon ghi `reinterpolated: []`,
+        nen man hinh cung khong co gi de hien. Nay mot lan sua dong toi NHIEU frame, va nguoi dung
+        phai thay duoc chinh xac no dong toi nhung frame nao — neu khong, cac o ben canh tu nhien
+        doi mau ma khong ai giai thich tai sao.
+      */}
+      {view.lastCorrection ? (
+        <Card title={translate('screen.frames.last_correction')}>
+          <DefinitionRow label={translate('screen.frames.corrected_frame')}>
+            {view.lastCorrection.frameIndex}
+          </DefinitionRow>
+
+          <DefinitionRow label={translate('screen.frames.reinterpolated')}>
+            {view.lastCorrection.reinterpolated.length === 0
+              ? translate('screen.frames.reinterpolated_none')
+              /* Liet ke SO khung hinh, khong chi dem: "3 khung hinh" khong cho biet la nhung cai nao. */
+              : view.lastCorrection.reinterpolated.join(' · ')}
+          </DefinitionRow>
+
+          {view.lastCorrection.reinterpolated.length > 0 ? (
+            <p style={{ color: PRIMITIVE_COLORS.textSecondary }}>
+              {translate('screen.frames.interpolated_note')}
+            </p>
+          ) : null}
+
+          {/*
+            Truoc va SAU, canh nhau. Mot con so "sau" don doc khong tra loi duoc cau hoi that su
+            cua nguoi dung: lan sua vua roi lam tinh hinh tot len hay xau di.
+          */}
+          <DefinitionRow label={translate('screen.frames.flicker_change')}>
+            {view.lastCorrection.flickerBefore === null || view.lastCorrection.flickerAfter === null
+              ? translate('evidence.unknown')
+              : translate('screen.frames.change_value', { truoc: view.lastCorrection.flickerBefore, sau: view.lastCorrection.flickerAfter })}
+          </DefinitionRow>
+
+          <DefinitionRow label={translate('screen.frames.gate_change')}>
+            {view.lastCorrection.gateVerdictBefore === null || view.lastCorrection.gateVerdictAfter === null
+              ? translate('evidence.unknown')
+              : translate('screen.frames.change_value', {
+                  truoc: translate(`gate_verdict.${view.lastCorrection.gateVerdictBefore}`),
+                  sau: translate(`gate_verdict.${view.lastCorrection.gateVerdictAfter}`),
+                })}
+          </DefinitionRow>
+        </Card>
+      ) : null}
+
       {/* ---------------- P4-MCP-42: chon va sua khung hinh ---------------- */}
       <Card title={translate('screen.frames.pick')}>
         <ul

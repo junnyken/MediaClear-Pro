@@ -13,9 +13,11 @@
  * Moi duong doc deu phai di qua `iso()` - quen mot cho la ban ghi doc ra khac ban ghi ghi vao.
  */
 import { ERROR_CODES } from '@mediaclear/contracts';
+import type { QualityGateVerdict } from '@mediaclear/contracts';
 import type { Pool, PoolClient } from 'pg';
 import type { PersistencePort } from './port.js';
 import type {
+  JobFrameCorrectionNeighbour,
   JobFrameCorrectionRecord,
   JobFrameRecord,
   JobFrameTimelineRecord,
@@ -946,13 +948,8 @@ export class PostgresPersistence implements PersistencePort {
     appendCorrection: async (r: JobFrameCorrectionRecord): Promise<JobFrameCorrectionRecord> => {
       // CHI insert. Khong co duong UPDATE hay DELETE nao cho bang nay trong toan bo ma.
       await this.q(
-        `INSERT INTO job_frame_corrections
-           (id, job_id, workspace_id, frame_index, before_state, before_source, before_box,
-            before_confidence, after_box, reinterpolated, corrected_at, actor_user_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10,$11,$12)`,
-        [r.id, r.jobId, r.workspaceId, r.frameIndex, r.beforeState, r.beforeSource,
-         r.beforeBox === null ? null : JSON.stringify(r.beforeBox), r.beforeConfidence,
-         JSON.stringify(r.afterBox), r.reinterpolated, r.correctedAt, r.actorUserId],
+        CORRECTION_INSERT_SQL,
+        correctionInsertParams(r),
       );
       return r;
     },
@@ -972,9 +969,54 @@ export class PostgresPersistence implements PersistencePort {
         beforeConfidence: row.before_confidence === null ? null : Number(row.before_confidence),
         afterBox: row.after_box as NonNullable<JobFrameRecord['box']>,
         reinterpolated: (row.reinterpolated as number[]) ?? [],
+        neighbours: (row.neighbours as JobFrameCorrectionNeighbour[]) ?? [],
+        flickerBefore: row.flicker_before === null ? null : Number(row.flicker_before),
+        flickerAfter: row.flicker_after === null ? null : Number(row.flicker_after),
+        gateVerdictBefore: (row.gate_verdict_before as QualityGateVerdict | null) ?? null,
+        gateVerdictAfter: (row.gate_verdict_after as QualityGateVerdict | null) ?? null,
         correctedAt: isoRequired(row.corrected_at as Date | string),
         actorUserId: (row.actor_user_id as string | null) ?? null,
       }));
+    },
+
+    /*
+     * `D-074` — mot lan sua keyframe la MOT giao dich.
+     *
+     * Ghi audit TRUOC roi cap nhat tung frame, tat ca trong cung mot giao dich. Neu ghi roi rac,
+     * mot su co o giua se de lai frame da doi ma audit chua ghi — tuc la gia tri cu bien mat vinh
+     * vien va khong ai doi chieu lai duoc. `ROLLBACK` o day la thu duy nhat bao dam dieu do.
+     */
+    applyCorrectionAtomically: async (input: {
+      audit: JobFrameCorrectionRecord;
+      frames: readonly JobFrameRecord[];
+    }): Promise<void> => {
+      const client: PoolClient = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(CORRECTION_INSERT_SQL, correctionInsertParams(input.audit));
+        for (const f of input.frames) {
+          const updated = await client.query(
+            `UPDATE job_frames SET state = $4, box_x = $5, box_y = $6, box_width = $7, box_height = $8,
+                    confidence = $9, source = $10, updated_at = $11
+              WHERE job_id = $1 AND workspace_id = $2 AND frame_index = $3`,
+            [f.jobId, f.workspaceId, f.frameIndex, f.state,
+             f.box?.x ?? null, f.box?.y ?? null, f.box?.width ?? null, f.box?.height ?? null,
+             f.confidence, f.source, f.updatedAt],
+          );
+          // Khong co dong nao bi dung toi = danh sach dua vao sai. Do la loi, khong phai "khong sao".
+          if (updated.rowCount === 0) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+        }
+        await client.query('COMMIT');
+      } catch (error) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          // Loi goc moi la thu can nem len.
+        }
+        throw error;
+      } finally {
+        client.release();
+      }
     },
   };
 
@@ -1334,6 +1376,28 @@ function toAudit(r: AuditRow): AuditEvent {
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as { code?: string }).code === '23505';
+}
+
+/*
+ * `D-074`. MOT cau INSERT dung chung cho ca `appendCorrection` va `applyCorrectionAtomically`.
+ *
+ * Viet hai lan se de hai ban lech nhau khi them cot — va vi bang nay la APPEND-ONLY, mot dong ghi
+ * thieu cot khong the sua lai duoc.
+ */
+const CORRECTION_INSERT_SQL = `INSERT INTO job_frame_corrections
+   (id, job_id, workspace_id, frame_index, before_state, before_source, before_box,
+    before_confidence, after_box, reinterpolated, neighbours, flicker_before, flicker_after,
+    gate_verdict_before, gate_verdict_after, corrected_at, actor_user_id)
+ VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10,$11::jsonb,$12,$13,$14,$15,$16,$17)`;
+
+function correctionInsertParams(r: JobFrameCorrectionRecord): unknown[] {
+  return [
+    r.id, r.jobId, r.workspaceId, r.frameIndex, r.beforeState, r.beforeSource,
+    r.beforeBox === null ? null : JSON.stringify(r.beforeBox), r.beforeConfidence,
+    JSON.stringify(r.afterBox), r.reinterpolated, JSON.stringify(r.neighbours),
+    r.flickerBefore, r.flickerAfter, r.gateVerdictBefore, r.gateVerdictAfter,
+    r.correctedAt, r.actorUserId,
+  ];
 }
 
 function toFrameRecord(row: Record<string, unknown>): JobFrameRecord {

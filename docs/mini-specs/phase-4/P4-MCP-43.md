@@ -32,3 +32,17 @@ cùng tinh thần `D-044`.
 ## Trạng thái
 
 `completed`. 4 test.
+
+---
+
+## Cập nhật `D-074`
+
+Cổng chặn chất lượng và phép kiểm tính liên tục nay **chạy lại sau mỗi lần sửa keyframe**, và kết quả
+ở **cả hai vế** (ngay trước · ngay sau) được ghi vào hồ sơ lần sửa (`flicker_before/after`,
+`gate_verdict_before/after`).
+
+Một vế "sau" đứng một mình không trả lời được câu hỏi thật sự của người dùng: *lần sửa vừa rồi làm
+tình hình tốt lên hay xấu đi*. Đo được trên hệ thống chạy thật: một lần sửa tạo cú nhảy ghi
+`0 trước · 6 sau`, cổng rời khỏi `completed`, và nút tải về vẫn khoá.
+
+Xem `D-074` và `Q-P4-05`.

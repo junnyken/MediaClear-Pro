@@ -68,6 +68,13 @@ describe('Phase 4 — shared contract UI ↔ may chu', () => {
         timeline: { expectedFrameCount: 2, reportedFrameCount: 2, missing: 0, lowConfidence: 1, reviewRequired: 0, failed: 0, ok: 1, canComplete: false },
         frames: [frame(), frame({ index: 1, state: 'frame_low_confidence', confidence: 0.2 })],
         gate: { verdict: 'review_required', reasons: ['frames_low_confidence'], counts: Object.fromEntries(QUALITY_GATE_REASONS.map((r) => [r, r === 'frames_low_confidence' ? 1 : 0])) },
+        // `D-074`: lan sua gan nhat di chung mot hinh dang o ca hai duong doc/ghi.
+        lastCorrection: {
+          frameIndex: 1, reinterpolated: [0, 2],
+          flickerBefore: 0, flickerAfter: 0,
+          gateVerdictBefore: 'review_required', gateVerdictAfter: 'review_required',
+          correctedAt: '2026-09-17T00:00:00.000Z',
+        },
       },
     };
     expect(checkEnvelope(FRAME_TRACKING_VIEW_SCHEMA, body).ok).toBe(true);

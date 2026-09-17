@@ -49,3 +49,17 @@ thiếu**. Mỗi lý do kèm số đếm — *"Có khung hình độ tin cậy t
 
 Quan sát khi bấm tay: sửa frame 4 sang `x=0.42` trong khi lân cận ở `0.1` thì `P4-MCP-43` **lập tức**
 thêm lý do *"Vùng che nhảy bất thường, cần xem lại — 2"*.
+
+---
+
+## Cập nhật `D-074`
+
+Cổng chặn chất lượng và phép kiểm tính liên tục nay **chạy lại sau mỗi lần sửa keyframe**, và kết quả
+ở **cả hai vế** (ngay trước · ngay sau) được ghi vào hồ sơ lần sửa (`flicker_before/after`,
+`gate_verdict_before/after`).
+
+Một vế "sau" đứng một mình không trả lời được câu hỏi thật sự của người dùng: *lần sửa vừa rồi làm
+tình hình tốt lên hay xấu đi*. Đo được trên hệ thống chạy thật: một lần sửa tạo cú nhảy ghi
+`0 trước · 6 sau`, cổng rời khỏi `completed`, và nút tải về vẫn khoá.
+
+Xem `D-074` và `Q-P4-05`.

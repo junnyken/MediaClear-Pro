@@ -2477,3 +2477,120 @@ chặn tồn tại.
 
 Phase 1.1, Phase 2, Phase 3 (gồm video chạy thật), `Q-12`, cleanup 5 lớp chặn, `p4-*` — **tất cả
 xanh**, trong cùng lượt chạy 742 phép kiểm ở trên.
+
+---
+
+## `Q-P4-05` — hội tụ hai đường sửa keyframe · `D-074` · 2026-09-18
+
+### Lệnh kiểm (chạy riêng từng lệnh, ghi mã thoát riêng)
+
+```
+typecheck      = 0
+lint           = 0
+vitest run     = 0     74 tệp · 764 phép kiểm · 0 bỏ qua
+build:web      = 0
+git diff --check = 0
+pnpm check     = 0
+```
+
+Chạy **có** `MEDIACLEAR_TEST_DATABASE_URL` (database riêng `mcp_test_p4`). Số trước khi làm việc
+này là 742; **+22** phép kiểm mới.
+
+Một lượt chạy đầu cho 51 phép kiểm đỏ — nguyên nhân là tôi đã **xoá database test** ở cuối lượt
+trước, không phải lỗi mã. Tạo lại rồi chạy lại còn đúng 2 lỗi thật, cả hai là phép chắn hợp đồng
+chung báo fixture thiếu trường `lastCorrection` mới. Ghi lại vì suýt đọc nhầm thành hồi quy.
+
+### Đo hành vi TRƯỚC khi sửa (không đoán)
+
+Timeline 7 frame, frame 2 và 4 ở `frame_low_confidence` (0.21), sửa **frame 3**:
+
+| | `ok` | `lowConfidence` | `canComplete` |
+|---|---|---|---|
+| Trước | 5 | 2 | false |
+| Sau | 7 | **0** | **true** |
+
+Một thao tác trên frame 3 xoá cờ review của frame 2 và 4. Đây là lý do **không** hội tụ mù vào hàm
+được chỉ định làm chuẩn.
+
+### 12 đối chứng âm
+
+| # | Đột biến | Lần đầu | Sau khi bổ sung |
+|---|---|---|---|
+| 1 | API bỏ qua luật canonical, vẫn trả `reinterpolated: []` | **2 đỏ** | — |
+| 2 | Lưu frame sửa, KHÔNG lưu frame lân cận | **1 đỏ** | — |
+| 3 | Hồ sơ thiếu giá trị TRƯỚC | **1 đỏ** | — |
+| 4 | Hồ sơ bị ghi đè thay vì nối thêm | **1 đỏ** | — |
+| 5 | Không chạy lại temporal consistency | **XANH** ← phép thử của tôi quá yếu | **1 đỏ** |
+| 6 | Không chạy lại quality gate | **2 đỏ** | — |
+| 7 | Cú nhảy vẫn cho `completed` | **3 đỏ** | — |
+| 8 | Frame hỏng decode bị giả vờ phục hồi | **1 đỏ** | — |
+| 9 | Màn hình giữ kết quả cũ sau khi lưu | **XANH** ← không phép chắn nào | **1 đỏ** |
+| 10 | Hai đường dùng hai thuật toán khác nhau | **1 đỏ** | — |
+| 11 | Bỏ ranh giới giao dịch (bộ nhớ) | **1 đỏ** | — |
+| 11b | Bỏ `ROLLBACK` (PostgreSQL) | **1 đỏ** | — |
+| 12 | Toạ độ ngoài `[0,1]` vẫn lưu | **1 đỏ** | — |
+
+**10/12 đỏ ngay. Hai cái xanh đều là lỗi của chính phép đo, không phải của mã:**
+
+- **`NC5`**: tôi khẳng định `flickerAfter` `.not.toBeNull()`, mà `[].length` là `0` chứ không phải
+  `null` — nên gỡ hẳn phép đo flicker ra mà phép thử vẫn xanh. Siết lại thành một con số **có
+  nghĩa**: tạo cú nhảy có chủ đích rồi đòi `flickerAfter > 0` và `gateVerdictAfter !== 'completed'`.
+- **`NC9`**: không phép chắn nào hỏi *"sau khi lưu, màn hình có còn đúng không"*. Thêm phép chắn đọc
+  mã nguồn nhánh lưu thành công.
+
+Một bẫy tự gây: ở `NC10` tôi dùng `git checkout` để khôi phục thay vì bản sao lưu, nên nó kéo
+`frame-tracking.ts` về bản **đã commit** — hai đường lại lệch nhau thật. Phép chắn hội tụ bắt được
+ngay ở lượt chạy toàn bộ kế tiếp. Khôi phục bằng `git` giữa một loạt đột biến là cách tự xoá mất
+việc mình vừa làm.
+
+### Bấm tay trên Chrome (bản đã build, PostgreSQL thật, worker thật)
+
+Job `job_58bdfb...` chạy qua worker → `completed`; nhật ký xác nhận *"dọn dữ liệu: tắt (chỉ chạy
+thử)"*. Đặt frame 2/4/6 thành `frame_low_confidence` rồi sửa frame 4 → `x = 0.16`:
+
+```
+frame 2  frame_low_confidence  interpolated  conf=null  x=0.12   ← GIỮ cờ
+frame 3  frame_correction_applied interpolated conf=null x=0.14
+frame 4  frame_correction_applied manual      conf=null  x=0.16
+frame 5  frame_correction_applied interpolated conf=null x=0.14
+frame 6  frame_low_confidence  interpolated  conf=null  x=0.12   ← GIỮ cờ
+```
+
+| Kiểm | 1280×900 | 390×844 |
+|---|---|---|
+| `Độ tin cậy thấp: 3 → 2` (không phải 0) | ✔ | ✔ |
+| Thẻ "Lần sửa gần nhất" liệt kê `3 · 2 · 5 · 6` | ✔ | ✔ |
+| Nguồn hiển thị `interpolated` / `manual` phân biệt được | ✔ | ✔ |
+| Nút tải về thật sự `disabled` | ✔ | ✔ |
+| Toạ độ tràn khung ⇒ khoá nút lưu | ✔ | — |
+| Không tràn ngang (`scrollWidth === clientWidth`) | — | ✔ (390 = 390) |
+| Không lọt khoá dịch thô | ✔ | ✔ |
+| Console | sạch | sạch |
+
+**Sửa tạo cú nhảy** (`x = 0.65`): cổng chạy lại → *"Vùng che nhảy bất thường, cần xem lại — 6"*,
+hồ sơ ghi **`0 trước · 6 sau`** — nói thẳng rằng chính lần sửa đó làm tình hình xấu đi. Nút tải về
+vẫn khoá.
+
+### Kiểm thẳng API, bỏ qua giao diện
+
+```
+GET  /frames                        gate=review_required · lastCorrection=[3,2,5,6] · flicker=[0,6]
+POST /frames/2/correction  x+w>1    400 MCP_VAL_REQUEST_INVALID
+POST /frames/2/correction  w=0      400 MCP_VAL_REQUEST_INVALID
+POST /frames/2/correction  x<0      400 MCP_VAL_REQUEST_INVALID
+GET  /output/download-url           409 MCP_STATE_QUALITY_REVIEW_REQUIRED   (D-073 vẫn giữ)
+```
+
+Đường đọc và đường ghi trả **cùng** một `lastCorrection`.
+
+### Database
+
+Migration `0011` chạy thật trên PostgreSQL (`schema_migrations` = 11 dòng); các cột `neighbours`,
+`flicker_before/after`, `gate_verdict_before/after` có mặt. Hồ sơ giữ đủ cả hai vế cho từng frame
+lân cận (`beforeBox`/`afterBox`, `beforeState`/`afterState`, `beforeConfidence: 0.95` →
+`afterConfidence: null`).
+
+### Regression
+
+Phase 1.1, Phase 2, Phase 3 (gồm video chạy thật), `Q-12`, cleanup 5 lớp chặn, `D-073` — **tất cả
+xanh** trong cùng lượt 764 phép kiểm.

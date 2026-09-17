@@ -22,6 +22,7 @@ const view = (patch: Record<string, unknown> = {}) => ({
   timeline: { expectedFrameCount: 2, reportedFrameCount: 2, missing: 0, lowConfidence: 0, reviewRequired: 0, failed: 0, ok: 2, canComplete: true },
   frames: [{ index: 0, state: 'frame_tracked', box: { x: 0, y: 0, width: 1, height: 1 }, confidence: 0.9, source: 'tracked' }],
   gate: { verdict: 'completed', reasons: [], counts: counts0() },
+  lastCorrection: null,
   ...patch,
 });
 
@@ -111,5 +112,36 @@ describe('D-073 — duong di toi man hinh kiem khung hinh', () => {
     // bang `) : null}`, nen moc do cat cut mat phan con lai cua the.
     const block = text.slice(start, text.indexOf('</Card>', start));
     expect(block, 'lien ket co ton tai nhung khong nam o cho nguoi dung dang bi chan').toContain('/frames');
+  });
+});
+
+/**
+ * `D-074` — luu xong thi man hinh phai NAP LAI.
+ *
+ * Mot lan sua nay dong toi NHIEU frame (frame duoc sua + cac frame lan can duoc tinh lai), nen
+ * giu lai man hinh cu sau khi luu thanh cong khong con la "hoi cham mot nhip" — no hien mot
+ * timeline khac han voi thu vua duoc ghi xuong kho.
+ *
+ * Doi chung am `NC9` cho thay: go `resource.reload()` di thi TOAN BO bo test van xanh. Khong phep
+ * do nao hoi cau "sau khi luu, man hinh co con dung khong".
+ */
+describe('D-074 — man hinh nap lai sau khi luu', () => {
+  const PAGE = join(import.meta.dirname, '../app/jobs/[jobId]/frames/page.tsx');
+
+  it('nhanh luu THANH CONG co nap lai du lieu tu may chu', () => {
+    const text = readFileSync(PAGE, 'utf8');
+    const start = text.indexOf('async function save(');
+    expect(start, 'khong tim thay ham luu').toBeGreaterThan(0);
+    const body = text.slice(start, text.indexOf('\n  }', start));
+
+    // Nhanh loi phai thoat truoc; phan CON LAI la nhanh thanh cong.
+    const guard = body.indexOf('if (!result.ok)');
+    expect(guard, 'khong tim thay nhanh xu ly loi').toBeGreaterThan(0);
+    const nhanhThanhCong = body.slice(body.indexOf('}', guard));
+
+    expect(
+      /reload\(\)|setData\(|mutate\(/.test(nhanhThanhCong),
+      'luu xong ma man hinh khong nap lai => nguoi dung nhin mot timeline da cu',
+    ).toBe(true);
   });
 });

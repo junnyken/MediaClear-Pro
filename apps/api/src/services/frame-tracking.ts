@@ -7,7 +7,9 @@
  * voi chinh no, va mot frame bien mat se khong bao gio bi phat hien.
  */
 import {
+  CORRECTION_NEIGHBOUR_RADIUS,
   frameStateFor,
+  planFrameCorrection,
   summariseTimeline,
   type FrameState,
   type FrameTimelineSummary,
@@ -96,85 +98,39 @@ export async function trackTimeline(
 /**
  * MCP-42 — nguoi that sua mask tai mot frame.
  *
- * Hai dieu bat buoc, va ca hai deu tung la cho de lam sai:
+ * `D-074`: ham nay KHONG con tu tinh gi nua. Toan bo luat nam o `planFrameCorrection` cua contract,
+ * va duong API (`correctJobFrame`) goi CHINH ham do. Truoc `D-074` hai duong la hai ban hien thuc
+ * khac nhau va cho ket qua khac nhau tren cung mot thao tac cua nguoi dung — do la `Q-P4-05`.
  *
- *  1. **Khong ghi de lich su.** Ban ghi truoc khi sua duoc cat vao `audit` TRUOC khi thay doi gi.
- *     Sua ma khong giu ban cu thi khong ai doi chieu lai duoc quyet dinh cua nguoi dung.
- *  2. **Tinh lai frame lan can.** Sua dung mot frame roi de cac frame xung quanh giu gia tri cu se
- *     tao ra mot cu "nhay" ngay tai cho vua sua — tuc la sua mot loi va tao ra mot loi khac.
+ * Phan con lai o day chi la doi hinh dang `Map` <-> mang, va noi them ban ghi audit.
  */
 export function applyCorrection(
   result: TrackingResult,
   frameIndex: number,
   box: MaskBox,
   now: string,
-  neighbourRadius = 2,
+  neighbourRadius = CORRECTION_NEIGHBOUR_RADIUS,
 ): TrackingResult {
-  const current = result.frames.get(frameIndex);
-  if (!current) throw new Error(`frame ${frameIndex} khong co trong timeline`);
-
-  const before = {
-    box: current.box,
-    state: current.state,
-    source: current.source,
-    confidence: current.confidence,
-  };
-
-  const frames = new Map(result.frames);
-  frames.set(frameIndex, {
-    index: frameIndex,
-    state: 'frame_correction_applied',
-    box,
-    // Nguoi that sua thi khong con "do tin cay cua may" — de `null` chu khong bia mot so cao.
-    confidence: null,
-    source: 'manual',
-  });
-
-  /*
-   * Tinh lai lan can bang noi suy tu frame vua sua sang frame tot gan nhat o moi ben.
-   * Danh dau `interpolated`, KHONG danh dau `tracked`: mot gia tri suy ra khong duoc tron voi mot
-   * gia tri do duoc.
-   */
-  const reinterpolated: number[] = [];
-  for (const dir of [-1, 1]) {
-    for (let step = 1; step <= neighbourRadius; step += 1) {
-      const idx = frameIndex + dir * step;
-      const neighbour = frames.get(idx);
-      if (!neighbour) break;
-      // Khong dung toi frame nguoi that da sua, va khong "hoi sinh" frame hong decode.
-      if (neighbour.source === 'manual') break;
-      if (neighbour.state === 'frame_failed' && neighbour.box === null) continue;
-      const t = step / (neighbourRadius + 1);
-      const from = box;
-      const to = neighbour.box ?? box;
-      frames.set(idx, {
-        index: idx,
-        state: 'frame_correction_applied',
-        box: {
-          x: from.x + (to.x - from.x) * t,
-          y: from.y + (to.y - from.y) * t,
-          width: from.width + (to.width - from.width) * t,
-          height: from.height + (to.height - from.height) * t,
-        },
-        confidence: neighbour.confidence,
-        source: 'interpolated',
-      });
-      reinterpolated.push(idx);
-    }
-  }
+  const plan = planFrameCorrection([...result.frames.values()], frameIndex, box, neighbourRadius);
+  if (!plan) throw new Error(`frame ${frameIndex} khong co trong timeline`);
 
   return {
-    frames,
+    frames: new Map(plan.frames.map((f) => [f.index, f])),
     summary: summariseTimeline(
       result.summary.expectedFrameCount,
-      new Map([...frames].map(([k, v]) => [k, v.state])),
+      new Map(plan.frames.map((f) => [f.index, f.state])),
     ),
     // `audit` duoc NOI THEM, khong bao gio thay the — day la ban chat cua audit trail.
     audit: [...result.audit, {
       frameIndex,
-      before,
+      before: {
+        box: plan.correctedBefore.box,
+        state: plan.correctedBefore.state,
+        source: plan.correctedBefore.source,
+        confidence: plan.correctedBefore.confidence,
+      },
       after: { box, state: 'frame_correction_applied', source: 'manual' },
-      reinterpolated,
+      reinterpolated: plan.reinterpolated.map((r) => r.after.index),
       at: now,
     }],
   };

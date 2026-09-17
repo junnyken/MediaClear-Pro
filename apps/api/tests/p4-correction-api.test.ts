@@ -114,3 +114,150 @@ describe.skipIf(!hasFfmpeg)('MCP-42 tang API — sua keyframe', () => {
     await app.close();
   });
 });
+
+/**
+ * `Q-P4-05` / `D-074` — duong API phai THUC SU tinh lai frame lan can.
+ *
+ * Truoc `D-074` ham nay ghi cung `reinterpolated: []` cho moi lan sua, du no khong he tinh gi.
+ * Khong test nao bat duoc, vi khong test nao doi chieu o do voi trang thai THAT cua cac frame ben
+ * canh — chung chi doc chinh o do va thay no khop voi chinh no.
+ */
+describe.skipIf(!hasFfmpeg)('D-074 — API tinh lai frame lan can THAT', () => {
+  const BOX = { x: 0.42, y: 0.2, width: 0.25, height: 0.25 };
+
+  it('`reinterpolated` khong con rong, va KHOP voi frame thuc su doi trong kho', async () => {
+    const { app, ctx, ws, jobId, token } = await ranTrackedJob();
+    const actor = await actorOf(ctx, ws, token);
+
+    const truoc = await ctx.persistence.jobFrames.listFrames(ws, jobId);
+    const target = 4;
+    expect(truoc.length, 'moc thu can timeline du dai de co lan can hai ben').toBeGreaterThan(7);
+
+    const r = await correctJobFrame(ctx, actor, jobId, target, BOX);
+    expect(r.ok).toBe(true);
+
+    const corrections = await ctx.persistence.jobFrames.listCorrections(ws, jobId);
+    const audit = corrections[corrections.length - 1]!;
+    expect(audit.reinterpolated, 'API van ghi o trong').not.toEqual([]);
+
+    /*
+     * Doi chieu voi KHO, khong voi chinh o `reinterpolated`. Day la cho phep do cu bi vo hieu:
+     * doc lai chinh con so minh vua ghi thi no luon khop.
+     */
+    const sau = await ctx.persistence.jobFrames.listFrames(ws, jobId);
+    const doiThatSu = sau
+      .filter((f) => {
+        const cu = truoc.find((x) => x.frameIndex === f.frameIndex)!;
+        return f.frameIndex !== target && JSON.stringify(cu.box) !== JSON.stringify(f.box);
+      })
+      .map((f) => f.frameIndex)
+      .sort((a, b) => a - b);
+
+    expect([...audit.reinterpolated].sort((a, b) => a - b)).toEqual(doiThatSu);
+    for (const i of audit.reinterpolated) {
+      const f = sau.find((x) => x.frameIndex === i)!;
+      expect(f.source, `frame ${i} duoc khai la tinh lai nhung nguon van la gia tri do duoc`).toBe('interpolated');
+      expect(f.confidence, 'hop da doi ma con giu so confidence cu').toBeNull();
+    }
+    await app.close();
+  });
+
+  it('AUDIT giu gia tri TRUOC va SAU cua tung frame lan can, khong chi danh sach chi so', async () => {
+    const { app, ctx, ws, jobId, token } = await ranTrackedJob();
+    const actor = await actorOf(ctx, ws, token);
+    const truoc = await ctx.persistence.jobFrames.listFrames(ws, jobId);
+
+    await correctJobFrame(ctx, actor, jobId, 4, BOX);
+    const audit = (await ctx.persistence.jobFrames.listCorrections(ws, jobId)).at(-1)!;
+
+    expect(audit.neighbours.length).toBe(audit.reinterpolated.length);
+    for (const n of audit.neighbours) {
+      const cu = truoc.find((x) => x.frameIndex === n.frameIndex)!;
+      expect(n.beforeBox, 've "truoc" trong ho so khong khop trang thai that truoc do').toEqual(cu.box);
+      expect(n.beforeState).toBe(cu.state);
+      expect(n.beforeSource).toBe(cu.source);
+      expect(n.afterSource).toBe('interpolated');
+      expect(n.afterBox, 've "sau" bi bo trong').not.toBeNull();
+    }
+    await app.close();
+  });
+
+  it('AUDIT ghi ket qua cong chan va so doan nhay o CA HAI ve — va ve "sau" phai DO THAT', async () => {
+    const { app, ctx, ws, jobId, token } = await ranTrackedJob();
+    const actor = await actorOf(ctx, ws, token);
+
+    /*
+     * Sua tao cu NHAY co chu dinh. Khong the chi kiem `not.toBeNull()`: mot ve "sau" bi bo trong
+     * bang `0` cung khac `null`, nen phep kiem do van xanh khi phep do bi go han ra.
+     *
+     * Do dung la dieu doi chung am `NC5` da chung minh: go `detectFlicker` khoi duong ghi ho so
+     * ma bo test van xanh het. Phep kiem phai doi mot con so CO NGHIA, khong phai mot o khac null.
+     */
+    await correctJobFrame(ctx, actor, jobId, 4, { x: 0.75, y: 0.7, width: 0.2, height: 0.2 });
+    const audit = (await ctx.persistence.jobFrames.listCorrections(ws, jobId)).at(-1)!;
+
+    expect(audit.gateVerdictBefore, 'ho so chi co ve "sau" thi khong tra loi duoc "tot len hay xau di"').toBe('completed');
+    expect(audit.gateVerdictAfter, 've "sau" khong phan anh cu nhay vua tao ra').not.toBe('completed');
+    expect(audit.flickerBefore).toBe(0);
+    expect(audit.flickerAfter, 'so doan nhay o ve "sau" khong duoc do that').toBeGreaterThan(0);
+    await app.close();
+  });
+
+  it('SUA TAO CU NHAY: cong chan chay lai va TU CHOI `completed`', async () => {
+    const { app, ctx, ws, jobId, token } = await ranTrackedJob();
+    const actor = await actorOf(ctx, ws, token);
+
+    const truoc = await getJobFrames(ctx, actor, jobId);
+    expect(truoc.ok && truoc.data.gate.verdict, 'moc khoi dau phai la mot job da dat').toBe('completed');
+
+    // Day mask di that xa so voi lan can => vuot tran van toc cua MCP-43.
+    const r = await correctJobFrame(ctx, actor, jobId, 4, { x: 0.75, y: 0.7, width: 0.2, height: 0.2 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+
+    expect(r.data.gate.verdict, 'sua tao cu nhay ma cong chan van noi da dat').not.toBe('completed');
+    expect(r.data.gate.reasons).toContain('flicker_unreviewed');
+    expect(r.data.gate.counts.flicker_unreviewed).toBeGreaterThan(0);
+    await app.close();
+  });
+
+  it('phan hoi mang `lastCorrection` DOC LAI TU KHO, khong phai ke hoach trong bo nho', async () => {
+    const { app, ctx, ws, jobId, token } = await ranTrackedJob();
+    const actor = await actorOf(ctx, ws, token);
+
+    const r = await correctJobFrame(ctx, actor, jobId, 4, BOX);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+
+    const luu = (await ctx.persistence.jobFrames.listCorrections(ws, jobId)).at(-1)!;
+    expect(r.data.lastCorrection).not.toBeNull();
+    expect(r.data.lastCorrection!.frameIndex).toBe(luu.frameIndex);
+    expect(r.data.lastCorrection!.reinterpolated).toEqual(luu.reinterpolated);
+
+    // Va duong DOC phai thay dung cai do — hai duong khong duoc lech nhau.
+    const doc = await getJobFrames(ctx, actor, jobId);
+    expect(doc.ok && doc.data.lastCorrection).toEqual(r.data.lastCorrection);
+    await app.close();
+  });
+
+  it('GHI LA MOT GIAO DICH: kho hong giua chung thi KHONG de lai timeline nua cu nua moi', async () => {
+    const { app, ctx, ws, jobId, token } = await ranTrackedJob();
+    const actor = await actorOf(ctx, ws, token);
+    const truoc = await ctx.persistence.jobFrames.listFrames(ws, jobId);
+    const auditTruoc = await ctx.persistence.jobFrames.listCorrections(ws, jobId);
+
+    // Ep tang luu tru hong DUNG giua loat ghi.
+    const that = ctx.persistence.jobFrames.applyCorrectionAtomically.bind(ctx.persistence.jobFrames);
+    ctx.persistence.jobFrames.applyCorrectionAtomically = async () => {
+      throw new Error('kho hong giua chung');
+    };
+    const r = await correctJobFrame(ctx, actor, jobId, 4, BOX).catch(() => ({ ok: false as const }));
+    ctx.persistence.jobFrames.applyCorrectionAtomically = that;
+
+    expect(r.ok, 'kho hong ma van bao thanh cong').toBe(false);
+    const sau = await ctx.persistence.jobFrames.listFrames(ws, jobId);
+    expect(sau, 'frame da doi trong khi lan ghi that bai').toEqual(truoc);
+    expect(await ctx.persistence.jobFrames.listCorrections(ws, jobId)).toHaveLength(auditTruoc.length);
+    await app.close();
+  });
+});
