@@ -38,9 +38,10 @@ export interface Phase3Gate {
   /**
    * Cau chu Phase 3 da duoc owner duyet chua.
    *
-   * `false` KHONG co nghia la chua ai ra soat — agent da ra 77 khoa (`D-059`) va tim ra mot loi
-   * that. No co nghia la viec RA SOAT khac viec DUYET: duyet la tham quyen cua owner/BA, khong
-   * phai thu agent tu cap cho minh.
+   * Rieng biet voi viec RA SOAT: agent ra duoc (`D-059`), nhung DUYET la tham quyen cua owner/BA.
+   * Owner da duyet 100 khoa va 11 khoa them cua `D-064` vao `2026-09-17` (`D-065`).
+   *
+   * Them khoa cau chu MOI sau moc do => phai xin duyet lai va dat lai `false`.
    */
   wordingOwnerApproved: boolean;
 }
@@ -55,7 +56,7 @@ export const PHASE_3_GATE: Phase3Gate = {
   technical: 'READY_FOR_PHASE_4_EXCEPT_ONLINE',
   onlineVerification: 'BLOCKED_BY_Q23',
   goLive: 'NOT_READY_FOR_GO_LIVE',
-  wordingOwnerApproved: false,
+  wordingOwnerApproved: true,
 };
 
 /**

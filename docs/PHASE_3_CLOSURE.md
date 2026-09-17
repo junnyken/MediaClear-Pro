@@ -120,16 +120,16 @@ không ghi khoá vào repo hay log.
 
 ## 12. Câu chữ
 
-**`Q-P3-08` = `owner_decision_required`. Việc RÀ đã xong; việc DUYỆT thì chưa — và duyệt không
-phải thẩm quyền agent tự cấp cho mình** (`D-063`). Trước lượt follow-up, mục này ghi "`Q-P3-08`
-đóng", mâu thuẫn với chính §18 vốn vẫn liệt "câu chữ chưa duyệt" là blocker go-live. Đã sửa theo
-đúng quy định của owner trong follow-up.
+**`Q-P3-08` ĐÃ ĐÓNG — owner duyệt `2026-09-17`** (`D-065`): **100 khoá** trong bảng dưới **và 11
+khoá thêm** của `D-064`. Đường đi đúng thứ tự: agent **rà** (`D-059`) → tài liệu tự mâu thuẫn, mở
+lại ở `owner_decision_required` (`D-063`) → **owner duyệt** (`D-065`). Thêm khoá câu chữ **mới** sau
+mốc này thì **phải xin duyệt lại** — `wordingOwnerApproved` trong mã sẽ về `false` và phép chắn đỏ.
 
 **Đã rà (`D-059`, giữ nguyên, không viết lại lịch sử).** Owner giao agent rà; agent đã rà **77 khoá** thêm từ `170b244`
 bằng **5 phép kiểm chạy được** — xem `docs/WORDING_REVIEW_P3.md`. Tìm và sửa **1 lỗi thật** (lọt
 thuật ngữ `C2PA` ra màn hình người dùng), mở rộng phép chắn thuật ngữ, có đối chứng âm.
 
-**Đang chờ owner/BA duyệt — danh sách cụ thể, kèm nơi giao diện đang dùng:**
+**Danh sách đã được duyệt (`D-065`), kèm nơi giao diện đang dùng:**
 
 | Nhóm khoá | Số khoá | Giao diện dùng ở đâu |
 |---|---|---|
@@ -239,8 +239,7 @@ nào, và **không có** lệnh xoá nào trong mã) · `Q-P3-07` (**0** provide
 
 **`Q-P3-09` đã chốt** (`D-059`): owner **xác nhận** quy ước ID `P3-`. Không ID lịch sử nào bị đổi.
 
-**`Q-P3-08` KHÔNG chốt — `owner_decision_required`** (`D-063`). Agent đã **rà** (và tìm ra một lỗi
-thật), nhưng **duyệt** câu chữ là thẩm quyền owner/BA. Danh sách khoá đang chờ duyệt ở §12.
+**`Q-P3-08` đã chốt** — owner duyệt `2026-09-17` (`D-065`), gồm 100 khoá + 11 khoá thêm của `D-064`.
 
 **Hai câu còn mở, mỗi câu có lý do cụ thể**: `Q-P3-04` cần dữ liệu **từ chính nền tảng** ·
 `Q-P3-05` cần **kho object của owner**. Không câu nào mở vì chưa ai đi tìm.
@@ -248,5 +247,7 @@ thật), nhưng **duyệt** câu chữ là thẩm quyền owner/BA. Danh sách k
 ## 18. Gate này KHÔNG phải GO_LIVE
 
 **Khẳng định riêng**: `NOT_READY_FOR_GO_LIVE` **giữ nguyên**. Bốn blocker go-live **đều còn**:
-kho object dùng chung (Q-23) · ~35 khoá câu chữ chưa duyệt · dấu vết AI vẫn `unknown` · chưa có việc
-dọn dữ liệu nào chạy thật.
+kho object dùng chung (Q-23) · dấu vết AI vẫn `unknown` · chưa có việc dọn dữ liệu nào chạy thật ·
+câu chữ **xác nhận quyền** (`Q-11`) vẫn chưa có người chịu trách nhiệm pháp lý duyệt.
+
+> `Q-P3-08` **không còn** là blocker: owner đã duyệt `2026-09-17` (`D-065`). `Q-11` thì **còn**.

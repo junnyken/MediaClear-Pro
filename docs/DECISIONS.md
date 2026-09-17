@@ -1422,3 +1422,28 @@ mới: chờ một câu xác nhận.
 thông số hiện *"Kích thước khung hình 320 × 240 px · Thời lượng 0:02 · Dung lượng 20,3 KB"*.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-065 — Owner duyệt câu chữ Phase 3: `Q-P3-08` đóng
+
+Owner duyệt vào `2026-09-17`: **100 khoá** liệt kê ở `PHASE_3_CLOSURE.md` §12, **và 11 khoá** thêm
+trong cùng ngày bởi `D-064` (`field.max_file_size`, `field.video_limits`, `field.accepted_types`,
+`field.frame_size`, `field.duration`, `field.file_size`, `field.file_format`,
+`field.file_fingerprint`, `field.file_name`, `screen.asset_upload.pick_button`,
+`screen.asset_upload.no_file_chosen`).
+
+`wordingOwnerApproved` trong `packages/contracts/src/phase3-gate.ts` chuyển sang **`true`**, và phép
+chắn `phase3-gate.test.ts` đòi hàng `Q-P3-08` **thôi** ghi `owner_decision_required` — **hai chiều**,
+nên sai bên nào cũng đỏ.
+
+**Ràng buộc còn lại, nói rõ để không hiểu nhầm phạm vi duyệt này:**
+
+- Thêm khoá câu chữ **mới** sau mốc này ⇒ đặt lại `wordingOwnerApproved = false` và xin duyệt lại.
+  Đây chính là tình huống đã xảy ra giữa `D-063` và `D-064`.
+- **`Q-11` — câu chữ xác nhận quyền — VẪN MỞ.** Nó có sức nặng pháp lý và cần người chịu trách nhiệm
+  đọc, không nằm trong đợt duyệt này. `Rights Statement v1/v2` **không bị đụng vào, không tạo v3**.
+- `Q-P3-08` **thôi** là blocker go-live; ba blocker còn lại (`Q-23`, dấu vết AI `unknown`, chưa dọn
+  dữ liệu lần nào) và `Q-11` **vẫn còn**. Gate go-live **không đổi**.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
