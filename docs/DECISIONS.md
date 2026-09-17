@@ -1741,3 +1741,72 @@ Không bật `MEDIACLEAR_CLEANUP_ENABLED` · không đóng `Q-23` · không nớ
 Statement · không đánh số lại ID lịch sử · không ghi đè asset gốc (có test riêng cho `P4-MCP-40`).
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-072 — Phase 4 completion patch: UI MCP-42/44 và nối vào `run-video-job`
+
+Ba việc `D-071` ghi là **còn nợ**, nay đã làm: màn hình sửa keyframe, màn hình cổng chất lượng, và
+nối `P4-MCP-40…44` vào đường job thật.
+
+### Hai lỗi của chính tôi, và cả hai đều thuộc đúng loại Phase 4 tồn tại để chặn
+
+**1. `canTransition` bị bỏ qua trong im lặng.** Hàm này ép bất biến **I-2** (không `completed` khi
+chưa có output đã kiểm) qua một `TransitionContext` mà tôi **quên truyền**. Tệ hơn: mã của tôi viết
+`if (allowed) update(...)` — chuyển đổi bị từ chối, lệnh cập nhật **bị bỏ qua im lặng**, job nằm lại
+`processing` **vĩnh viễn** trong khi hàm vẫn trả về `completed`. Đó **chính là** *"báo hoàn tất trong
+khi thực tế không"*. Nay không còn `if` im lặng: bị từ chối thì nói thật, và có test canh.
+
+**2. Cổng chất lượng đọc "chưa đo được audio" thành "audio bị mất".** Khi frame chưa đạt, đường xử
+lý **cố ý không render**, nên audio chưa có gì để đo. Tôi truyền `'unknown'`, và cổng tính đó là một
+vấn đề audio ⇒ trả `failed` trong khi lý do thật chỉ là một frame độ tin cậy thấp. Một job đáng lẽ
+`review_required` bị báo `failed`.
+
+Nay `audioVerdict` nhận `AudioVerdict | null`. `null` **không** tính là vấn đề audio (nên **lý do**
+báo đúng), nhưng nó **chặn `completed`** tuyệt đối — vế thứ hai này là thứ giữ bất biến 3 nguyên vẹn:
+**chưa đo được audio thì không bao giờ `completed`**.
+
+### `tracked_inpaint` được nhận vào như thế nào, và vì sao KHÔNG phải nới lỏng
+
+Trước patch, mọi job `tracked_inpaint` bị chặn bởi `MCP_PROVIDER_CAPABILITY_UNSUPPORTED` — **đúng**,
+vì `DeterministicVideoProvider` thật sự không làm được việc đó.
+
+Nay năng lực này được đánh giá theo `ctx.trackingProvider`, **không** theo `ProviderRegistry` (registry
+đó dành cho provider *biến đổi byte*; tracking trả về *toạ độ*). Bằng chứng trả về là **`unknown`**,
+đúng luật đã có sẵn của chính hàm đó: *"chưa có provider production nào ⇒ evidence `unknown`, job vẫn
+được nhận"*. Bộ tracking hiện tại là bản **giả tất định** (`isProductionProvider = false`), nên
+`unknown` là lời khai đúng — **không bao giờ** được thành `verified`. Cổng chặn thật của đường này là
+`P4-MCP-44`, không phải bước tạo job.
+
+### Bảy đối chứng âm — và cái thứ tư lại lộ ra một lỗ hổng
+
+**6/7 đỏ ngay. Số 4 ("correction làm mất audit trail") VẪN XANH.** Lý do: `applyCorrection` ở tầng
+service thuần đã có test, nhưng đường **API** (`correctJobFrame`, ghi xuống cơ sở dữ liệu) là một bản
+hiện thực **khác** và **chưa có test nào canh**. Đã viết `p4-correction-api.test.ts` (5 phép kiểm),
+chạy lại: **7/7 đỏ đúng chỗ**.
+
+Đây là lần thứ ba trong dự án đối chứng âm chỉ ra *"lớp chặn tôi tưởng đã được bảo vệ mà thực ra
+chưa"* (`D-070`, `D-071`, nay `D-072`). Một lớp chặn không có test canh là một lớp chặn **chưa tồn tại**.
+
+### Bấm tay trên Chrome thật — và nó tìm ra hai lỗi nữa
+
+- **Nhãn trợ năng sai**: nút chọn frame đọc thành *"Tổng số khung hình 4 — Độ tin cậy thấp"* vì tôi
+  dùng lại nhầm khoá. Người dùng trình đọc màn hình sẽ nghe một câu vô nghĩa. Chỉ nhìn **cây trợ
+  năng** mới thấy, ảnh chụp không lộ ra.
+- **Thân yêu cầu mã hoá hai lần**: `apiFetchChecked` nhận `body` là **đối tượng** và tự `stringify`;
+  tôi truyền chuỗi đã `JSON.stringify` ⇒ máy chủ trả **400**. `curl` thẳng vào endpoint thì chạy —
+  nên nếu chỉ test bằng `curl` sẽ không bao giờ thấy.
+
+Một điều đẹp quan sát được khi bấm tay: sửa frame 4 sang `x=0.42` trong khi lân cận ở `0.1` thì
+**`P4-MCP-43` lập tức báo** *"Vùng che nhảy bất thường, cần xem lại — 2"*. Sửa một vấn đề và hệ thống
+phát hiện ngay vấn đề nó vừa tạo ra.
+
+### Không đụng tới
+
+Provider thật vẫn **`blocked`** (`Q-P4-01`) · ngưỡng `0.6` **không đổi**,
+`FRAME_CONFIDENCE_THRESHOLD_IS_MEASURED` vẫn **`false`** (`Q-P4-02`) · `MEDIACLEAR_CLEANUP_ENABLED`
+vẫn **tắt** (nhật ký worker xác nhận: *"dọn dữ liệu: tắt (chỉ chạy thử)"*) · `Q-23` vẫn **blocked** ·
+Rights Statement **không đổi một ký tự** · không route DELETE mới · không đánh số lại ID lịch sử ·
+tệp gốc **không bị ghi đè** (có test riêng).
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

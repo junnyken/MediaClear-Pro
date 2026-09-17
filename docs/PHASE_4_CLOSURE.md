@@ -3,13 +3,15 @@
 - **Quyết định**: `D-071` · **Ngày**: 2026-09-17
 
 ```
-Technical gate: READY_FOR_PHASE_5_EXCEPT_UI_AND_PROVIDER
+Technical gate: READY_FOR_PHASE_5_EXCEPT_PROVIDER_AND_ONLINE
 Online verification: BLOCKED_BY_Q23
 Go-live: NOT_READY_FOR_GO_LIVE
 ```
 
-> Cổng kỹ thuật **không** phải `READY_FOR_PHASE_5` trần: hai mục còn nợ được nêu ở §6, và giấu chúng
-> sau một nhãn tròn trịa sẽ là nói dối về trạng thái thật.
+> **Cập nhật `D-072`**: UI và tích hợp **đã xong**, nên cổng chuyển từ `_EXCEPT_UI_AND_PROVIDER` sang
+> `_EXCEPT_PROVIDER_AND_ONLINE`. Vẫn **không** phải `READY_FOR_PHASE_5` trần: provider tracking thật
+> còn `blocked` (`Q-P4-01`) và xác minh online còn `BLOCKED_BY_Q23`. Giấu hai ngoại lệ đó sau một
+> nhãn tròn trịa sẽ là nói dối về trạng thái thật.
 
 ---
 
@@ -46,9 +48,9 @@ Lấy số giải mã làm tổng thì frame hỏng tự động "không tồn t
 |---|---|---|
 | `P4-MCP-40` Frame Timeline | **completed** | đối chiếu độc lập bằng `ffprobe` gọi thẳng trong test |
 | `P4-MCP-41` Motion Tracking | **completed** với provider giả; **provider thật `blocked`** | `Q-P4-01` |
-| `P4-MCP-42` Keyframe Correction | **completed** (logic + audit trail) | màn hình còn nợ — §6 |
+| `P4-MCP-42` Keyframe Correction | **completed** — logic + audit trail + **màn hình** (`D-072`) | bấm tay thật trên Chrome |
 | `P4-MCP-43` Temporal Consistency | **completed** | ngưỡng theo frame rate thật |
-| `P4-MCP-44` Quality Review Gate | **completed** | nơi duy nhất được nói `completed` |
+| `P4-MCP-44` Quality Review Gate | **completed** — logic + **màn hình** (`D-072`) | nơi duy nhất được nói `completed`; nút tải về bị khoá khi cổng chưa qua |
 
 ## 4. Chín đối chứng âm — chạy hết, 9/9 đỏ đúng chỗ
 
@@ -74,14 +76,21 @@ Cả hai nằm tường minh một chỗ, và mã tự khai qua `FRAME_CONFIDENC
 Phase 3 làm ngược lại và đúng: dung sai audio `0.25s` được **đo** bằng 12 lượt render rồi mới ghim.
 `Q-P4-02` để đo lại khi có provider thật.
 
-## 6. CHƯA làm — nói thẳng, không giấu sau nhãn "completed"
+## 6. Trạng thái sau completion patch (`D-072`)
 
-1. **Màn hình cho `P4-MCP-42`/`44`.** Hợp đồng dùng chung và kiểm lúc chạy **đã có** (`D-047` áp
-   dụng lại, có test sai enum + thiếu trường). Nhưng **chưa dựng màn hình** để người dùng sửa
-   keyframe và xem lý do review. Đây là phần còn nợ.
-2. **Chưa nối vào đường job thật.** Logic hoàn chỉnh và có test, nhưng chưa thay đường
-   `run-video-job` của Phase 3.
-3. **Provider tracking thật** — `blocked` (`Q-P4-01`).
+**Đã xong:**
+
+1. **Màn hình `P4-MCP-42` + `P4-MCP-44`** — `/jobs/[jobId]/frames`. Chọn khung hình, sửa vùng che,
+   xem lý do cụ thể, nút tải về **bị khoá** khi cổng chưa qua. Đã bấm tay thật trên Chrome ở
+   `1280×900` và `390×844`.
+2. **Nối vào `run-video-job`** — thao tác `tracked_inpaint` chạy trọn `MCP-40 → 41 → 43 → audio → 44`
+   trong worker thật, trên PostgreSQL thật.
+
+**CHƯA xong, và không tự làm được:**
+
+3. **Provider tracking thật** — `blocked` (`Q-P4-01`): chưa có benchmark. Cần owner duyệt trước.
+4. **Xác minh online** — `BLOCKED_BY_Q23`.
+5. **Ngưỡng `0.6`** vẫn là ước lượng (`Q-P4-02`), `FRAME_CONFIDENCE_THRESHOLD_IS_MEASURED = false`.
 
 ## 7. Không đụng tới
 

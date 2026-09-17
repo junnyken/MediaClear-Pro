@@ -22,7 +22,7 @@ import type {
   Workspace,
   WorkspaceMembership,
 } from '@mediaclear/contracts';
-import type { ApiError, MediaType, RetentionState } from '@mediaclear/contracts';
+import type { ApiError, FrameState, MaskBox, MaskSource, MediaType, RetentionState } from '@mediaclear/contracts';
 
 export interface MeasuredSourceFile {
   /** MIME doc tu magic bytes, KHONG phai tu client. */
@@ -177,3 +177,45 @@ export interface PageQuery {
 
 export type { RetentionState };
 export type { Asset, AuditEvent, ProcessingJob, ProcessingReceipt, ProvenanceRecord, Project, RightsAttestation, UsageLedgerEntry, User, Workspace, WorkspaceMembership };
+
+/** P4-MCP-40: tong so frame KY VONG, do tren tep that. Tach khoi bang frame de con cho DOI CHIEU. */
+export interface JobFrameTimelineRecord {
+  jobId: Id;
+  workspaceId: Id;
+  expectedFrameCount: number;
+  declaredFrameCount: number | null;
+  decodedFrameCount: number;
+  undecodableFrames: number;
+  fps: number | null;
+  variableFrameRate: boolean;
+  createdAt: IsoTimestamp;
+}
+
+/** P4-MCP-41/42: trang thai MOT frame. Mot dong moi frame — de dem duoc. */
+export interface JobFrameRecord {
+  jobId: Id;
+  workspaceId: Id;
+  frameIndex: number;
+  state: FrameState;
+  box: MaskBox | null;
+  /** `null` KHAC `0`: null = provider khong tra so nao. */
+  confidence: number | null;
+  source: MaskSource;
+  updatedAt: IsoTimestamp;
+}
+
+/** P4-MCP-42: mot lan nguoi that sua mask. APPEND-ONLY. */
+export interface JobFrameCorrectionRecord {
+  id: Id;
+  jobId: Id;
+  workspaceId: Id;
+  frameIndex: number;
+  beforeState: FrameState;
+  beforeSource: MaskSource;
+  beforeBox: MaskBox | null;
+  beforeConfidence: number | null;
+  afterBox: MaskBox;
+  reinterpolated: number[];
+  correctedAt: IsoTimestamp;
+  actorUserId: Id | null;
+}

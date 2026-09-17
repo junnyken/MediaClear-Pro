@@ -235,3 +235,32 @@ với nguyên tắc append-only của lời khai quyền.
 
 Định dạng `password_hash`: `scrypt$<N>$<r>$<p>$<salt b64>$<hash b64>` — **tự mô tả**, nên đổi tham số
 sau này vẫn đọc được bản cũ.
+
+## 19. Migration `0010` — trạng thái từng khung hình (Phase 4, `D-071`/`D-072`)
+
+Ba bảng mới. Không bảng nào sửa lược đồ cũ.
+
+| Bảng | Vai trò |
+|---|---|
+| `job_frame_timelines` | **Tổng số frame kỳ vọng**, đo bằng `ffprobe -count_frames` trên tệp thật |
+| `job_frames` | **Một dòng mỗi frame**: trạng thái, vùng che, độ tin cậy, nguồn gốc |
+| `job_frame_corrections` | Lịch sử người thật sửa vùng che. **APPEND-ONLY** |
+
+**Vì sao `job_frame_timelines` tách khỏi `job_frames`.** `expected_frame_count` là con số để **đối
+chiếu** với số dòng trong `job_frames`. Nếu nhét chung một chỗ thì phép đối chiếu trở thành việc ứng
+dụng đọc một ô do chính nó ghi ra — tức là tự chấm điểm chính mình. Bất biến *"không frame nào bị bỏ
+sót"* đứng hay đổ ở đúng chỗ tách này.
+
+**Vì sao một dòng mỗi frame chứ không phải một khối JSON.** Bất biến đó được kiểm bằng cách **đếm
+dòng**. Một ô `jsonb` thì không đếm được từ bên ngoài.
+
+**Ràng buộc `job_frames_box_complete`.** Vùng che phải có **đủ bốn toạ độ** hoặc **không có gì** —
+một vùng che thiếu một cạnh là một vùng che vô nghĩa, và ràng buộc này chặn nó ở tầng dữ liệu chứ
+không chỉ trong mã.
+
+**`confidence` cho phép `NULL`, và `NULL` ≠ `0`.** `0` là *"đo được và rất thấp"*; `NULL` là *"provider
+không trả về số nào"*. Gộp hai thứ này là lặp lại `D-044` ở một tầng khác.
+
+**`job_frame_corrections` giữ CẢ trước lẫn sau** (`before_state`, `before_source`, `before_box`,
+`before_confidence`, `after_box`). Thiếu vế "trước" thì không ai đối chiếu lại được quyết định của
+người dùng. Không có đường `UPDATE` hay `DELETE` nào cho bảng này trong toàn bộ mã.

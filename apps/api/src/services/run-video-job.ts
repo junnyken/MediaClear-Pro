@@ -31,6 +31,7 @@ import {
   type ReleaseReason,
 } from '@mediaclear/contracts';
 import type { AppContext } from '../app-context.js';
+import { executeTrackedVideoJob } from './run-tracked-video-job.js';
 import { DeterministicVideoProvider, operationToMode } from '../providers/deterministic-video.js';
 import { newId } from '../ids.js';
 import { recordAudit, AUDIT_EVENTS } from './audit.js';
@@ -59,6 +60,26 @@ function pickOperation(provider: DeterministicVideoProvider, job: ProcessingJob)
 export async function executeVideoJob(ctx: AppContext, job: ProcessingJob): Promise<VideoJobOutcome> {
   const workspaceId = job.workspaceId;
   const now = (): string => ctx.now().toISOString();
+
+  /*
+   * P4 (`D-072`): che do MOTION TRACKING di duong RIENG.
+   *
+   * `tracked_inpaint` truoc day roi thang vao `MCP_PROVIDER_CAPABILITY_UNSUPPORTED` — duong Phase 3
+   * chi lam mask/crop/blur TINH tren ca video. Tach nhanh o day thay vi nhet them `if` vao duong
+   * cu: hai duong co CONG CHAN khac nhau (Phase 4 con phai qua frame timeline va quality gate), va
+   * tron chung se lam cac cong do de bi bo qua khi sua duong kia.
+   */
+  if (job.request.operations.includes('tracked_inpaint')) {
+    const tracked = await executeTrackedVideoJob(ctx, job, ctx.trackingProvider);
+    return {
+      jobId: tracked.jobId,
+      state: tracked.state,
+      outputAssetId: tracked.outputAssetId,
+      receiptId: null,
+      audioVerdict: null,
+      error: tracked.error ? apiError(tracked.error.code as Parameters<typeof apiError>[0]) : null,
+    };
+  }
 
   const provider = ctx.providers.get('deterministic-video');
   if (!(provider instanceof DeterministicVideoProvider)) {

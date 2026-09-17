@@ -2281,3 +2281,129 @@ chạy lại.
 Phase 1.1 (`phase11-*`), Phase 3 (`p3-*`, gồm 11 test video chạy thật), `Q-12` (`p3-c2pa-probe`),
 cleanup 5 lớp chặn (`p3-cleanup`) — **tất cả xanh**, không mục nào bị Phase 4 làm hỏng. Công tắc
 `MEDIACLEAR_CLEANUP_ENABLED` vẫn tắt mặc định.
+
+---
+
+## 2026-09-17 — Phase 4 completion patch (`D-072`)
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | PASS |
+| 2 | `pnpm lint` | `0` | PASS |
+| 3 | `pnpm test` (PostgreSQL thật) | `0` | PASS — **73 tệp · 733 test · 0 bỏ qua** |
+| 4 | `pnpm build:web` | `0` | PASS |
+| 5 | `git diff --check` | `0` | sạch |
+
+> `pnpm typecheck` **không phủ `apps/web`** — chỉ `pnpm build:web` mới bắt lỗi kiểu ở giao diện. Một
+> prop thiếu (`name` của `Field`) đi qua `typecheck` và chỉ đỏ ở bước build.
+
+### Bấm tay thật trên Chrome
+
+Tài khoản mới, video thật (`video-with-audio.mp4`), worker **chạy riêng tiến trình**, PostgreSQL thật.
+
+| Việc | Kết quả |
+|---|---|
+| Job `tracked_inpaint` chạy trọn `MCP-40→41→43→audio→44` trong worker | `completed`, 10 frame lưu xuống DB |
+| Mở `/jobs/[jobId]/frames` | hiện số cụ thể + lý do cụ thể |
+| Nút tải về khi cổng chưa qua | **`disabled`** (kiểm bằng cây trợ năng, không bằng mắt) |
+| Chọn khung hình độ tin cậy thấp | mở biểu mẫu, điền sẵn vùng che hiện có |
+| Nhập vùng che **sai** (`x=0.9, width=0.3`) | hiện lời giải thích, **nút lưu bị khoá** |
+| Lưu chỉnh sửa hợp lệ | frame → `Đã chỉnh sửa` / `Bạn tự chọn`, độ tin cậy → `Chưa xác định` |
+| Audit trail trong DB | giữ **cả** `before_box` `{0.1,0.1,0.3,0.3}` lẫn `after_box` `{0.42,...}` |
+| `MCP-43` phản ứng | **lập tức** thêm *"Vùng che nhảy bất thường, cần xem lại — 2"* |
+| Desktop `1280×900` | không tràn ngang, không chữ cắt |
+| Mobile `390×844` | `scrollWidth == clientWidth == 390`, lưới khung hình xuống 2 hàng |
+| Khoá thô trên màn hình | **không có** (quét bằng biểu thức trên `innerText`) |
+| Console | chỉ **một** lỗi: `favicon.ico` 404 — có sẵn toàn ứng dụng, **không** do Phase 4 |
+
+### Hai lỗi chỉ bấm tay mới thấy
+
+1. **Nhãn trợ năng sai**: nút frame đọc thành *"Tổng số khung hình 4 — Độ tin cậy thấp"*. Chỉ nhìn
+   **cây trợ năng** mới lộ; ảnh chụp không thấy.
+2. **Thân yêu cầu mã hoá hai lần** ⇒ máy chủ trả **400**. `curl` thẳng vào endpoint thì chạy bình
+   thường — chỉ đường đi qua giao diện mới hỏng.
+
+### Bảy đối chứng âm
+
+**Lượt đầu: 6/7 đỏ.** Số 4 (*correction làm mất audit trail*) **vẫn xanh** — tầng API chưa có test
+nào canh. Viết `p4-correction-api.test.ts` (5 phép kiểm), chạy lại: **7/7 đỏ đúng chỗ**.
+
+### Regression
+
+Phase 1.1, Phase 3 (gồm test video chạy thật), `Q-12`, cleanup 5 lớp chặn, và 9 đối chứng âm của
+`D-071` — **tất cả xanh**. Nhật ký worker xác nhận `don du lieu: tat (chi chay thu)`.
+
+---
+
+## 2026-09-17 — Phase 4 completion patch (`D-072`)
+
+Môi trường: PostgreSQL 16 (Docker `:55432`), ffmpeg 6.1.1, Chrome thật.
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | PASS |
+| 2 | `pnpm lint` | `0` | PASS |
+| 3 | `pnpm test` (PostgreSQL thật) | `0` | PASS — **73 tệp · 733 test · 0 bỏ qua** |
+| 4 | `pnpm build:web` | `0` | PASS |
+| 5 | `git diff --check` | `0` | sạch |
+
+> `pnpm typecheck` **không phủ `apps/web`** — chỉ `build:web` mới bắt được lỗi kiểu ở giao diện.
+> Lỗi thiếu prop `name` của `Field` lọt qua `typecheck` và chỉ đỏ ở bước build.
+
+### Chạy thật đầu-cuối trong worker
+
+Tài khoản mới → tải `video-with-audio.mp4` → job `tracked_inpaint` → worker tiến trình riêng:
+
+```text
+[mediaclear-worker] bat dau · luu tru postgres-phase2 (durable) · kho local-fs-phase1
+                    · don du lieu: tat (chi chay thu)
+[worker] job_7d8d5da432aa40beb551d3975605d046 -> completed
+```
+
+`/v1/jobs/:id/frames` → **10 frame**, cổng `completed`. Nhật ký worker cũng xác nhận công tắc dọn dữ
+liệu **vẫn tắt**.
+
+### Bấm tay trên Chrome — hai viewport
+
+| Kiểm tra | `1280×900` | `390×844` |
+|---|---|---|
+| Hiện tổng số / tracked / tin cậy thấp / lỗi / còn thiếu | ✔ | ✔ |
+| Lý do **cụ thể** kèm số lượng | ✔ | ✔ |
+| Nút tải về **disabled** khi cổng chưa qua | ✔ | ✔ |
+| Chọn khung hình, sửa vùng che, lưu | ✔ | ✔ |
+| Nút lưu **khoá** khi nhập sai | ✔ | ✔ |
+| Không tràn ngang (`scrollWidth === clientWidth`) | ✔ | ✔ (390 = 390) |
+| Không lọt khoá thô | ✔ | ✔ |
+
+**Console**: sạch, **trừ một `404 /favicon.ico`** — có sẵn toàn ứng dụng, không do Phase 4 sinh ra.
+Ghi đúng là còn, không ghi là sạch hoàn toàn.
+
+**Quan sát đáng chú ý**: sửa frame 4 sang `x=0.42` trong khi lân cận ở `0.1` thì `P4-MCP-43` **lập
+tức** báo *"Vùng che nhảy bất thường, cần xem lại — 2"*. Sửa một vấn đề và hệ thống phát hiện ngay
+vấn đề vừa tạo ra.
+
+### Hai lỗi chỉ bấm tay mới thấy
+
+1. **Nhãn trợ năng sai** — nút khung hình đọc thành *"Tổng số khung hình 4 — Độ tin cậy thấp"*. Chỉ
+   nhìn **cây trợ năng** mới lộ; ảnh chụp không cho thấy.
+2. **Thân yêu cầu mã hoá hai lần** → máy chủ trả **400**. `curl` thẳng vào endpoint thì chạy bình
+   thường, nên test bằng `curl` sẽ không bao giờ phát hiện.
+
+### Bảy đối chứng âm của completion patch
+
+| # | Đột biến | Lần đầu | Sau khi bổ sung test |
+|---|---|---|---|
+| 1 | UI báo hoàn tất khi còn frame thiếu | **đỏ** | đỏ |
+| 2 | Cho tải về khi còn frame tin cậy thấp | **đỏ** (4) | đỏ |
+| 3 | Cho tải về khi audio mất | **đỏ** (2) | đỏ |
+| 4 | Correction làm mất audit trail | **XANH** ← lỗ hổng | **đỏ** |
+| 5 | `run-video-job` bỏ qua Quality Review Gate | **đỏ** | đỏ |
+| 6 | UI/server lệch enum | **đỏ** | đỏ |
+| 7 | Provider quá hạn bị coi là thành công | **đỏ** (2) | đỏ |
+
+**6/7 → 7/7.** Số 4 xanh vì đường **API** (`correctJobFrame`) là bản hiện thực khác với service thuần
+và **chưa có test nào canh**. Đã thêm `p4-correction-api.test.ts` (5 phép kiểm).
+
+### Regression
+
+Phase 1.1, Phase 3 (gồm video chạy thật), `Q-12`, cleanup 5 lớp chặn — **tất cả xanh**.

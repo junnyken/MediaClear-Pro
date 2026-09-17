@@ -233,7 +233,18 @@ export interface QualityGateInput {
   timeline: FrameTimelineSummary;
   /** Doan nhay CHUA duoc nguoi that xac nhan. Da xac nhan thi khong con chan. */
   unreviewedFlicker: number;
-  audioVerdict: AudioVerdict;
+  /**
+   * `null` = CHUA DO duoc, vi duong xu ly co y khong render (frame chua dat).
+   *
+   * `null` KHONG phai "audio khong sao". No khac han `'lost'` (do duoc va mat that) va khac han
+   * `'preserved'`. Truoc khi tach gia tri nay, duong tich hop truyen `'unknown'` cho ca truong hop
+   * chua render — va cong chan doc thanh "audio co van de", tra ve `failed` trong khi ly do that
+   * chi la mot frame co do tin cay thap. Mot job dang le `review_required` bi bao la `failed`.
+   *
+   * Luat kem theo, va no la thu giu bat bien 3 nguyen ven: **khong do duoc audio thi khong bao gio
+   * `completed`** — xem `qualityReviewVerdict`.
+   */
+  audioVerdict: AudioVerdict | null;
 }
 
 export interface QualityGateResult {
@@ -256,10 +267,28 @@ export function qualityReviewVerdict(input: QualityGateInput): QualityGateResult
     frames_low_confidence: input.timeline.lowConfidence,
     frames_review_required: input.timeline.reviewRequired,
     flicker_unreviewed: input.unreviewedFlicker,
-    // Audio khong phai mot phep dem — 1 nghia la "co van de", 0 nghia la khong.
-    audio_not_preserved: audioAllowsCompletion(input.audioVerdict) ? 0 : 1,
+    /*
+     * Audio khong phai mot phep dem — 1 nghia la "co van de", 0 nghia la khong.
+     * `null` (chua do duoc) tinh la 0 O DAY, vi no khong phai mot van de audio; nhung no van chan
+     * `completed` o ngay duoi. Gop hai thu nay lam mot se bao sai LY DO.
+     */
+    audio_not_preserved: input.audioVerdict === null ? 0 : audioAllowsCompletion(input.audioVerdict) ? 0 : 1,
   };
   const reasons = QUALITY_GATE_REASONS.filter((r) => counts[r] > 0);
+
+  /*
+   * BAT BIEN 3, ve thu hai: chua DO duoc audio thi khong bao gio `completed`.
+   *
+   * Khong co ve nay, mot duong xu ly bo qua buoc do audio se di thang toi `completed` ma khong ai
+   * chan — dung cai lo hong ma de bai goi la "bo qua audio verification".
+   */
+  if (input.audioVerdict === null) {
+    return {
+      verdict: reasons.length === 0 ? 'review_required' : (counts.frames_missing > 0 || counts.frames_failed > 0 ? 'failed' : 'review_required'),
+      reasons,
+      counts,
+    };
+  }
 
   if (reasons.length === 0) return { verdict: 'completed', reasons, counts };
 

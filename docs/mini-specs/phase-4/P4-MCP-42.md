@@ -31,3 +31,21 @@ audit giữ đúng sự thật rằng nó từng là frame hỏng.
 ## Trạng thái
 
 `completed`. 4 test, có đối chứng âm cho việc mất audit trail.
+
+---
+
+## Cập nhật `D-072` — màn hình đã có
+
+`/jobs/[jobId]/frames`. Chọn khung hình từ lưới có màu theo trạng thái, sửa vùng che bằng toạ độ
+**chuẩn hoá [0,1]** — cùng hệ với máy chủ, không đổi đơn vị ở giao diện.
+
+**Nút lưu bị khoá** khi số nhập không hợp lệ (vùng che tràn ra ngoài khung hình, hoặc chiều rộng /
+chiều cao bằng 0), kèm câu giải thích. Chặn ngay tại chỗ nhập, không đợi máy chủ.
+
+Khung hình **lỗi decode** hiện một câu nói thẳng: sửa tay chỉ ghi lại vùng bạn chọn, **không khôi
+phục được** hình ảnh đã hỏng. Giao diện không được để người dùng tưởng mình vừa "sửa xong" một khung
+hình không tồn tại.
+
+**Audit trail ở tầng API** (`correctJobFrame`) ghi **trước** khi đổi frame, và là APPEND-ONLY. Đối
+chứng âm của `D-072` cho thấy lớp này **chưa có test nào canh** cho tới khi `p4-correction-api.test.ts`
+ra đời.

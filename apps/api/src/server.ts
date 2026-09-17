@@ -57,6 +57,7 @@ import {
   putUploadChunk,
 } from './services/resumable-upload.js';
 import { expireReservations, getUsageSummary } from './services/usage.js';
+import { correctJobFrame, getJobFrames } from './services/frame-review.js';
 import { retentionDryRunReport, retentionForAsset } from './services/retention.js';
 import type { ServiceResult } from './services/result.js';
 
@@ -810,6 +811,24 @@ export function buildServer(options: BuildServerOptions = {}) {
     const actor = await withActor(request, reply, 'job.receipt_read', workspaceHeader(request));
     if (!actor) return reply;
     return respond(request, reply, 'job.receipt_read', actor, await getJobReceipt(ctx, actor, param(request, 'jobId')));
+  });
+
+  /* --------------------------------------------------- P4: frame review (D-072) */
+
+  app.get('/v1/jobs/:jobId/frames', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.frames_read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'job.frames_read', actor, await getJobFrames(ctx, actor, param(request, 'jobId')));
+  });
+
+  app.post('/v1/jobs/:jobId/frames/:frameIndex/correction', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.frame_correction', workspaceHeader(request));
+    if (!actor) return reply;
+    const body = (request.body ?? {}) as { box?: unknown };
+    return respond(
+      request, reply, 'job.frame_correction', actor,
+      await correctJobFrame(ctx, actor, param(request, 'jobId'), Number(param(request, 'frameIndex')), body.box),
+    );
   });
 
   app.post('/v1/jobs/:jobId/estimate', async (request, reply) => {

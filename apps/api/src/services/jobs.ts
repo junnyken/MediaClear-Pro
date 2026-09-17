@@ -315,6 +315,26 @@ function evaluateProviderCapability(
   operations: readonly CleanupOperation[],
   mediaType: 'image' | 'video',
 ): { decision: 'allow'; evidence: EvidenceStatus } | { decision: 'block'; error: ApiError; evidence: EvidenceStatus } {
+  /*
+   * P4 (`D-072`): `tracked_inpaint` KHONG duoc danh gia theo `ProviderRegistry`.
+   *
+   * Registry do chua provider XU LY (bien doi byte). Theo doi vung di chuyen la mot nang luc KHAC,
+   * do `ctx.trackingProvider` phuc vu. Truoc khi tach nhanh nay, moi job `tracked_inpaint` deu bi
+   * chan boi `MCP_PROVIDER_CAPABILITY_UNSUPPORTED` — dung, vi `DeterministicVideoProvider` that su
+   * khong lam duoc viec do.
+   *
+   * Va cho nay KHONG phai cho de noi long. Bang chung tra ve la **`unknown`**, dung luat da co san
+   * cua ham nay: "chua co provider production nao => evidence 'unknown', job van duoc nhan". Bo
+   * tracking hien tai la ban GIA tat dinh (`isProductionProvider = false`, `Q-P4-01` con mo), nen
+   * `unknown` la loi khai dung — khong bao gio duoc thanh `verified`.
+   *
+   * Cong chan that cua duong nay la Quality Review Gate (`P4-MCP-44`), khong phai buoc tao job.
+   */
+  if (operations.includes('tracked_inpaint')) {
+    const trackingIsProduction = ctx.trackingProvider.isProductionProvider;
+    return { decision: 'allow', evidence: trackingIsProduction ? 'verified' : 'unknown' };
+  }
+
   const needsProvider = operations.filter((op) => requiresProvider(op));
   if (needsProvider.length === 0) {
     // crop/blur/brand_overlay: deterministic fallback, khong can provider AI.

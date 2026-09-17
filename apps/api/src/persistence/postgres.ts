@@ -16,6 +16,9 @@ import { ERROR_CODES } from '@mediaclear/contracts';
 import type { Pool, PoolClient } from 'pg';
 import type { PersistencePort } from './port.js';
 import type {
+  JobFrameCorrectionRecord,
+  JobFrameRecord,
+  JobFrameTimelineRecord,
   Asset,
   AuditEvent,
   Page,
@@ -863,6 +866,118 @@ export class PostgresPersistence implements PersistencePort {
 
   /* ------------------------------------------------------------------ audit */
 
+  /* ------------------------------------------------------- P4: frame tracking */
+
+  readonly jobFrames = {
+    saveTimeline: async (r: JobFrameTimelineRecord): Promise<JobFrameTimelineRecord> => {
+      await this.q(
+        `INSERT INTO job_frame_timelines
+           (job_id, workspace_id, expected_frame_count, declared_frame_count, decoded_frame_count,
+            undecodable_frames, fps, variable_frame_rate, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (job_id) DO UPDATE SET
+           expected_frame_count = EXCLUDED.expected_frame_count,
+           declared_frame_count = EXCLUDED.declared_frame_count,
+           decoded_frame_count  = EXCLUDED.decoded_frame_count,
+           undecodable_frames   = EXCLUDED.undecodable_frames,
+           fps                  = EXCLUDED.fps,
+           variable_frame_rate  = EXCLUDED.variable_frame_rate`,
+        [r.jobId, r.workspaceId, r.expectedFrameCount, r.declaredFrameCount, r.decodedFrameCount,
+         r.undecodableFrames, r.fps, r.variableFrameRate, r.createdAt],
+      );
+      return r;
+    },
+
+    findTimeline: async (workspaceId: string, jobId: string): Promise<JobFrameTimelineRecord | null> => {
+      const rows = await this.q<Record<string, unknown>>(
+        'SELECT * FROM job_frame_timelines WHERE workspace_id = $1 AND job_id = $2', [workspaceId, jobId]);
+      const row = rows[0];
+      if (!row) return null;
+      return {
+        jobId: row.job_id as string,
+        workspaceId: row.workspace_id as string,
+        expectedFrameCount: Number(row.expected_frame_count),
+        declaredFrameCount: row.declared_frame_count === null ? null : Number(row.declared_frame_count),
+        decodedFrameCount: Number(row.decoded_frame_count),
+        undecodableFrames: Number(row.undecodable_frames),
+        fps: row.fps === null ? null : Number(row.fps),
+        variableFrameRate: row.variable_frame_rate as boolean,
+        createdAt: isoRequired(row.created_at as Date | string),
+      };
+    },
+
+    replaceFrames: async (workspaceId: string, jobId: string, frames: readonly JobFrameRecord[]): Promise<void> => {
+      await this.q('DELETE FROM job_frames WHERE workspace_id = $1 AND job_id = $2', [workspaceId, jobId]);
+      // Ghi tung dong. Cham hon mot cau INSERT lon, nhung moi dong tu chiu rang buoc cua rieng no.
+      for (const f of frames) {
+        await this.q(
+          `INSERT INTO job_frames
+             (job_id, workspace_id, frame_index, state, box_x, box_y, box_width, box_height,
+              confidence, source, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          [f.jobId, f.workspaceId, f.frameIndex, f.state,
+           f.box?.x ?? null, f.box?.y ?? null, f.box?.width ?? null, f.box?.height ?? null,
+           f.confidence, f.source, f.updatedAt],
+        );
+      }
+    },
+
+    listFrames: async (workspaceId: string, jobId: string): Promise<JobFrameRecord[]> => {
+      const rows = await this.q<Record<string, unknown>>(
+        'SELECT * FROM job_frames WHERE workspace_id = $1 AND job_id = $2 ORDER BY frame_index ASC',
+        [workspaceId, jobId]);
+      return rows.map(toFrameRecord);
+    },
+
+    updateFrame: async (r: JobFrameRecord): Promise<JobFrameRecord> => {
+      const rows = await this.q<Record<string, unknown>>(
+        `UPDATE job_frames SET state = $4, box_x = $5, box_y = $6, box_width = $7, box_height = $8,
+                confidence = $9, source = $10, updated_at = $11
+          WHERE job_id = $1 AND workspace_id = $2 AND frame_index = $3
+          RETURNING *`,
+        [r.jobId, r.workspaceId, r.frameIndex, r.state,
+         r.box?.x ?? null, r.box?.y ?? null, r.box?.width ?? null, r.box?.height ?? null,
+         r.confidence, r.source, r.updatedAt],
+      );
+      if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      return toFrameRecord(rows[0]);
+    },
+
+    appendCorrection: async (r: JobFrameCorrectionRecord): Promise<JobFrameCorrectionRecord> => {
+      // CHI insert. Khong co duong UPDATE hay DELETE nao cho bang nay trong toan bo ma.
+      await this.q(
+        `INSERT INTO job_frame_corrections
+           (id, job_id, workspace_id, frame_index, before_state, before_source, before_box,
+            before_confidence, after_box, reinterpolated, corrected_at, actor_user_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10,$11,$12)`,
+        [r.id, r.jobId, r.workspaceId, r.frameIndex, r.beforeState, r.beforeSource,
+         r.beforeBox === null ? null : JSON.stringify(r.beforeBox), r.beforeConfidence,
+         JSON.stringify(r.afterBox), r.reinterpolated, r.correctedAt, r.actorUserId],
+      );
+      return r;
+    },
+
+    listCorrections: async (workspaceId: string, jobId: string): Promise<JobFrameCorrectionRecord[]> => {
+      const rows = await this.q<Record<string, unknown>>(
+        'SELECT * FROM job_frame_corrections WHERE workspace_id = $1 AND job_id = $2 ORDER BY corrected_at ASC',
+        [workspaceId, jobId]);
+      return rows.map((row) => ({
+        id: row.id as string,
+        jobId: row.job_id as string,
+        workspaceId: row.workspace_id as string,
+        frameIndex: Number(row.frame_index),
+        beforeState: row.before_state as JobFrameRecord['state'],
+        beforeSource: row.before_source as JobFrameRecord['source'],
+        beforeBox: (row.before_box as JobFrameRecord['box']) ?? null,
+        beforeConfidence: row.before_confidence === null ? null : Number(row.before_confidence),
+        afterBox: row.after_box as NonNullable<JobFrameRecord['box']>,
+        reinterpolated: (row.reinterpolated as number[]) ?? [],
+        correctedAt: isoRequired(row.corrected_at as Date | string),
+        actorUserId: (row.actor_user_id as string | null) ?? null,
+      }));
+    },
+  };
+
   readonly audit = {
     append: async (event: AuditEvent): Promise<AuditEvent> => {
       await this.q(
@@ -1219,4 +1334,21 @@ function toAudit(r: AuditRow): AuditEvent {
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as { code?: string }).code === '23505';
+}
+
+function toFrameRecord(row: Record<string, unknown>): JobFrameRecord {
+  const x = row.box_x;
+  return {
+    jobId: row.job_id as string,
+    workspaceId: row.workspace_id as string,
+    frameIndex: Number(row.frame_index),
+    state: row.state as JobFrameRecord['state'],
+    box: x === null || x === undefined ? null : {
+      x: Number(row.box_x), y: Number(row.box_y),
+      width: Number(row.box_width), height: Number(row.box_height),
+    },
+    confidence: row.confidence === null ? null : Number(row.confidence),
+    source: row.source as JobFrameRecord['source'],
+    updatedAt: isoRequired(row.updated_at as Date | string),
+  };
 }

@@ -213,6 +213,8 @@ export const API_ROUTES = [
   { method: 'POST', path: '/v1/jobs/:jobId/estimate', status: 'implemented', mcp: 'P2-MCP-31' },
   { method: 'POST', path: '/v1/jobs/:jobId/preview', status: 'implemented', mcp: 'P2-MCP-31' },
   { method: 'GET', path: '/v1/jobs/:jobId/receipt', status: 'implemented', mcp: 'P2-MCP-30' },
+  { method: 'GET', path: '/v1/jobs/:jobId/frames', status: 'implemented', mcp: 'P4-MCP-40' },
+  { method: 'POST', path: '/v1/jobs/:jobId/frames/:frameIndex/correction', status: 'implemented', mcp: 'P4-MCP-42' },
 ] as const;
 
 export type ApiRoute = (typeof API_ROUTES)[number];

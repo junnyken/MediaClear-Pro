@@ -8,6 +8,9 @@
 import { ERROR_CODES, RELEASE_REASONS } from '@mediaclear/contracts';
 import type { PersistencePort } from './port.js';
 import type {
+  JobFrameCorrectionRecord,
+  JobFrameRecord,
+  JobFrameTimelineRecord,
   Asset,
   AuditEvent,
   Page,
@@ -134,6 +137,9 @@ export class InMemoryPersistence implements PersistencePort {
   private readonly projectRows: Project[] = [];
   private readonly assetRows: Asset[] = [];
   private readonly sourceFileRows = new Map<string, SourceFileRecord>();
+  private readonly frameTimelineRows = new Map<string, JobFrameTimelineRecord>();
+  private frameRows: JobFrameRecord[] = [];
+  private readonly frameCorrectionRows: JobFrameCorrectionRecord[] = [];
   private readonly validationRows: ValidationRecord[] = [];
   private readonly attestationRows: RightsAttestation[] = [];
   private readonly jobRows: ProcessingJob[] = [];
@@ -463,6 +469,44 @@ export class InMemoryPersistence implements PersistencePort {
     listByWorkspace: async (workspaceId: string): Promise<UsageLedgerEntry[]> =>
       this.usageRows.filter((e) => e.workspaceId === workspaceId),
     listAll: async (): Promise<UsageLedgerEntry[]> => [...this.usageRows],
+  };
+
+  readonly jobFrames = {
+    saveTimeline: async (record: JobFrameTimelineRecord): Promise<JobFrameTimelineRecord> => {
+      this.frameTimelineRows.set(record.jobId, record);
+      return record;
+    },
+    findTimeline: async (workspaceId: string, jobId: string): Promise<JobFrameTimelineRecord | null> => {
+      const row = this.frameTimelineRows.get(jobId);
+      return row && row.workspaceId === workspaceId ? row : null;
+    },
+    replaceFrames: async (workspaceId: string, jobId: string, frames: readonly JobFrameRecord[]): Promise<void> => {
+      this.frameRows = this.frameRows.filter((r) => !(r.jobId === jobId && r.workspaceId === workspaceId));
+      this.frameRows.push(...frames.map((f) => ({ ...f })));
+    },
+    listFrames: async (workspaceId: string, jobId: string): Promise<JobFrameRecord[]> =>
+      this.frameRows
+        .filter((r) => r.jobId === jobId && r.workspaceId === workspaceId)
+        .sort((a, b) => a.frameIndex - b.frameIndex)
+        .map((r) => ({ ...r })),
+    updateFrame: async (record: JobFrameRecord): Promise<JobFrameRecord> => {
+      const i = this.frameRows.findIndex(
+        (r) => r.jobId === record.jobId && r.workspaceId === record.workspaceId && r.frameIndex === record.frameIndex,
+      );
+      if (i < 0) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      this.frameRows[i] = { ...record };
+      return record;
+    },
+    appendCorrection: async (record: JobFrameCorrectionRecord): Promise<JobFrameCorrectionRecord> => {
+      // APPEND-ONLY: chi push, khong bao gio thay the.
+      this.frameCorrectionRows.push({ ...record });
+      return record;
+    },
+    listCorrections: async (workspaceId: string, jobId: string): Promise<JobFrameCorrectionRecord[]> =>
+      this.frameCorrectionRows
+        .filter((r) => r.jobId === jobId && r.workspaceId === workspaceId)
+        .sort((a, b) => a.correctedAt.localeCompare(b.correctedAt))
+        .map((r) => ({ ...r })),
   };
 
   readonly audit = {

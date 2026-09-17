@@ -6,6 +6,9 @@
  * Media binary KHONG bao gio di qua day (guardrail 10 Phase 1).
  */
 import type {
+  JobFrameCorrectionRecord,
+  JobFrameRecord,
+  JobFrameTimelineRecord,
   Asset,
   AuditEvent,
   Page,
@@ -201,6 +204,26 @@ export interface PersistencePort {
     listByWorkspace(workspaceId: string): Promise<UsageLedgerEntry[]>;
     /** P1.1: lenh het han chay tren moi workspace nen can duong doc toan bo. */
     listAll(): Promise<UsageLedgerEntry[]>;
+  };
+
+  /**
+   * P4 (`D-072`): trang thai frame cua mot job.
+   *
+   * `timeline` va `frames` NAM RIENG co chu dinh: `expectedFrameCount` la con so de DOI CHIEU voi
+   * so dong trong `frames`. Nhet chung vao mot cho thi phep doi chieu tro thanh viec ung dung tu
+   * cham diem chinh minh.
+   */
+  jobFrames: {
+    saveTimeline(record: JobFrameTimelineRecord): Promise<JobFrameTimelineRecord>;
+    findTimeline(workspaceId: string, jobId: string): Promise<JobFrameTimelineRecord | null>;
+    /** Ghi ca loat. Thay the toan bo frame cua job — dung sau mot luot tracking. */
+    replaceFrames(workspaceId: string, jobId: string, frames: readonly JobFrameRecord[]): Promise<void>;
+    listFrames(workspaceId: string, jobId: string): Promise<JobFrameRecord[]>;
+    /** Sua DUNG mot frame (MCP-42). */
+    updateFrame(record: JobFrameRecord): Promise<JobFrameRecord>;
+    /** APPEND-ONLY: khong co duong sua hay xoa. */
+    appendCorrection(record: JobFrameCorrectionRecord): Promise<JobFrameCorrectionRecord>;
+    listCorrections(workspaceId: string, jobId: string): Promise<JobFrameCorrectionRecord[]>;
   };
 
   audit: {

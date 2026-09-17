@@ -6,6 +6,7 @@
  * in-memory -> PostgreSQL hay local-fs -> R2 khong phai sua domain.
  */
 import { ProviderRegistry, NoopContractProvider, type ObjectStorageAdapter } from '@mediaclear/contracts';
+import { DeterministicTrackingProvider, type MotionTrackingProvider } from './providers/tracking.js';
 import { loadConfig, type ApiConfig } from './config/env.js';
 import {
   CompositeIdentityProvider,
@@ -44,6 +45,14 @@ export interface AppContext {
   storage: StorageAdapter;
   probe: MediaProbeAdapter;
   providers: ProviderRegistry;
+  /**
+   * P4 (`D-072`): provider theo doi vung di chuyen.
+   *
+   * De RIENG, khong nhet vao `ProviderRegistry`: registry do danh cho provider XU LY (bien doi
+   * byte). Tracking khong bien doi byte — no tra ve toa do. Gop vao se lam `productionProviders`
+   * dem sai, va `/healthz` se khai mot con so khong dung nghia.
+   */
+  trackingProvider: MotionTrackingProvider;
   bucket: string;
   now: () => Date;
   /**
@@ -109,6 +118,8 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
   );
 
   const providers = new ProviderRegistry();
+  // Ban GIA tat dinh. Provider that con `blocked` (`Q-P4-01`): chua benchmark.
+  const trackingProvider: MotionTrackingProvider = new DeterministicTrackingProvider();
   /*
    * Phase 1 CHI dang ky provider no-op (isProductionProvider = false).
    * Khong provider production nao duoc dang ky truoc khi co benchmark evidence (Q-06).
@@ -142,6 +153,7 @@ export function createAppContext(overrides: AppContextOverrides = {}): AppContex
     storage,
     probe: overrides.probe ?? new HeaderMediaProbe(),
     providers,
+    trackingProvider,
     bucket,
     now,
     dbPool,

@@ -34,3 +34,18 @@ trở lại**, nên nó không thể là `review_required`.
 ## Trạng thái
 
 `completed`. 6 test + phần lớn 9 đối chứng âm của Phase 4 hội tụ ở cổng này.
+
+---
+
+## Cập nhật `D-072` — màn hình đã có
+
+Cùng trang với `P4-MCP-42`, có chủ đích: với người dùng, *"vì sao chưa xong"* và *"tôi phải sửa gì"*
+là **một** việc. Tách hai trang sẽ bắt họ nhớ số liệu ở trang này để hiểu trang kia.
+
+Hiện **số cụ thể**: tổng khung hình · đã theo dõi được · độ tin cậy thấp · cần xem lại · lỗi · **còn
+thiếu**. Mỗi lý do kèm số đếm — *"Có khung hình độ tin cậy thấp — 1"*, không phải *"Có lỗi"*.
+
+**Nút tải về `disabled`** khi cổng chưa nói `completed`. Không suy từ "trông có vẻ xong".
+
+Quan sát khi bấm tay: sửa frame 4 sang `x=0.42` trong khi lân cận ở `0.1` thì `P4-MCP-43` **lập tức**
+thêm lý do *"Vùng che nhảy bất thường, cần xem lại — 2"*.
