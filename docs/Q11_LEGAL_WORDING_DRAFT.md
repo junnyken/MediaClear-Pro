@@ -1,15 +1,19 @@
 # `Q-11` — Bản nháp câu chữ pháp lý, trình luật/BA duyệt
 
-> **Trạng thái: BẢN NHÁP. Chưa có hiệu lực. Chưa ai ký.**
+> **Trạng thái: KHÔNG ÁP DỤNG. Giữ làm tài liệu tham khảo.**
 >
-> Tài liệu này **không** thay đổi gì trong hệ thống. `Rights Statement v1` và `v2` **giữ nguyên
-> từng ký tự**, **không tạo v3**, và mã nguồn **không** được sửa theo bản nháp này cho tới khi có
-> người chịu trách nhiệm pháp lý duyệt.
+> `2026-09-17`, owner trả lời `Q-11`: **không cần luật sư/BA duyệt trước khi lên production**
+> (`D-068`). Vì vậy **không đề xuất nào trong tài liệu này được áp dụng**. `Rights Statement v2`
+> **giữ nguyên từng ký tự**, **không tạo v3**, mã nguồn **không** đổi theo tài liệu này.
 >
-> Người soạn: agent. **Agent không phải luật sư và không thay thế được thẩm định pháp lý.** Bản
-> nháp này chỉ để rút ngắn thời gian của người duyệt, không phải để thay họ.
+> Giữ lại vì hai lý do: (1) nếu sau này owner đổi ý hoặc mở cho khách ngoài, đây là điểm bắt đầu
+> sẵn có; (2) nó ghi lại **những rủi ro đã được nêu ra và đã bị bỏ qua có ý thức** — thứ đó có giá
+> trị hơn một tài liệu bị xoá.
+>
+> Người soạn: agent. **Agent không phải luật sư.** Tài liệu này **chưa từng được** người có chuyên
+> môn pháp lý đọc.
 
-- **Liên quan**: `Q-11` · **Ngày soạn**: 2026-09-17 · **Người duyệt**: _chưa có_
+- **Liên quan**: `Q-11` (đã đóng, `D-068`) · **Ngày soạn**: 2026-09-17 · **Người duyệt pháp lý**: _không có, và sẽ không có_
 
 ---
 
@@ -168,14 +172,20 @@ khuôn mặt.
 - **Con số, tên pháp nhân, địa chỉ, toà án cụ thể** — agent không có nguồn nào để lấy. Bịa ra sẽ tạo
   văn bản sai chủ thể, đúng dạng lỗi mà `feedback_absolute_no_fake_data` cấm.
 
-## 5. Việc cần làm sau khi có người duyệt
+## 5. Nếu sau này owner đổi ý
 
-1. Người duyệt ghi rõ **duyệt / sửa / bác** cho **từng mục** 3.1–3.3 **và** 4.1–4.4, và điền các chỗ `«…»`.
-2. Nếu có mục nào được duyệt ⇒ **tạo `Rights Statement v3`** theo đúng quy trình version hoá; **không**
-   sửa v1/v2 (chúng là bằng chứng của những lần ký đã xảy ra).
-3. Cập nhật `Q-11` trong `OPEN_QUESTIONS.md` và ghi một quyết định mới trong `DECISIONS.md`.
+Owner đã chốt **không** dùng các đề xuất ở §3 và §4 (`D-068`). Nếu sau này quay lại — ví dụ khi mở
+cho khách ngoài Mắt Bão, hoặc khi mở phạm vi sang chỉnh sửa khuôn mặt — thì trình tự là:
+
+1. Người có thẩm quyền ghi **duyệt / sửa / bác** cho từng mục 3.1–3.3 và 4.1–4.4, và điền các chỗ
+   `«…»` (tên pháp nhân, mức trần trách nhiệm, toà án).
+2. Có mục nào được duyệt ⇒ **tạo `Rights Statement v3`** theo đúng quy trình version hoá. **Không**
+   sửa v1/v2 — chúng là bằng chứng của những lần ký đã thực sự xảy ra.
+3. Mở lại `Q-11` trong `OPEN_QUESTIONS.md` và ghi một quyết định mới.
 4. Chạy lại phép chắn câu chữ và đối chứng âm.
 
-Nếu người duyệt **bác toàn bộ**, `Q-11` vẫn đóng được — bằng một câu xác nhận rằng câu v2 hiện tại
-**đã đủ** và được chấp nhận cho production. Điều quan trọng là có **người chịu trách nhiệm** nói ra,
-chứ không phải agent tự kết luận.
+**Rủi ro đã được nêu và đã bị bỏ qua có ý thức** — liệt kê ở đây để sau này không ai phải đoán lại:
+câu được ký không tự nói lên phạm vi *tệp này/thời điểm này* (§3.1) · v2 đã bỏ vế trách nhiệm về
+việc sử dụng kết quả (§3.2) · chưa nói rõ hệ thống không thẩm định quyền (§3.3) · chưa có giới hạn
+trách nhiệm, bồi thường, luật áp dụng (§4.1–4.3) · **hệ thống lưu trữ 365 ngày tệp có thể chứa hình
+ảnh người thật, và xác nhận hiện tại không nói gì về người trong ảnh** (§4.4).

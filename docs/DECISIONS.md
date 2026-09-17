@@ -1531,3 +1531,37 @@ việc.
 toàn bộ, `Q-11` vẫn đóng được — bằng một câu xác nhận rằng v2 đã đủ.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-068 — `Q-11` đóng bằng QUYẾT ĐỊNH của owner, không phải bằng thẩm định pháp lý
+
+`Q-11` hỏi: *"Có cần luật sư/BA duyệt câu chữ xác nhận quyền (vi + en) trước khi lên production
+không?"* Đây là câu hỏi **thuộc thẩm quyền owner**, và `2026-09-17` owner trả lời: **không cần**.
+Owner cũng bỏ yêu cầu điền các chỗ `«…»` trong bản nháp.
+
+Đó là một câu trả lời hợp lệ cho đúng câu hỏi đã đặt ra, nên `Q-11` chuyển sang `answered` và
+**thôi** là blocker go-live.
+
+**Ghi rõ để không ai đọc nhầm về sau — đây là phần quan trọng nhất của quyết định này:**
+
+- `Q-11` đóng vì **owner quyết định không cần**, **KHÔNG** vì câu chữ đã được thẩm định.
+- **Chưa có ai có chuyên môn pháp lý đọc** `rights.attestation.*` hay `policy.*`. Trạng thái đó
+  **không đổi** sau quyết định này; chỉ có *yêu cầu* phải thẩm định là được bỏ.
+- Rủi ro pháp lý còn nguyên và **thuộc về owner**. Agent đã nêu một lần, owner quyết, agent ghi lại.
+
+**Không áp dụng bản nháp.** `D-067` (`docs/Q11_LEGAL_WORDING_DRAFT.md`) chuyển sang **KHÔNG ÁP DỤNG,
+giữ làm tham khảo**. `Rights Statement v1/v2` **giữ nguyên từng ký tự**, **không tạo v3**, mã nguồn
+**không** đổi. Giữ tài liệu thay vì xoá vì nó ghi lại **những rủi ro đã được nêu ra và đã bị bỏ qua
+có ý thức** — trong đó có mục nặng nhất: hệ thống **lưu trữ 365 ngày** tệp **có thể chứa hình ảnh
+người thật**, mà câu xác nhận hiện tại **không nói gì về người trong ảnh**.
+
+**Không viết lại lịch sử.** Các báo cáo cũ (`PHASE_0_REPORT`, `PHASE_2_REPORT`, `WORDING_REVIEW_P3`,
+`D-059`/`D-061`/`D-065`) vẫn ghi `Q-11` đang mở — **đúng tại thời điểm viết**, nên giữ nguyên. Chỉ ba
+tài liệu nói về **trạng thái hiện tại** được cập nhật: `OPEN_QUESTIONS.md`, `PHASE_3_CLOSURE.md` §18,
+`DEPLOYMENT.md`.
+
+**Gate go-live vẫn `NOT_READY_FOR_GO_LIVE`** — ba blocker còn lại: kho object dùng chung (`Q-23`) ·
+dấu vết AI vẫn `unknown` · chưa có việc dọn dữ liệu nào chạy thật.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

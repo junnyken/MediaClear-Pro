@@ -246,8 +246,10 @@ nào, và **không có** lệnh xoá nào trong mã) · `Q-P3-07` (**0** provide
 
 ## 18. Gate này KHÔNG phải GO_LIVE
 
-**Khẳng định riêng**: `NOT_READY_FOR_GO_LIVE` **giữ nguyên**. Bốn blocker go-live **đều còn**:
-kho object dùng chung (Q-23) · dấu vết AI vẫn `unknown` · chưa có việc dọn dữ liệu nào chạy thật ·
-câu chữ **xác nhận quyền** (`Q-11`) vẫn chưa có người chịu trách nhiệm pháp lý duyệt.
+**Khẳng định riêng**: `NOT_READY_FOR_GO_LIVE` **giữ nguyên**. Ba blocker go-live **còn lại**:
+kho object dùng chung (`Q-23`) · dấu vết AI vẫn `unknown` · chưa có việc dọn dữ liệu nào chạy thật.
 
-> `Q-P3-08` **không còn** là blocker: owner đã duyệt `2026-09-17` (`D-065`). `Q-11` thì **còn**.
+> Hai câu hỏi câu chữ **không còn** là blocker, và cả hai đều đóng bằng **quyết định của owner** chứ
+> không phải bằng đo đạc: `Q-P3-08` owner duyệt (`D-065`), `Q-11` owner trả lời **không cần** luật sư
+> duyệt (`D-068`). Ghi rõ vậy để sau này không ai đọc thành *"đã được thẩm định pháp lý"* — **chưa
+> có ai có chuyên môn pháp lý đọc câu chữ xác nhận quyền**, và owner đã nhận phần rủi ro đó.

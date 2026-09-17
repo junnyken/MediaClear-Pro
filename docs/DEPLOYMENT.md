@@ -60,7 +60,9 @@ biến cũng tính là thay đổi**, nên sau khi `set_env` thì `redeploy` đ�
   sai mật khẩu ⇒ chưa có gì chặn thử mật khẩu hàng loạt.
 - Chưa có sao lưu, chưa theo dõi, chưa đo tải.
 - **Chưa có xử lý AI** (`productionAiProcessingEnabled: false`); không job nào tới `completed`.
-- Q-11 (BA/pháp lý duyệt câu chữ) vẫn chặn go-live thật.
+- **Câu chữ xác nhận quyền CHƯA từng được người có chuyên môn pháp lý đọc.** `Q-11` đã đóng bằng
+  **quyết định của owner** (`D-068`), không phải bằng thẩm định — nó thôi chặn go-live, nhưng rủi ro
+  thì vẫn nguyên và thuộc về owner.
 
 ## 5. Trạng thái tự khai của bản đang chạy
 
