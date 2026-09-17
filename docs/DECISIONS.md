@@ -1676,3 +1676,68 @@ giá trị thật của đối chứng âm — nó chỉ ra chỗ *tôi tưởng
 và chưa có kho dùng chung (`Q-23`). Công tắc mặc định **tắt**.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-071 — Phase 4: frame timeline, tracking, correction, temporal check, quality gate
+
+### Bước 0 — khảo sát TRƯỚC khi viết mã (kết quả đo, không suy đoán)
+
+| Câu hỏi | Trả lời | Bằng chứng |
+|---|---|---|
+| Provider AI tracking nào khả dụng? | **Không có** | `providers/` chỉ có `deterministic-image`, `deterministic-video`, `noop-contract`; không biến môi trường nào |
+| Đã benchmark chưa? | **Chưa** | `PROVIDER_BENCHMARK.md`: *"CHƯA CHẠY BENCHMARK NÀO"*, mọi ô `unknown` |
+| Rủi ro native binding? | **Có, nếu chọn provider thật** | OpenCV binding / ONNX runtime — đúng dạng `D-039` (argon2 → scrypt). Bản giả **không có phụ thuộc native nào** |
+| Ngưỡng confidence? | `0.6`, **ước lượng** | Chưa có provider thật ⇒ chưa có phân bố thật. `Q-P4-02` để đo lại |
+
+Kết luận: **không dừng Phase 4**. Dựng cổng `MotionTrackingProvider`, chạy bằng
+`DeterministicTrackingProvider` tất định, ghi provider thật là **`blocked`**.
+
+### Điều quan trọng nhất của Phase 4
+
+**Số frame kỳ vọng đến từ `P4-MCP-40` (đếm trên tệp thật), KHÔNG từ kết quả tracking.** Nếu lấy số
+kỳ vọng từ chính kết quả thì phép so sánh vô nghĩa — nó sẽ luôn khớp với chính nó, và một frame biến
+mất sẽ **không bao giờ** bị phát hiện. Bất biến *"không frame nào bị bỏ sót"* đứng hay đổ ở đúng chỗ này.
+
+Đo thật cho thấy vì sao phải **đếm** chứ không **suy**: `video-vfr.mp4` có `r_frame_rate = 10` và
+thời lượng ~2s ⇒ `duration × fps` cho ~20 frame, trong khi số thật là **26**.
+
+Và vì sao `expectedFrameCount` lấy số container **khai** chứ không lấy số **giải mã được**:
+`video-corrupt-frame.mp4` khai 10, giải mã được 9. Lấy số giải mã thì frame hỏng tự động "không tồn
+tại" — yêu cầu *"frame lỗi decode phải được ghi nhận, không bị bỏ qua khỏi tổng số"* thất bại trong
+im lặng.
+
+### Ba số ƯỚC LƯỢNG, nói rõ để không ai đọc thành số đo
+
+`FRAME_CONFIDENCE_THRESHOLD = 0.6` · `MAX_MASK_SPEED_PER_SECOND = 1.5`. Cả hai nằm **tường minh một
+chỗ**, không ẩn trong logic, và có `FRAME_CONFIDENCE_THRESHOLD_IS_MEASURED = false` ghi đúng trạng
+thái. Phase 3 đã làm đúng việc này một lần theo hướng ngược lại: dung sai audio `0.25s` (`Q-P3-03`)
+được **đo** bằng 12 lượt render rồi mới ghim. Ở đây chưa đo được — `Q-P4-02` để đo lại.
+
+### Không viết lại phần đã có
+
+Kiểm audio dùng **lại** `compareAudio`/`audioAllowsCompletion` của Phase 3 (`P3-MCP-33`), không viết
+bản thứ hai. Hai bản logic audio sẽ trôi khác nhau, và chỗ trôi sẽ là chỗ bất biến *"không xuất video
+nếu audio mất"* thất bại.
+
+### Chín đối chứng âm — chạy hết, không chọn tượng trưng
+
+Bài học `D-070` (hai lớp chặn không có test canh) áp dụng trực tiếp. **9/9 đỏ đúng chỗ.** Đáng chú ý:
+đột biến #9 (gate bỏ qua frame confidence) làm đỏ **3** test ở ba tầng khác nhau — dấu hiệu bất biến
+đó được canh ở nhiều lớp chứ không chỉ một.
+
+### CHƯA làm, nói thẳng
+
+- **Màn hình cho `P4-MCP-42`/`44`**: hợp đồng dùng chung và kiểm lúc chạy **đã có** (`D-047` áp dụng
+  lại, có test sai enum + thiếu trường), nhưng **chưa dựng màn hình** cho việc sửa keyframe và hiển
+  thị lý do review. Đây là phần còn nợ, không phải phần đã xong.
+- **Chưa nối vào đường job thật**: logic Phase 4 hoàn chỉnh và có test, nhưng chưa thay thế đường
+  `run-video-job` của Phase 3. Nối vào là bước sau.
+- **Provider thật**: `blocked` (`Q-P4-01`).
+
+### Ranh giới đã tôn trọng
+
+Không bật `MEDIACLEAR_CLEANUP_ENABLED` · không đóng `Q-23` · không nới go-live · không sửa Rights
+Statement · không đánh số lại ID lịch sử · không ghi đè asset gốc (có test riêng cho `P4-MCP-40`).
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

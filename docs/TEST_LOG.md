@@ -2238,3 +2238,46 @@ mất gói với Chrome và container Docker). Ghi đúng là **bỏ qua**, khô
 - **Đường video đầu-cuối**: thiếu `ffmpeg` trong workspace. Dùng ảnh (libvips) cho chuỗi đầu-cuối.
 - **Bấm tay lại trên Chrome cho luồng video**: như trên.
 - **Xác minh trên Vibe Host**: `Q-23` vẫn chặn.
+
+---
+
+## 2026-09-17 — Phase 4 (MCP-40…44), `D-071`
+
+Môi trường: PostgreSQL 16 (Docker `:55432`), **ffmpeg 6.1.1 đã cài lại** — nó biến mất giữa phiên, và
+`apt-get install ffmpeg` báo *"Unable to locate package"* cho tới khi chạy `apt-get update`. Chỉ mục
+apt cũ, không phải thiếu gói.
+
+| # | Lệnh | Mã thoát | Kết quả |
+|---|---|---|---|
+| 1 | `pnpm typecheck` | `0` | PASS |
+| 2 | `pnpm lint` | `0` | PASS |
+| 3 | `pnpm test` (PostgreSQL thật) | `0` | PASS — **70 tệp · 714 test · 0 bỏ qua** |
+| 4 | `pnpm build:web` | `0` | PASS |
+| 5 | `git diff --check` | `0` | sạch |
+
+> **0 test bị bỏ qua** — trước đó 46 test video bị `skipIf(!hasFfmpeg)`. ffmpeg trở lại nên toàn bộ
+> đường video Phase 3 cũng chạy thật trong lượt này.
+
+### Đo thật bằng ffprobe (nền cho `P4-MCP-40`)
+
+| Fixture | `r_frame_rate` | `avg_frame_rate` | container khai | giải mã được |
+|---|---|---|---|---|
+| `video-24fps.mp4` | 24 | 24 | 24 | 24 |
+| `video-60fps.mp4` | 60 | 60 | 60 | 60 |
+| `video-tiny.mp4` | 10 | 10 | 3 | 3 |
+| `video-vfr.mp4` | **10** | **8.39** | 26 | 26 |
+| `video-corrupt-frame.mp4` | 10 | 10 | **10** | **9** |
+
+Hai hàng cuối là lý do tồn tại của `P4-MCP-40`: VFR làm `duration × fps` sai (~20 so với 26 thật),
+và frame hỏng chỉ lộ ra khi so **số khai** với **số giải mã được**.
+
+### Chín đối chứng âm
+
+**9/9 đỏ đúng chỗ.** Bảng chi tiết ở `PHASE_4_CLOSURE.md` §4. Sau mỗi đột biến đều khôi phục tệp và
+chạy lại.
+
+### Regression
+
+Phase 1.1 (`phase11-*`), Phase 3 (`p3-*`, gồm 11 test video chạy thật), `Q-12` (`p3-c2pa-probe`),
+cleanup 5 lớp chặn (`p3-cleanup`) — **tất cả xanh**, không mục nào bị Phase 4 làm hỏng. Công tắc
+`MEDIACLEAR_CLEANUP_ENABLED` vẫn tắt mặc định.

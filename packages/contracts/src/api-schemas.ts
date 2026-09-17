@@ -17,8 +17,9 @@
  * THIEU bao loi — do moi la thu pha giao dien. Nen mot man hinh chi dung mot phan phan hoi VAN
  * dung duoc lich kiem day du.
  */
-import { arrayOf, boolean, nullable, number, object, optional, string } from './schema.js';
+import { arrayOf, boolean, enumOf, nullable, number, object, optional, string } from './schema.js';
 import { JOB_STATE_SCHEMA } from './phase3.js';
+import { FRAME_STATES, MASK_SOURCES, QUALITY_GATE_REASONS, QUALITY_GATE_VERDICTS } from './phase4.js';
 import type { Infer } from './schema.js';
 
 /* ------------------------------------------------------------- chung --- */
@@ -273,3 +274,63 @@ export const JOB_PREVIEW_SCHEMA = object({
   byteSize: number(),
   imageDataUri: string(),
 });
+
+/* --------------------------------------------------------- Phase 4 (MCP-40…44) --- */
+
+/**
+ * Trang thai frame — MOT nguon su that cho ca UI lan may chu (`D-047`).
+ *
+ * Danh sach lay THANG tu `FRAME_STATES`, khong chep tay sang day: chep tay la tao ra nguon su that
+ * thu hai, va hai nguon do se troi khac nhau dung luc khong ai nhin.
+ */
+export const FRAME_STATE_SCHEMA = enumOf(FRAME_STATES);
+export const MASK_SOURCE_SCHEMA = enumOf(MASK_SOURCES);
+
+export const MASK_BOX_SCHEMA = object({
+  x: number(),
+  y: number(),
+  width: number(),
+  height: number(),
+});
+
+export const FRAME_VIEW_SCHEMA = object({
+  index: number(),
+  state: FRAME_STATE_SCHEMA,
+  box: nullable(MASK_BOX_SCHEMA),
+  /** `null` = provider khong tra ve so nao. KHAC han `0`. */
+  confidence: nullable(number()),
+  source: MASK_SOURCE_SCHEMA,
+});
+
+export const FRAME_TIMELINE_SCHEMA = object({
+  expectedFrameCount: number(),
+  reportedFrameCount: number(),
+  missing: number(),
+  lowConfidence: number(),
+  reviewRequired: number(),
+  failed: number(),
+  ok: number(),
+  canComplete: boolean(),
+});
+
+/**
+ * Ket qua cong chan chat luong.
+ *
+ * `counts` la thu cho phep UI noi CU THE ("12 frame do tin cay thap") thay vi mot nhan chung —
+ * de bai doi dung dieu do.
+ */
+export const QUALITY_GATE_SCHEMA = object({
+  verdict: enumOf(QUALITY_GATE_VERDICTS),
+  reasons: arrayOf(enumOf(QUALITY_GATE_REASONS)),
+  counts: object(Object.fromEntries(QUALITY_GATE_REASONS.map((r) => [r, number()]))),
+});
+
+export const FRAME_TRACKING_VIEW_SCHEMA = object({
+  jobId: string(),
+  jobState: JOB_STATE_SCHEMA,
+  timeline: FRAME_TIMELINE_SCHEMA,
+  frames: arrayOf(FRAME_VIEW_SCHEMA),
+  gate: QUALITY_GATE_SCHEMA,
+});
+
+export type FrameTrackingView = Infer<typeof FRAME_TRACKING_VIEW_SCHEMA>;

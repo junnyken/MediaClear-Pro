@@ -41,7 +41,7 @@ export class FfmpegError extends Error {
   }
 }
 
-function run(command: string, args: string[], timeoutMs: number): Promise<{ stdout: string; stderr: string }> {
+export function run(command: string, args: string[], timeoutMs: number): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
@@ -81,7 +81,7 @@ export function resetFfmpegAvailability(): void {
   availability = null;
 }
 
-async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
+export async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), 'mediaclear-ff-'));
   try {
     return await fn(dir);
