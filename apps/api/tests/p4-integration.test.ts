@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { ffmpegAvailable } from '../src/media/ffmpeg.js';
 import { executeClaimedJob } from '../src/services/run-job.js';
+import { executeTrackedVideoJob } from '../src/services/run-tracked-video-job.js';
 import { DeterministicTrackingProvider } from '../src/providers/tracking.js';
 import { attest, createJob, createProject, createWorkspace, makeApp, signIn, uploadFixture, validateAsset } from './helpers.js';
 
@@ -118,31 +119,41 @@ describe.skipIf(!hasFfmpeg)('Workstream C — Phase 4 trong duong job that', () 
     await app.close();
   });
 
-  it('chuyen trang thai bi TU CHOI thi KHONG duoc tra ve `completed` — loi that da gap', async () => {
+  it('guard TU CHOI thi KHONG duoc tra ve `completed` — va phai cham DUNG nhanh tu choi', async () => {
     /*
-     * `canTransition` ep bat bien I-2 qua `TransitionContext`: khong `completed` khi chua co output
-     * da kiem. Ban dau duong tich hop quen truyen ngu canh VA bo qua ket qua tu choi trong im lang
-     * — job nam lai `processing` vinh vien trong khi ham tra ve `completed`. Dung loai loi ma ca
-     * Phase 4 ton tai de chan. Phep kiem nay khong cho no quay lai.
+     * Canh that: job bi HUY trong khi worker dang chay no. `cancelled` la trang thai terminal, nen
+     * `canTransition` tu choi MOI chuyen doi tiep theo.
+     *
+     * Phien ban truoc cua phep kiem nay ep `markValidated` nem loi, va tu coi la dat khi co ngoai
+     * le — nen no KHONG BAO GIO cham toi nhanh `!transition.allowed`. Doi chung am chung minh dieu
+     * do: dot bien "guard bi tu choi nhung van tra completed" van XANH. Phep kiem nay khong co
+     * duong thoat bang ngoai le nua.
      */
     const { app, ctx, ws, created } = await trackedJob();
     const jobId = created.body.data.job.id as string;
+    const claimed = await ctx.persistence.jobs.claimQueued(ctx.now().toISOString());
 
-    // Ep buoc ghi output that bai => khong co outputAssetId => I-2 phai chan `completed`.
+    // Doi tuong job dua vao pipeline mang trang thai terminal => guard PHAI tu choi.
+    const huy = { ...claimed!, state: 'cancelled' as const };
+    const outcome = await executeTrackedVideoJob(ctx, huy, ctx.trackingProvider);
+
+    expect(outcome.state, 'guard tu choi ma caller van khai `completed`').not.toBe('completed');
+    const job = await ctx.persistence.jobs.findById(ws, jobId);
+    expect(job?.state, 'job trong co so du lieu bi danh dau xong trong khi guard da tu choi').not.toBe('completed');
+    await app.close();
+  });
+
+  it('output KHONG kiem duoc thi khong bao gio `completed` (bat bien I-2)', async () => {
+    const { app, ctx, ws, created } = await trackedJob();
+    const jobId = created.body.data.job.id as string;
     ctx.persistence.outputs.markValidated = async () => { throw new Error('gia lap: khong kiem duoc output'); };
 
     const claimed = await ctx.persistence.jobs.claimQueued(ctx.now().toISOString());
-    let threw = false;
-    try {
-      const outcome = await executeClaimedJob(ctx, claimed!);
-      expect(outcome.state, 'tra ve completed trong khi khong co output da kiem').not.toBe('completed');
-    } catch {
-      threw = true; // nem loi cung duoc — mien la KHONG bao completed
-    }
+    await executeClaimedJob(ctx, claimed!).catch(() => undefined);
 
     const job = await ctx.persistence.jobs.findById(ws, jobId);
-    expect(job?.state, 'job ket o `processing` ma van coi la xong').not.toBe('completed');
-    expect(threw || job?.state !== 'completed').toBe(true);
+    expect(job?.state, 'bao xong trong khi output chua kiem duoc').not.toBe('completed');
     await app.close();
   });
+
 });

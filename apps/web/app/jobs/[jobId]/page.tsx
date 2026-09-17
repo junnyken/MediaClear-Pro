@@ -266,6 +266,16 @@ export default function JobStatusPage() {
           {receipt.data?.receipt.audioVerdict && receipt.data.receipt.audioVerdict !== 'preserved' ? (
             <p style={{ color: 'var(--mcp-warning)' }}>{translate('screen.job_status.audio_warning')}</p>
           ) : null}
+          {/*
+            * `D-073` — bao "can ban xem lai" ma khong cho duong di den cho xem lai thi loi nhan do
+            * vo dung. Man hinh `/jobs/:id/frames` (P4-MCP-42 + P4-MCP-44) da ton tai va chay dung,
+            * nhung TRUOC dong nay khong mot lien ket nao trong ca ung dung tro toi no — chi go tay
+            * URL moi vao duoc. Bam tay moi lo ra; toan bo test van xanh vi khong test nao hoi
+            * "nguoi dung di toi day bang cach nao".
+            */}
+          <LinkButton href={`/jobs/${encodeURIComponent(jobId)}/frames`}>
+            {translate('screen.job_status.review_cta')}
+          </LinkButton>
         </Card>
       ) : null}
 

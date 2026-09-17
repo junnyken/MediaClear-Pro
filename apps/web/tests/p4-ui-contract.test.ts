@@ -4,6 +4,8 @@
  * Man hinh that da duoc bam tay tren Chrome; bo test nay canh nhung LUAT ma bam tay khong lap lai
  * duoc moi lan: nut tai ve chi mo khi cong noi `completed`, va phan hoi sai hinh dang bi chan.
  */
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   FRAME_TRACKING_VIEW_SCHEMA,
@@ -66,5 +68,48 @@ describe('UI Phase 4 — cong chan tai ve', () => {
       (r) => MESSAGES.vi[`gate_reason.${r}`] === undefined || MESSAGES.en[`gate_reason.${r}`] === undefined,
     );
     expect(thieu, 'ly do khong co nhan => man hinh hien khoa tho').toEqual([]);
+  });
+});
+
+/**
+ * `D-073` — man hinh kiem khung hinh phai CO DUONG DI TOI.
+ *
+ * Mot man hinh chay dung nhung khong lien ket tu dau ca thi voi nguoi dung no khong ton tai.
+ * `/jobs/:id/frames` da o trong tinh trang do suot Phase 4: toan bo test xanh, ban than man hinh
+ * hoat dong, nhung cach duy nhat vao duoc la go tay URL. Bam tay moi lo ra, vi khong test nao hoi
+ * cau "nguoi dung di toi day bang cach nao".
+ *
+ * Phep chan nay doc MA NGUON chu khong doc DOM: no phai do duoc ngay ca khi khong dung trinh duyet.
+ */
+describe('D-073 — duong di toi man hinh kiem khung hinh', () => {
+  const APP = join(import.meta.dirname, '../app');
+
+  function sourceFiles(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) out.push(...sourceFiles(full));
+      else if (entry.endsWith('.tsx') || entry.endsWith('.ts')) out.push(full);
+    }
+    return out;
+  }
+
+  it('co it nhat mot lien ket tro toi `/jobs/:id/frames` tu man hinh KHAC', () => {
+    const linkers = sourceFiles(APP)
+      .filter((f) => !f.includes(join('jobs', '[jobId]', 'frames')))
+      .filter((f) => /href=\{?[`'"]\/jobs\/\$\{[^}]+\}\/frames/.test(readFileSync(f, 'utf8')))
+      .map((f) => f.replace(APP, 'app'));
+    expect(linkers, 'man hinh kiem khung hinh khong co loi vao — nguoi dung phai go tay URL')
+      .not.toEqual([]);
+  });
+
+  it('lien ket do nam o nhanh `review_required`, dung cho nguoi dung can no', () => {
+    const text = readFileSync(join(APP, 'jobs/[jobId]/page.tsx'), 'utf8');
+    const start = text.indexOf('needsReview ? (');
+    expect(start, 'khong tim thay nhanh review_required').toBeGreaterThan(0);
+    // Cat den `</Card>` chu KHONG den `) : null}` dau tien: nhanh audio ben trong cung ket thuc
+    // bang `) : null}`, nen moc do cat cut mat phan con lai cua the.
+    const block = text.slice(start, text.indexOf('</Card>', start));
+    expect(block, 'lien ket co ton tai nhung khong nam o cho nguoi dung dang bi chan').toContain('/frames');
   });
 });

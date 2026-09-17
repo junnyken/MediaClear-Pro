@@ -12,7 +12,7 @@ import type { AppContext } from '../app-context.js';
 import { ensurePermission, type Actor } from './access.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
 import { fail, ok, type ServiceResult } from './result.js';
-import type { OutputAssetRecord } from '../persistence/types.js';
+import type { OutputAssetRecord, ProcessingJob } from '../persistence/types.js';
 
 /**
  * Tim ban ket qua sau khi da kiem quyen. Tra cung mot ma loi cho "job khong ton tai" va
@@ -22,7 +22,7 @@ async function resolveOutput(
   ctx: AppContext,
   actor: Actor,
   jobId: string,
-): Promise<ServiceResult<OutputAssetRecord>> {
+): Promise<ServiceResult<{ job: ProcessingJob; output: OutputAssetRecord }>> {
   const allowed = await ensurePermission(ctx, actor, {
     resourceWorkspaceId: actor.workspace.id,
     resourceType: 'job',
@@ -36,7 +36,7 @@ async function resolveOutput(
 
   const output = await ctx.persistence.outputs.findByJob(actor.workspace.id, jobId);
   if (!output) return fail(apiError(ERROR_CODES.MCP_RESOURCE_NOT_FOUND, { resource: 'output' }));
-  return ok(output);
+  return ok({ job, output });
 }
 
 export async function getJobOutput(
@@ -46,7 +46,7 @@ export async function getJobOutput(
 ): Promise<ServiceResult<JobOutputResponse>> {
   const found = await resolveOutput(ctx, actor, jobId);
   if (!found.ok) return fail(found.error);
-  const output = found.data;
+  const { output } = found.data;
   return ok({
     outputAssetId: output.id,
     mimeType: output.mimeType,
@@ -64,7 +64,7 @@ export async function createJobOutputDownloadUrl(
 ): Promise<ServiceResult<JobOutputDownloadResponse>> {
   const found = await resolveOutput(ctx, actor, jobId);
   if (!found.ok) return fail(found.error);
-  const output = found.data;
+  const { job, output } = found.data;
 
   /*
    * Bat bien I-2. `validated` chi true sau khi he thong DOC LAI byte da ghi va do lai. Chua
@@ -74,6 +74,30 @@ export async function createJobOutputDownloadUrl(
    */
   if (!output.validated) {
     return fail(apiError(ERROR_CODES.MCP_STATE_OUTPUT_NOT_VERIFIED, { outputAssetId: output.id }));
+  }
+
+  /*
+   * `D-073` — CONG CHAN CHAT LUONG PHAI O DAY, khong chi o nut bam.
+   *
+   * Tim thay bang cach bam tay that: man hinh `/jobs/:id/frames` khoa dung nut "Tai ve" khi cong
+   * noi `failed`, nhung `GET /v1/jobs/:id/output/download-url` van tra 200 kem URL da ky, va tai
+   * URL do ve duoc 16344 byte that. Tuc la MCP-44 luc do chi la mot nut bi lam mo trong trinh
+   * duyet — ai goi thang API van lay duoc ban chua dat chat luong.
+   *
+   * Vi sao lo nay ton tai: `run-tracked-video-job` GHI ban ket qua va danh dau `validated` TRUOC
+   * khi hoi cong chan. Nen mot job `review_required`/`failed` van co san mot ban ket qua da kiem
+   * byte — tuc la no vuot qua phep kiem I-2 o tren mot cach hop le. Hai phep kiem nay do HAI dieu
+   * khac nhau va khong thay the duoc cho nhau.
+   *
+   * Dieu kien dung la TRANG THAI JOB, khong phai `validated`: `completed` la trang thai duy nhat
+   * ma cong chan da dong y. Kiem theo trang thai cung khong lam hong duong Phase 2/3 (anh khong
+   * co timeline khung hinh) vi cac job do van di toi `completed` khi xong.
+   *
+   * THU TU CO CHU Y: I-2 truoc, cong chat luong sau. Mot job `queued` chua kiem byte phai bao
+   * "chua kiem chung" chu khong phai "chua dat chat luong" — bao sai ly do cung la mot kieu noi doi.
+   */
+  if (job.state !== 'completed') {
+    return fail(apiError(ERROR_CODES.MCP_STATE_QUALITY_REVIEW_REQUIRED, { jobState: job.state }));
   }
 
   /* Kho co the mat tep ma co so du lieu khong biet. Hoi kho truoc khi hua. */

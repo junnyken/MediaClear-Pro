@@ -2407,3 +2407,73 @@ và **chưa có test nào canh**. Đã thêm `p4-correction-api.test.ts` (5 phé
 ### Regression
 
 Phase 1.1, Phase 3 (gồm video chạy thật), `Q-12`, cleanup 5 lớp chặn — **tất cả xanh**.
+
+---
+
+## Bước xác nhận đóng Phase 4 — `D-073` · 2026-09-17
+
+Mục đích ban đầu: chỉ xác nhận, không làm lại phần đã pass. Kết quả: tìm ra **hai lỗi** mà toàn bộ
+phép đo tự động bỏ sót.
+
+### Năm phép kiểm (chạy CÓ PostgreSQL, không bỏ qua phép nào)
+
+```
+pnpm check  →  0
+TSC=0 · LINT=0 · TEST=0 · BUILD:WEB=0
+73 tệp test · 742 phép kiểm · 0 bỏ qua
+```
+
+Lần chạy đầu **thiếu** `MEDIACLEAR_TEST_DATABASE_URL` nên còn 698 phép kiểm (5 bị bỏ qua) — các bộ
+**đối chiếu hai bản lưu trữ** (bộ nhớ ↔ PostgreSQL thật) bị tắt lặng lẽ. Chính các bộ đó đã bắt được
+`D-066` và `D-072`, nên "742 / 0 bỏ qua" mới là con số có nghĩa. Dùng database riêng `mcp_test_p4`,
+không đụng `mcp_p4` đang chạy: bộ test migration tự xoá bảng.
+
+### 12 đối chứng âm (chạy lại đầy đủ)
+
+**12/12 đỏ đúng chỗ.** Số **#11** lần đầu quay lại **XANH**: phép kiểm cũ của tôi bắt ngoại lệ
+(`catch { threw = true }`) nên nó **chưa bao giờ chạm tới nhánh `!transition.allowed`** — nó xanh vì
+một lý do khác với lý do tôi tưởng. Đã viết lại (đưa thẳng job ở trạng thái `cancelled` vào
+`executeTrackedVideoJob`) và tách phần `I-2` ra phép kiểm riêng.
+
+### Bấm tay trên Chrome — bản đã build, không phải bản dev
+
+| Kiểm | 1280×900 | 390×844 |
+|---|---|---|
+| Sáu con số (10 · 9 · 0 · 0 · 1 · 0, tổng khớp) | ✔ | ✔ |
+| Lý do chặn cụ thể kèm số đếm | ✔ | ✔ |
+| Nút tải về thật sự `disabled` (đọc từ cây trợ năng) | ✔ | ✔ |
+| Nhập sai ⇒ khoá nút lưu + câu giải thích | ✔ | — |
+| Nhập đúng ⇒ lưu được, số cập nhật ngay (8→9 theo dõi, 1→0 tin cậy thấp) | ✔ | — |
+| Không tràn ngang (`scrollWidth === clientWidth`) | — | ✔ (390 = 390) |
+| Không lọt khoá dịch thô | ✔ | ✔ |
+| Console | sạch | sạch |
+
+Lần này console **sạch hoàn toàn**, kể cả `/favicon.ico`.
+
+**Lịch sử sửa nối chuỗi đúng, không ghi đè** — 3 dòng, `before` của mỗi dòng khớp `after` của dòng
+trước: `0.1 → 0.12 → 0.55 → 0.12`, mỗi dòng có `actor_user_id`.
+
+**Cổng chống giật bắt đúng cú sửa tay vượt ngưỡng**: fps=10 ⇒ trần dịch chuyển `1.5/10 = 0.15`/khung.
+Sửa dịch `0.02` ⇒ im lặng (đúng). Sửa dịch `0.43` ⇒ *"Vùng che nhảy bất thường, cần xem lại — 2"*
+(hai chỗ nối 3→4 và 4→5). Đây cũng là lưới an toàn cho một điểm lệch có thật: hàm thuần
+`applyCorrection` **có** tính lại frame lân cận, còn đường API `correctJobFrame` ghi `reinterpolated:
+[]` — **không** tính lại. Cổng chống giật là thứ khiến điểm lệch đó không trở thành lỗi âm thầm.
+
+### Hai lỗi bấm tay tìm ra (chi tiết ở `D-073`)
+
+| # | Lỗi | Vì sao không test nào bắt |
+|---|---|---|
+| 1 | Gọi thẳng API vẫn tải được bản chưa đạt chất lượng (200 + 16344 byte thật) | Mọi test đều đi qua cùng một cửa mà giao diện đi; không ai hỏi *"nếu bỏ qua giao diện thì sao"* |
+| 2 | Màn hình kiểm khung hình không có liên kết nào trỏ tới | Không ai hỏi *"người dùng đi tới đây bằng cách nào"* — tôi luôn gõ tay URL |
+
+**Đối chứng âm cho hai phép chặn mới**: gỡ cổng chặn máy chủ ⇒ **3 đỏ** / 10 xanh (đối chứng dương
+`completed` → 200 vẫn xanh). Gỡ liên kết ⇒ **1 đỏ** / 7 xanh.
+
+**Một lỗi của chính phép đo, ghi lại để không lặp**: lần đầu tôi gọi `POST` vào route `GET` và nhận
+404, suýt kết luận *"cổng chặn hoạt động"*. Một yêu cầu thất bại **không phải** bằng chứng rằng lớp
+chặn tồn tại.
+
+### Regression
+
+Phase 1.1, Phase 2, Phase 3 (gồm video chạy thật), `Q-12`, cleanup 5 lớp chặn, `p4-*` — **tất cả
+xanh**, trong cùng lượt chạy 742 phép kiểm ở trên.

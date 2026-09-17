@@ -12,6 +12,10 @@ Go-live: NOT_READY_FOR_GO_LIVE
 > `_EXCEPT_PROVIDER_AND_ONLINE`. Vẫn **không** phải `READY_FOR_PHASE_5` trần: provider tracking thật
 > còn `blocked` (`Q-P4-01`) và xác minh online còn `BLOCKED_BY_Q23`. Giấu hai ngoại lệ đó sau một
 > nhãn tròn trịa sẽ là nói dối về trạng thái thật.
+>
+> **Cập nhật `D-073` (bước xác nhận đóng)**: cổng **giữ nguyên**, nhưng lần bấm tay xác nhận đã tìm
+> ra **hai lỗi** mà toàn bộ phép đo tự động bỏ sót — xem mục 8. Cả hai **đã sửa và đã có phép chặn**.
+> Nếu không có bước bấm tay này, Phase 4 đã được đóng với `P4-MCP-44` chỉ là một cái nút bị làm mờ.
 
 ---
 
@@ -92,7 +96,49 @@ Phase 3 làm ngược lại và đúng: dung sai audio `0.25s` được **đo** 
 4. **Xác minh online** — `BLOCKED_BY_Q23`.
 5. **Ngưỡng `0.6`** vẫn là ước lượng (`Q-P4-02`), `FRAME_CONFIDENCE_THRESHOLD_IS_MEASURED = false`.
 
-## 7. Không đụng tới
+## 7. `D-073` — hai lỗi chỉ lộ ra khi có người thật bấm
+
+Trạng thái trước mục này: `TSC/LINT/TEST/BUILD` xanh, 12/12 đối chứng âm đỏ đúng chỗ, mã sản phẩm
+không đổi một byte so với `d439899`. Theo mọi phép đo tự động thì Phase 4 đã xong.
+
+**Lỗi 1 — `P4-MCP-44` không phải cổng chặn, chỉ là quy ước của trình duyệt.** Màn hình khoá đúng nút
+tải về khi cổng nói `failed`, nhưng gọi thẳng API thì:
+
+```
+GET /v1/jobs/<id>/output/download-url  →  200 + URL đã ký
+GET <URL đã ký>                         →  200 + 16344 byte THẬT
+```
+
+Nguyên nhân: `run-tracked-video-job` ghi bản kết quả và đánh dấu `validated` **trước** khi hỏi cổng
+chặn, nên job `review_required`/`failed` vẫn có sẵn bản kết quả đã kiểm byte — vượt qua phép kiểm
+`validated` một cách hợp lệ. `validated` (bất biến `I-2`) và cổng chất lượng đo **hai điều khác
+nhau**; trước `D-073` chỉ có phép kiểm thứ nhất.
+
+Đã sửa: `createJobOutputDownloadUrl` từ chối khi `job.state !== 'completed'`, mã lỗi **mới**
+`MCP_STATE_QUALITY_REVIEW_REQUIRED` (409). Đo lại trên máy chủ thật, đổi đúng một biến:
+
+| `job.state` | HTTP | Kết quả |
+|---|---|---|
+| `completed` | 200 | có URL ký · tải về 16344 byte |
+| `review_required` | 409 | `MCP_STATE_QUALITY_REVIEW_REQUIRED` · không URL |
+
+**Lỗi 2 — màn hình `P4-MCP-42`/`P4-MCP-44` không có đường đi tới.** Thẻ *"Kết quả cần bạn xem lại"*
+bảo người dùng xem lại, nhưng **không liên kết nào trong toàn ứng dụng** trỏ tới `/jobs/:id/frames`.
+Cách duy nhất vào được là gõ tay URL — đúng thứ tôi đã làm suốt quá trình kiểm, nên tôi không nhận
+ra. Đã thêm `LinkButton` ở đúng nhánh `review_required`; đã bấm thật để xác nhận đường đi thông.
+
+**Phép chặn đi kèm, cả hai đã thử đối chứng âm:**
+
+| Phép chặn | Gỡ lớp chặn ra ⇒ |
+|---|---|
+| `p2-output-download.test.ts` · 3 phép kiểm `D-073` | **3 đỏ**, 10 xanh (gồm đối chứng dương) |
+| `p4-ui-contract.test.ts` · liên kết tới `/frames` | **1 đỏ**, 7 xanh |
+
+Điểm khác biệt so với `D-070`/`D-071`/`D-072`: ba lần trước là *test thiếu*. Lần này **bộ test đã đầy
+đủ và vẫn xanh hết** — vì mọi test đều đi qua cùng một cửa mà giao diện đi. Hai câu không ai hỏi:
+*"nếu bỏ qua giao diện thì sao"* và *"làm sao tới được màn hình này"*.
+
+## 8. Không đụng tới
 
 `MEDIACLEAR_CLEANUP_ENABLED` vẫn **tắt** · `Q-23` vẫn **blocked** · go-live vẫn
 **`NOT_READY_FOR_GO_LIVE`** · Rights Statement v1/v2 **không đổi một ký tự** · không ID lịch sử nào

@@ -1810,3 +1810,82 @@ Rights Statement **không đổi một ký tự** · không route DELETE mới �
 tệp gốc **không bị ghi đè** (có test riêng).
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-073 — Cổng chất lượng phải sống ở máy chủ, và màn hình phải có đường đi tới
+
+**Bối cảnh**: Bước xác nhận đóng Phase 4. Toàn bộ `TSC/LINT/TEST/BUILD/WS` xanh, 12/12 đối chứng âm
+đỏ đúng chỗ, mã sản phẩm không đổi một byte so với `d439899`. Theo mọi phép đo tự động thì Phase 4
+đã xong. Việc còn lại tưởng chỉ là bấm tay xác nhận cho đủ thủ tục.
+
+**Bấm tay tìm ra hai lỗi mà không phép đo tự động nào chạm tới.**
+
+### Lỗi 1 — `P4-MCP-44` chỉ là một cái nút bị làm mờ
+
+Màn hình `/jobs/:id/frames` khoá đúng nút *"Chưa tải về được"* khi cổng nói `failed`. Nhưng gọi thẳng
+API, bỏ qua trình duyệt:
+
+```
+GET /v1/jobs/<id>/output/download-url   →  200  +  URL đã ký
+GET <URL đã ký>                          →  200  +  16344 byte THẬT
+```
+
+Cổng chất lượng lúc đó nói `failed`, lý do `frames_failed`. Tức là **ai không dùng giao diện thì vẫn
+lấy được bản chưa đạt chất lượng**. `P4-MCP-44` khi ấy không phải một cổng chặn — nó là một quy ước
+của trình duyệt.
+
+**Vì sao lỗ này tồn tại**: `run-tracked-video-job` ghi bản kết quả và đánh dấu `validated` **trước**
+khi hỏi cổng chặn. Nên một job `review_required`/`failed` vẫn có sẵn một bản kết quả đã kiểm byte —
+vượt qua phép kiểm `validated` một cách hoàn toàn hợp lệ. Phép kiểm `validated` (bất biến `I-2`,
+*"đã đọc lại byte chưa"*) và cổng chất lượng (*"kết quả có đạt không"*) đo **hai điều khác nhau** và
+không thay thế được cho nhau. Trước `D-073` chỉ có phép kiểm thứ nhất.
+
+**Đã sửa**: `createJobOutputDownloadUrl` từ chối khi `job.state !== 'completed'`, bằng mã lỗi
+**mới** `MCP_STATE_QUALITY_REVIEW_REQUIRED` (409). Không mượn `MCP_STATE_OUTPUT_NOT_VERIFIED`: báo
+sai lý do cũng là một kiểu nói dối. Thứ tự có chủ ý — `I-2` trước, cổng chất lượng sau — để job
+`queued` chưa kiểm byte vẫn báo đúng *"chưa kiểm chứng"*.
+
+**Đo lại trên máy chủ thật, một biến duy nhất là trạng thái job:**
+
+| `job.state` | HTTP | Kết quả |
+|---|---|---|
+| `completed` | 200 | có URL ký · tải về 16344 byte |
+| `review_required` | 409 | `MCP_STATE_QUALITY_REVIEW_REQUIRED` · không URL |
+
+### Lỗi 2 — Màn hình chạy đúng nhưng không ai tới được
+
+Thẻ *"Kết quả cần bạn xem lại"* bảo người dùng xem lại, nhưng **không một liên kết nào trong toàn bộ
+ứng dụng** trỏ tới `/jobs/:id/frames`. Cách duy nhất vào được màn hình đó là gõ tay URL — đúng thứ
+tôi đã làm suốt quá trình kiểm, nên tôi không hề nhận ra. `P4-MCP-42` và `P4-MCP-44` hoạt động hoàn
+hảo với một người dùng không có cách nào mở chúng.
+
+Không test nào bắt được vì không test nào hỏi *"người dùng đi tới đây bằng cách nào"*.
+
+**Đã sửa**: thêm `LinkButton` vào đúng nhánh `review_required` — chỗ người dùng đang bị chặn.
+
+### Phép chặn đi kèm (cả hai đều đã thử đối chứng âm)
+
+| Phép chặn | Gỡ lớp chặn ra ⇒ |
+|---|---|
+| `p2-output-download.test.ts` · 3 phép kiểm `D-073` | **3 đỏ**, 10 xanh (gồm đối chứng dương `completed` → 200) |
+| `p4-ui-contract.test.ts` · liên kết tới `/frames` | **1 đỏ**, 7 xanh |
+
+Phép kiểm thứ ba của nhóm đầu canh một điều riêng: **bị từ chối thì không được ghi dấu vết "đã phát
+URL tải về"** — hồ sơ không được nói dối về việc chưa từng xảy ra.
+
+### Điều đáng ghi lại
+
+Đây là lần thứ tư đối chứng âm/bấm tay chỉ ra một lớp chặn chưa thật sự tồn tại (`D-070`, `D-071`,
+`D-072`, nay `D-073`). Nhưng `D-073` khác ba lần trước ở một điểm đáng lo hơn: ba lần trước là *test
+thiếu*, lần này là **phép đo tự động đã đầy đủ và vẫn xanh hết** — vì cả bộ test đều đi qua cùng một
+cửa mà giao diện đi. Câu hỏi không ai hỏi là *"nếu bỏ qua giao diện thì sao"* và *"làm sao tới được
+màn hình này"*. Cả hai đều chỉ lộ ra khi có người thật bấm và thử đi vòng.
+
+### Không đụng tới
+
+Provider thật vẫn **`blocked`** (`Q-P4-01`) · `FRAME_CONFIDENCE_THRESHOLD_IS_MEASURED` vẫn **`false`**
+(`Q-P4-02`) · `MEDIACLEAR_CLEANUP_ENABLED` vẫn **tắt** · `Q-23` vẫn **blocked** · Rights Statement
+không đổi một ký tự · không route DELETE mới · không đánh số lại ID lịch sử · **chưa bắt đầu Phase 5**.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

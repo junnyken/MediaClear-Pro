@@ -41,6 +41,14 @@ export const ERROR_CODES = {
   MCP_STATE_TERMINAL: 'MCP_STATE_TERMINAL',
   MCP_STATE_OUTPUT_NOT_VERIFIED: 'MCP_STATE_OUTPUT_NOT_VERIFIED',
   MCP_STATE_JOB_BLOCKED: 'MCP_STATE_JOB_BLOCKED',
+  /**
+   * Cong chan chat luong (P4-MCP-44) chua cho phat ban ket qua — xem `D-073`.
+   *
+   * KHAC HAN `MCP_STATE_OUTPUT_NOT_VERIFIED`: ma kia nghia la "chua doc lai byte da ghi" (bat bien
+   * I-2, mot phep do ky thuat). Ma nay nghia la "byte da kiem roi, nhung chat luong chua dat".
+   * Dung chung mot ma cho hai viec se lam bao cao noi sai ly do job bi chan.
+   */
+  MCP_STATE_QUALITY_REVIEW_REQUIRED: 'MCP_STATE_QUALITY_REVIEW_REQUIRED',
 
   // --- Provider (MCP-04) ---
   MCP_PROVIDER_CAPABILITY_UNSUPPORTED: 'MCP_PROVIDER_CAPABILITY_UNSUPPORTED',
@@ -162,6 +170,11 @@ export const ERROR_CATALOGUE: Readonly<Record<ErrorCode, ErrorDefinition>> = {
   [C.MCP_STATE_TERMINAL]: def(C.MCP_STATE_TERMINAL, 'state', 409, false, false),
   [C.MCP_STATE_OUTPUT_NOT_VERIFIED]: def(C.MCP_STATE_OUTPUT_NOT_VERIFIED, 'state', 409, true, false),
   [C.MCP_STATE_JOB_BLOCKED]: def(C.MCP_STATE_JOB_BLOCKED, 'state', 409, false, true),
+  /*
+   * `retryAllowed: true` — sua mask o man hinh kiem khung hinh roi chay lai LA duong di hop le ra
+   * khoi loi nay. `releasesUsageReservation: false`: may da xu ly that, khong tra lai han muc.
+   */
+  [C.MCP_STATE_QUALITY_REVIEW_REQUIRED]: def(C.MCP_STATE_QUALITY_REVIEW_REQUIRED, 'state', 409, true, false),
 
   [C.MCP_PROVIDER_CAPABILITY_UNSUPPORTED]: def(C.MCP_PROVIDER_CAPABILITY_UNSUPPORTED, 'provider', 422, false, true),
   [C.MCP_PROVIDER_CAPABILITY_UNKNOWN]: def(C.MCP_PROVIDER_CAPABILITY_UNKNOWN, 'provider', 422, false, true),

@@ -169,6 +169,7 @@ Mỗi mã có: machine code · translation key `errors.<mã viết thường>` (
 | `MCP_STATE_INVALID_TRANSITION` | state | 409 | không | không |
 | `MCP_STATE_TERMINAL` | state | 409 | không | không |
 | `MCP_STATE_OUTPUT_NOT_VERIFIED` | state | 409 | có | không |
+| `MCP_STATE_QUALITY_REVIEW_REQUIRED` | state | 409 | có | không |
 | `MCP_STATE_JOB_BLOCKED` | state | 409 | không | có |
 | `MCP_PROVIDER_CAPABILITY_UNSUPPORTED` | provider | 422 | không | có |
 | `MCP_PROVIDER_CAPABILITY_UNKNOWN` | provider | 422 | không | có |

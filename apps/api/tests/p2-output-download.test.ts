@@ -192,3 +192,67 @@ describe('P2-MCP-33 — tai ve phai ra MOT TEP, khong phai mot tab', () => {
     await app.close();
   });
 });
+
+/**
+ * `D-073` — cong chan chat luong (P4-MCP-44) phai song o MAY CHU.
+ *
+ * Lo nay tim thay bang bam tay tren Chrome, khong phai bang test: man hinh `/jobs/:id/frames`
+ * khoa dung nut "Tai ve" khi cong noi `failed`, nhung goi thang `GET .../output/download-url`
+ * van duoc 200 + URL da ky, va tai URL do ve duoc byte that. Toan bo test cua Phase 4 truoc do
+ * deu xanh, vi khong test nao hoi cau "nguoi bo qua giao dien thi sao".
+ *
+ * Nen phep thu duoi day KHONG bam nut nao — no goi thang API, dung nhu ke muon lay tep se lam.
+ */
+describe('D-073 — job chua dat cong chat luong thi KHONG phat duoc URL tai ve', () => {
+  async function jobVoiTrangThai(state: 'review_required' | 'failed' | 'completed') {
+    const { app, ctx, token, ws, jobId } = await completedJob();
+    const job = await ctx.persistence.jobs.findById(ws, jobId);
+    expect(job?.state, 'moc khoi dau phai la job da xong').toBe('completed');
+    if (state !== 'completed') {
+      await ctx.persistence.jobs.update({ ...job!, state, updatedAt: new Date().toISOString() });
+    }
+    return { app, ctx, token, ws, jobId };
+  }
+
+  it('DOI CHUNG DUONG: job `completed` van tai ve duoc — phep thu nay khong chan bua', async () => {
+    const { app, token, ws, jobId } = await jobVoiTrangThai('completed');
+    const res = await app.inject({
+      method: 'GET', url: `/v1/jobs/${jobId}/output/download-url`, headers: auth(token, ws),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.url, 'doi chung duong hong => moi ket luan duoi deu vo nghia').toBeTruthy();
+    await app.close();
+  });
+
+  for (const state of ['review_required', 'failed'] as const) {
+    it(`job \`${state}\` (ban ket qua DA kiem byte) van bi tu choi phat URL`, async () => {
+      const { app, ctx, token, ws, jobId } = await jobVoiTrangThai(state);
+
+      // Ban ket qua that su ton tai va DA kiem chung — nen loi tra ve phai la ly do chat luong,
+      // khong phai `MCP_STATE_OUTPUT_NOT_VERIFIED` hay 404.
+      const output = await ctx.persistence.outputs.findByJob(ws, jobId);
+      expect(output?.validated, 'moc thu sai: can mot ban ket qua DA kiem byte').toBe(true);
+
+      const res = await app.inject({
+        method: 'GET', url: `/v1/jobs/${jobId}/output/download-url`, headers: auth(token, ws),
+      });
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error.code).toBe('MCP_STATE_QUALITY_REVIEW_REQUIRED');
+      expect(res.json().data, 'tu choi ma van kem URL thi cong chan vo dung').toBeUndefined();
+      await app.close();
+    });
+  }
+
+  it('bi tu choi thi KHONG duoc ghi dau vet "da phat URL tai ve"', async () => {
+    const { app, ctx, token, ws, jobId } = await jobVoiTrangThai('failed');
+    const truoc = (await ctx.persistence.audit.listByWorkspace(ws, { limit: 100 })).items
+      .filter((e) => e.eventType === 'output_download_url_issued').length;
+
+    await app.inject({ method: 'GET', url: `/v1/jobs/${jobId}/output/download-url`, headers: auth(token, ws) });
+
+    const sau = (await ctx.persistence.audit.listByWorkspace(ws, { limit: 100 })).items
+      .filter((e) => e.eventType === 'output_download_url_issued').length;
+    expect(sau, 'ho so noi da phat URL trong khi thuc te tu choi').toBe(truoc);
+    await app.close();
+  });
+});

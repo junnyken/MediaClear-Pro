@@ -230,6 +230,45 @@ describe('MCP-44 — quality review gate', () => {
     expect(v.verdict).toBe('completed');
   });
 
+  /*
+   * BA truong hop audio KHAC NHAU, va gop bat ky hai cai nao lai cung la noi sai mot trong hai.
+   *
+   * Loi that da gap o completion patch: duong tich hop truyen `'unknown'` cho ca truong hop CHUA
+   * RENDER, va cong doc thanh "audio co van de" => tra `failed` trong khi ly do that chi la mot
+   * frame do tin cay thap. Mot job dang le `review_required` bi bao la `failed`.
+   */
+  it('audio: KHONG DO DUOC (`null`) khac han MAT (`lost`) va khac han VANG THEO THIET KE', () => {
+    // 1) Vang theo thiet ke: video von khong co tieng => KHONG phai mat, cho `completed`.
+    const vang = qualityReviewVerdict({ timeline: okTimeline, unreviewedFlicker: 0, audioVerdict: 'absent_by_design' });
+    expect(vang.verdict).toBe('completed');
+    expect(vang.counts.audio_not_preserved, 'video khong tieng bi ket toi la mat tieng').toBe(0);
+
+    // 2) MAT that: co tieng o dau vao, khong con o dau ra => chan, va NOI RO la van de audio.
+    const mat = qualityReviewVerdict({ timeline: okTimeline, unreviewedFlicker: 0, audioVerdict: 'lost' });
+    expect(mat.verdict).toBe('failed');
+    expect(mat.counts.audio_not_preserved).toBe(1);
+    expect(mat.reasons).toContain('audio_not_preserved');
+
+    // 3) CHUA DO DUOC: khong bao gio `completed`, NHUNG cung khong duoc ket toi la mat audio.
+    const chuaDo = qualityReviewVerdict({ timeline: okTimeline, unreviewedFlicker: 0, audioVerdict: null });
+    expect(chuaDo.verdict, 'chua do audio ma van cho xuat video').not.toBe('completed');
+    expect(chuaDo.counts.audio_not_preserved, 'chua do duoc bi bao thanh "audio bi mat" => ly do sai').toBe(0);
+    expect(chuaDo.reasons, 'chua do duoc khong duoc tinh la mot van de audio').not.toContain('audio_not_preserved');
+  });
+
+  it('audio chua do duoc + frame co van de => ly do phai la FRAME, khong phai audio', () => {
+    /*
+     * Dung canh that cua duong tich hop: frame chua dat nen co y khong render, nen audio chua co gi
+     * de do. Ly do bao ra phai la frame do tin cay thap — thu nguoi dung sua duoc — chu khong phai
+     * mot loi audio khong ai dong vao duoc.
+     */
+    const states = new Map<number, FrameState>([[0, 'frame_low_confidence'], [1, 'frame_tracked']]);
+    const v = qualityReviewVerdict({ timeline: summariseTimeline(2, states), unreviewedFlicker: 0, audioVerdict: null });
+    expect(v.verdict).toBe('review_required');
+    expect(v.reasons).toEqual(['frames_low_confidence']);
+    expect(v.counts.audio_not_preserved).toBe(0);
+  });
+
   it('doan flicker CHUA duoc review => review_required', () => {
     const v = qualityReviewVerdict({ timeline: okTimeline, unreviewedFlicker: 3, audioVerdict: AUDIO_OK });
     expect(v.verdict).toBe('review_required');
