@@ -26,6 +26,25 @@ export const RELEASE_REASONS = [
 export type ReleaseReason = (typeof RELEASE_REASONS)[number];
 
 /**
+ * Ma loi -> LY DO HOAN TRA.
+ *
+ * Hai thu nay KHAC NHAU va viec lan chung la mot loi that (`D-066`): so du lieu doi `reason_code`
+ * cua but toan `release` thuoc dung sau gia tri tren (rang buoc `usage_ledger_release_reason_known`,
+ * migration `0002`), nhung ma lai truyen thang MA LOI (`MCP_PROVIDER_SUBMIT_FAILED`). Tren
+ * PostgreSQL moi lan hoan tra deu vi pham rang buoc, loi bi `catch {}` NUOT, va khoan giu cua nguoi
+ * dung KHONG BAO GIO duoc tra lai. Tren in-memory thi di qua => moi test van xanh.
+ *
+ * Tra ve mot gia tri hop le cho MOI ma loi: khong co duong nao lam ra mot `reasonCode` la.
+ */
+export function releaseReasonFor(code: ErrorCode): ReleaseReason {
+  const category = errorDefinition(code).category;
+  if (category === 'validation') return 'validation_failed';
+  if (category === 'policy' || category === 'authz') return 'blocked';
+  // provider / storage / state / usage / generic deu la phia HE THONG, khong phai loi nguoi dung.
+  return 'provider_error';
+}
+
+/**
  * Preview KHONG tinh phi - hang so goc nam o config.ts (PREVIEW_IS_BILLABLE),
  * khong dinh nghia lai o day de tranh hai nguon su that.
  * Owner decision Q-10: "Preview is free" + "Preview khong tinh vao video-minute usage".

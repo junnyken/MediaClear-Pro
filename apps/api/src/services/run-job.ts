@@ -25,6 +25,8 @@ import {
   type ProcessingJob,
   type ProvenanceProbe,
   type ProvenanceRecord,
+  releaseReasonFor,
+  type ReleaseReason,
 } from '@mediaclear/contracts';
 import type { AppContext } from '../app-context.js';
 import { DeterministicImageProvider } from '../providers/deterministic-image.js';
@@ -290,7 +292,7 @@ export async function failJob(ctx: AppContext, job: ProcessingJob, error: ApiErr
   if (canTransition(job.state, 'failed').allowed) {
     await ctx.persistence.jobs.update(failed);
   }
-  await releaseUsage(ctx, job, error.code);
+  await releaseUsage(ctx, job, releaseReasonFor(error.code));
   await recordAudit(ctx.persistence, {
     workspaceId: job.workspaceId,
     actorUserId: null,
@@ -326,7 +328,7 @@ async function commitUsage(ctx: AppContext, job: ProcessingJob): Promise<void> {
   }
 }
 
-async function releaseUsage(ctx: AppContext, job: ProcessingJob, reasonCode: string): Promise<void> {
+async function releaseUsage(ctx: AppContext, job: ProcessingJob, reasonCode: ReleaseReason): Promise<void> {
   const entries = await ctx.persistence.usage.listByWorkspace(job.workspaceId);
   const reserve = entries.find((e) => e.jobId === job.id && e.entryType === 'reserve');
   if (!reserve) return;

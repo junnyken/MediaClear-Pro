@@ -2175,3 +2175,66 @@ Deploy: stale (5/8 migration, 35/46 route)
 ```
 
 `Q-23` và `Q-P3-05` **giữ nguyên `blocked`**. Không tạo bucket, không tự điền giá trị, không deploy.
+
+---
+
+## 2026-09-17 — Live verify 3.1→3.6 trên kho S3 THẬT (cục bộ), `D-066`
+
+`Q-23` trên Vibe Host **vẫn chặn** (thiếu biến, thiếu worker, build cũ). Nên chuỗi 3.1→3.6 được chạy
+**tại chỗ** với **PostgreSQL thật + MinIO thật**, API và worker là **hai tiến trình riêng** dùng
+**cùng một bucket**. Mục đích: gỡ sẵn lỗi đường mã trước khi owner cấp khoá thật.
+
+| Bước | Kết quả | Bằng chứng |
+|---|---|---|
+| 3.1 tải lên | **ĐẠT** | object nằm đúng prefix, **9658 B** / **13602 B**, kiểm bằng `ListObjectsV2` **độc lập với ứng dụng** |
+| 3.2 worker đọc/ghi | **ĐẠT** | worker (tiến trình riêng) đọc nguồn API ghi, ghi **output 24090 B** vào **cùng bucket** |
+| 3.3 API đọc lại | **ĐẠT** | `download-url` tải về **24090 B**, `image/png`, magic byte đúng; `checksumSha256` API khai **khớp** sha256 của byte tải về |
+| 3.4 **sống sót sau khởi động lại** | **ĐẠT** | khởi động lại **cả API lẫn worker** (không xoá CSDL) ⇒ cùng `outputAssetId`, cùng 24090 B, cùng checksum, tải lại vẫn ra PNG thật |
+| 3.5 đường lỗi | **ĐẠT** | worker với **khoá sai** ⇒ job `failed` + mã lý do, **không** báo `completed` giả; `imageUnitsCommitted = 0` |
+| 3.6 không phá dữ liệu | **ĐẠT** | bucket cục bộ trên tmpfs, **không** đụng dữ liệu thật, **không** chạy cleanup/xoá nào |
+
+### Hai lỗi THẬT phát hiện trong lượt này (`D-066`)
+
+Cả hai **im lặng** và **đi qua trọn vẹn 611 test**:
+
+1. **Chặn job video không ghi được** ⇒ job kẹt `processing` vĩnh viễn
+   (`processing_jobs_blocked_requires_reason`).
+2. **Job thất bại không được hoàn trả khoản giữ** ⇒ mất suất của người dùng
+   (`usage_ledger_release_reason_known`).
+
+Kiểm lại sau khi sửa, trên PostgreSQL thật:
+
+```text
+entry_type | reason_code
+-----------+----------------
+reserve    |
+release    | provider_error     <- truoc khi sua: khong he co dong nay
+```
+
+### Regression (Bước 4)
+
+| Lệnh | Mã thoát | Kết quả |
+|---|---|---|
+| `pnpm typecheck` | `0` | PASS |
+| `pnpm lint` | `0` | PASS |
+| `pnpm test` (PostgreSQL + MinIO thật) | `0` | **63 tệp · 630 test đạt · 46 bỏ qua** |
+| `pnpm build:web` | `0` | PASS |
+| `git diff --check` | `0` | sạch |
+
+**46 test bỏ qua** là các test video cần `ffmpeg` — **`ffmpeg` đã biến mất khỏi workspace** (cùng đợt
+mất gói với Chrome và container Docker). Ghi đúng là **bỏ qua**, không ghi là đạt.
+
+### Đối chứng âm
+
+| # | Đột biến | Kết quả |
+|---|---|---|
+| A | in-memory thôi ép ràng buộc `blocked` | **1 đỏ** (đúng nửa in-memory) |
+| B | `blockJob` quên `blockReasonKind` (bản cũ) | **2 đỏ** |
+| C | truyền mã lỗi thay vì lý do hoàn trả (bản cũ) | **2 đỏ** |
+| D | in-memory thôi ép từ vựng lý do hoàn trả | **1 đỏ** |
+
+### KHÔNG chạy được, và vì sao
+
+- **Đường video đầu-cuối**: thiếu `ffmpeg` trong workspace. Dùng ảnh (libvips) cho chuỗi đầu-cuối.
+- **Bấm tay lại trên Chrome cho luồng video**: như trên.
+- **Xác minh trên Vibe Host**: `Q-23` vẫn chặn.

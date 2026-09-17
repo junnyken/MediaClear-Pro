@@ -5,7 +5,7 @@
  * KHONG phai adapter production. Schema PostgreSQL tuong ung nam o
  * db/migrations/0001_phase1_init.sql (da chay thu tren database sach).
  */
-import { ERROR_CODES } from '@mediaclear/contracts';
+import { ERROR_CODES, RELEASE_REASONS } from '@mediaclear/contracts';
 import type { PersistencePort } from './port.js';
 import type {
   Asset,
@@ -91,6 +91,37 @@ function paginateDesc<T extends { id: string }>(
   const last = items[items.length - 1];
   const hasMore = from + limit < sorted.length;
   return { items, nextCursor: hasMore && last ? encodeCursor(keyOf(last), last.id) : null };
+}
+
+
+/**
+ * Cung mot LUAT ma PostgreSQL ep o tang du lieu (`0001`): `blocked` phai co DU ca `reasonCode` va
+ * `blockReasonKind`.
+ *
+ * Vi sao ban in-memory cung phai ep: thieu no, adapter nay IM LANG nhan mot dong ma PostgreSQL se
+ * tu choi — va do dung la cach mot loi that (`D-066`) song sot qua 611 test. Bo test hop dong chi
+ * bat duoc lech giua hai adapter khi ca hai cung duoc doi hoi nhu nhau.
+ */
+/**
+ * Cung LUAT `usage_ledger_release_reason_known` (migration `0002`): but toan `release` chi mang
+ * duoc mot trong cac ly do da khai bao.
+ *
+ * Thieu phep ep nay, in-memory nhan moi chuoi — va do dung la cach mot loi TIEN BAC (`D-066`) song
+ * sot: ma truyen MA LOI thay vi ly do, PostgreSQL tu choi, `catch {}` nuot loi, khoan giu cua
+ * nguoi dung khong bao gio duoc tra lai. Moi test van xanh.
+ */
+function ensureReleaseReasonKnown(entry: UsageLedgerEntry): void {
+  if (entry.reasonCode === null) return;
+  if (!(RELEASE_REASONS as readonly string[]).includes(entry.reasonCode)) {
+    throw new Error('violates check constraint "usage_ledger_release_reason_known"');
+  }
+}
+
+function ensureBlockedHasReason(job: ProcessingJob): void {
+  if (job.state !== 'blocked') return;
+  if (job.reasonCode === null || job.blockReasonKind === null) {
+    throw new Error('violates check constraint "processing_jobs_blocked_requires_reason"');
+  }
 }
 
 export class InMemoryPersistence implements PersistencePort {
@@ -260,8 +291,10 @@ export class InMemoryPersistence implements PersistencePort {
     },
   };
 
+
   readonly jobs = {
     create: async (job: ProcessingJob): Promise<ProcessingJob> => {
+      ensureBlockedHasReason(job);
       this.jobRows.push(job);
       return job;
     },
@@ -270,6 +303,7 @@ export class InMemoryPersistence implements PersistencePort {
     findByIdempotencyKey: async (workspaceId: string, key: string): Promise<ProcessingJob | null> =>
       this.jobRows.find((j) => j.workspaceId === workspaceId && j.idempotencyKey === key) ?? null,
     update: async (job: ProcessingJob): Promise<ProcessingJob> => {
+      ensureBlockedHasReason(job);
       const index = this.jobRows.findIndex((j) => j.id === job.id && j.workspaceId === job.workspaceId);
       if (index < 0) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
       this.jobRows[index] = job;
@@ -401,6 +435,7 @@ export class InMemoryPersistence implements PersistencePort {
 
   readonly usage = {
     append: async (entry: UsageLedgerEntry): Promise<UsageLedgerEntry> => {
+      ensureReleaseReasonKnown(entry);
       // Idempotency key la duy nhat trong ledger (khop unique constraint cua schema SQL).
       if (this.usageRows.some((e) => e.idempotencyKey === entry.idempotencyKey)) {
         throw new Error(ERROR_CODES.MCP_USAGE_RESERVATION_CONFLICT);

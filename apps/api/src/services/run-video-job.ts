@@ -26,6 +26,9 @@ import {
   type AudioTrack,
   type CleanupOperation,
   type ProcessingJob,
+  blockReasonKindFor,
+  releaseReasonFor,
+  type ReleaseReason,
 } from '@mediaclear/contracts';
 import type { AppContext } from '../app-context.js';
 import { DeterministicVideoProvider, operationToMode } from '../providers/deterministic-video.js';
@@ -266,10 +269,26 @@ async function writeVideoReceipt(ctx: AppContext, job: ProcessingJob, input: Rec
 
 async function blockJob(ctx: AppContext, job: ProcessingJob, error: ApiError): Promise<VideoJobOutcome> {
   const now = ctx.now().toISOString();
+
+  /*
+   * `blocked` BAT BUOC di kem CA HAI truong (`reason_code` VA `block_reason_kind`) — day la rang
+   * buoc o tang du lieu tu `0001`. Ban dau ham nay chi dat `reasonCode`, nen tren PostgreSQL moi
+   * lan chan job deu nem loi, job KET o `processing` VINH VIEN, con tren in-memory thi im lang di
+   * qua. Do la ly do 611 test van xanh trong khi ban that treo (`D-066`).
+   *
+   * `blockReasonKindFor` tra `null` cho nhung nhom loi khong phan loai duoc thanh ly do CHAN
+   * (vi du `storage`). Khong phan loai duoc thi day KHONG phai mot ca "phu thuoc chua san sang" —
+   * no la that bai. Tra ve `failJob` thay vi co nhet vao `blocked`.
+   */
+  const kind = blockReasonKindFor(error.code);
+  if (kind === null) return failJob(ctx, job, error);
+
   if (canTransition(job.state, 'blocked').allowed) {
-    await ctx.persistence.jobs.update({ ...job, state: 'blocked', reasonCode: error.code, updatedAt: now });
+    await ctx.persistence.jobs.update({
+      ...job, state: 'blocked', reasonCode: error.code, blockReasonKind: kind, updatedAt: now,
+    });
   }
-  await releaseUsage(ctx, job, error.code);
+  await releaseUsage(ctx, job, releaseReasonFor(error.code));
   await recordAudit(ctx.persistence, {
     workspaceId: job.workspaceId, actorUserId: null, eventType: AUDIT_EVENTS.PROCESSING_JOB_BLOCKED,
     subjectType: 'job', subjectId: job.id, detail: { reasonCode: error.code },
@@ -282,7 +301,7 @@ async function failJob(ctx: AppContext, job: ProcessingJob, error: ApiError): Pr
   if (canTransition(job.state, 'failed').allowed) {
     await ctx.persistence.jobs.update({ ...job, state: 'failed', reasonCode: error.code, updatedAt: now });
   }
-  await releaseUsage(ctx, job, error.code);
+  await releaseUsage(ctx, job, releaseReasonFor(error.code));
   await recordAudit(ctx.persistence, {
     workspaceId: job.workspaceId, actorUserId: null, eventType: AUDIT_EVENTS.PROCESSING_JOB_FAILED,
     subjectType: 'job', subjectId: job.id, detail: { reasonCode: error.code },
@@ -307,7 +326,7 @@ async function commitUsage(ctx: AppContext, job: ProcessingJob): Promise<void> {
 }
 
 /** Job khong ra ket qua thi HOAN TRA khoan giu — khong tinh tien cho viec khong co ket qua. */
-async function releaseUsage(ctx: AppContext, job: ProcessingJob, reasonCode: string): Promise<void> {
+async function releaseUsage(ctx: AppContext, job: ProcessingJob, reasonCode: ReleaseReason): Promise<void> {
   const entries = await ctx.persistence.usage.listByWorkspace(job.workspaceId);
   const reserve = entries.find((e) => e.jobId === job.id && e.entryType === 'reserve');
   if (!reserve) return;

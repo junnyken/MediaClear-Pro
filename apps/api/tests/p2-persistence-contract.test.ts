@@ -244,6 +244,40 @@ function contractSuite(label: string, make: () => Promise<PersistencePort>): voi
       expect((await db.jobs.findById(WS, 'job_a'))?.reasonCode).toBe('MCP_POLICY_RIGHTS_ATTESTATION_MISSING');
     });
 
+    /*
+     * `blocked` phai mang DU ca hai truong ly do — rang buoc `processing_jobs_blocked_requires_reason`
+     * co tu migration `0001`.
+     *
+     * Phep kiem nay ton tai vi mot loi THAT da lot qua 611 test (`D-066`): `blockJob` cua duong video
+     * chi dat `reasonCode`. PostgreSQL nem loi => job KET o `processing` vinh vien; in-memory thi im
+     * lang nhan => moi test deu xanh. Bo test hop dong chi phat hien duoc lech khi ca HAI adapter
+     * cung bi doi hoi nhu nhau.
+     */
+    it('jobs: `blocked` mà THIẾU block_reason_kind bị TỪ CHỐI (cả hai adapter)', async () => {
+      await db.jobs.create(aJob('job_chan', 'key_chan'));
+      await expect(
+        db.jobs.update({
+          ...aJob('job_chan', 'key_chan'),
+          state: 'blocked',
+          reasonCode: ERROR_CODES.MCP_PROVIDER_UNAVAILABLE,
+          blockReasonKind: null,
+          updatedAt: at(31),
+        }),
+        'thieu block_reason_kind ma van ghi duoc => job se ket o `processing` tren ban that',
+      ).rejects.toThrow(/blocked_requires_reason/);
+
+      // Du ca hai truong thi ghi duoc binh thuong.
+      const ok = await db.jobs.update({
+        ...aJob('job_chan', 'key_chan'),
+        state: 'blocked',
+        reasonCode: ERROR_CODES.MCP_PROVIDER_UNAVAILABLE,
+        blockReasonKind: 'provider_block',
+        updatedAt: at(32),
+      });
+      expect(ok.state).toBe('blocked');
+      expect(ok.blockReasonKind).toBe('provider_block');
+    });
+
     it('jobs: cap nhat job khong ton tai bao khong tim thay', async () => {
       await expect(db.jobs.update(aJob('job_khong_co', 'key_x'))).rejects.toThrow(
         ERROR_CODES.MCP_RESOURCE_NOT_FOUND,
@@ -299,6 +333,37 @@ function contractSuite(label: string, make: () => Promise<PersistencePort>): voi
        */
       expect(await db.jobs.touch(WS, 'job_tim', at(900))).toBe(false);
       expect((await db.jobs.findById(WS, 'job_tim'))?.updatedAt).toBe(at(850));
+    });
+
+    /*
+     * But toan `release` chi mang duoc ly do trong tu vung `RELEASE_REASONS`
+     * (`usage_ledger_release_reason_known`, migration `0002`).
+     *
+     * Phep kiem nay ton tai vi mot loi TIEN BAC that da lot qua toan bo test (`D-066`): ma truyen
+     * MA LOI (`MCP_PROVIDER_SUBMIT_FAILED`) thay vi ly do. PostgreSQL tu choi, `catch {}` nuot loi,
+     * va khoan giu cua nguoi dung KHONG BAO GIO duoc tra lai — trong khi in-memory di qua binh
+     * thuong nen moi test van xanh.
+     */
+    it('usage: `release` mang ly do LẠ bị TỪ CHỐI (cả hai adapter)', async () => {
+      await expect(
+        db.usage.append({
+          ...aUsageEntry('use_la', 'job_1:release'),
+          entryType: 'release',
+          reasonCode: 'MCP_PROVIDER_SUBMIT_FAILED',
+          expiresAt: null,
+        }),
+        'ly do la ma van ghi duoc => tren ban that but toan hoan tra bien mat trong im lang',
+      ).rejects.toThrow(/release_reason_known/);
+
+      // Ly do hop le thi ghi duoc.
+      const ok = await db.usage.append({
+        ...aUsageEntry('use_hop_le', 'job_1:release'),
+        entryType: 'release',
+        reasonCode: 'provider_error',
+        expiresAt: null,
+      });
+      expect(ok.entryType).toBe('release');
+      expect(ok.reasonCode).toBe('provider_error');
     });
 
     it('usage: khoa idempotency trung bi CHAN - day la cho chan double-charge', async () => {

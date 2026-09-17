@@ -1447,3 +1447,74 @@ nên sai bên nào cũng đỏ.
   dữ liệu lần nào) và `Q-11` **vẫn còn**. Gate go-live **không đổi**.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-066 — Hai lỗi chỉ lộ khi chạy THẬT trên PostgreSQL + kho S3, và cả hai đều IM LẶNG
+
+Tìm ra khi chạy `Q23_DEPLOY_AND_VERIFY_PROMPT.md` **tại chỗ** với PostgreSQL thật + MinIO thật
+(`Q-23` trên Vibe Host vẫn chặn — xem §D). Cả hai lỗi **đi qua trọn vẹn 611 test**.
+
+**A. Job video bị chặn thì KHÔNG GHI ĐƯỢC, và kẹt ở `processing` vĩnh viễn.**
+
+`blockJob` đặt `reasonCode` nhưng **quên `blockReasonKind`**. Ràng buộc
+`processing_jobs_blocked_requires_reason` (migration `0001`) đòi **cả hai**. Hệ quả trên PostgreSQL:
+mỗi lần chặn job đều ném lỗi, worker nuốt lỗi ở vòng lặp, **job nằm `processing` mãi mãi** — đúng
+cảnh người dùng thấy *"đang xử lý"* không bao giờ dứt.
+
+Thêm một tầng nữa: `blockReasonKindFor()` trả **`null`** cho nhóm lỗi `storage`, nên kể cả dùng hàm
+chuẩn vẫn vi phạm. Nay: không phân loại được thành lý do **chặn** thì đó **không phải** "phụ thuộc
+chưa sẵn sàng" — chuyển sang `failed`, trung thực hơn.
+
+**B. Job thất bại KHÔNG được hoàn trả khoản giữ. Đây là lỗi tiền bạc.**
+
+`usage_ledger_release_reason_known` (migration `0002`) đòi `reason_code` của bút toán `release` thuộc
+từ vựng `RELEASE_REASONS` (`provider_error`, `user_error`, `validation_failed`, `cancelled`,
+`blocked`, `expired`). Mã lại truyền **mã lỗi** (`MCP_PROVIDER_SUBMIT_FAILED`). PostgreSQL từ chối,
+`catch {}` **nuốt lỗi**, và suất của người dùng **không bao giờ được trả lại**. Chỉ có đợt quét hết
+hạn 30 phút (`D-062`) mới vớt được — nên nó không thành thảm hoạ, nhưng vẫn sai và vẫn im lặng.
+
+Nguyên nhân cho phép nó tồn tại: `releaseUsage(..., reasonCode: string)` nhận **chuỗi tuỳ ý**. Nay có
+`releaseReasonFor(code)` trong contracts và tham số siết thành `ReleaseReason`.
+
+**C. Vì sao 611 test đều xanh — đây mới là bài học.**
+
+1. **Adapter in-memory không ép ràng buộc nào của PostgreSQL.** Nó im lặng nhận đúng những dòng mà
+   bản thật từ chối. Bộ test hợp đồng chỉ bắt được lệch khi **cả hai** adapter cùng bị đòi hỏi như
+   nhau — nay in-memory ép cả hai luật này.
+2. **Toàn bộ test video `skipIf(!hasFfmpeg)`** — mà nhánh hỏng lại **chính là** nhánh "thiếu ffmpeg".
+   Test mới (`p3-block-video-job.test.ts`) **không** phụ thuộc ffmpeg thật: nó dựng cảnh
+   `provider.ready() === false`, nên nó chạy **vì** ffmpeg vắng mặt chứ không bị bỏ qua.
+3. **Hai khối `catch` nuốt lỗi** (`assets.ts` write_failed, `releaseUsage`) biến lỗi tầng dữ liệu
+   thành im lặng. Phép chắn thay thế là kiểu + từ vựng + ép ở cả hai adapter.
+
+**D. Trạng thái `Q-23` không đổi.** Mọi thứ trên chạy trên **kho cục bộ**, không phải Vibe Host.
+`MEDIACLEAR_S3_*` vẫn **chưa có** trên Vibe Host, vẫn **chưa có** dịch vụ worker, bản online vẫn là
+build Phase 1. `Q-23` và `Q-P3-05` giữ `blocked`. Giá trị của lượt này là: khi owner cấp khoá thật,
+**hai lỗi chặn đường đã được gỡ trước**.
+
+**Bằng chứng.** 2 phép kiểm hợp đồng mới chạy trên **cả hai** adapter + 2 test mới cho đường chặn
+job + **4 đối chứng âm**, mỗi cái làm đỏ đúng phần nó phải làm đỏ. Kiểm lại trên bản chạy thật sau
+khi sửa: job hỏng nay sinh `release / provider_error` trong PostgreSQL.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-067 — `Q-11`: bản nháp câu chữ pháp lý, chưa có hiệu lực
+
+Owner yêu cầu soạn nháp để luật/BA duyệt. Đặt ở `docs/Q11_LEGAL_WORDING_DRAFT.md`.
+
+**Không** sửa `Rights Statement v1/v2` một ký tự, **không** tạo v3, **không** đụng mã nguồn. Bản nháp
+nêu **ba rủi ro** kèm câu đề xuất song ngữ: (1) câu được ký không tự nói lên phạm vi *tệp này, thời
+điểm này*; (2) v2 đã **bỏ** vế trách nhiệm về việc sử dụng kết quả mà v1 từng có — người duyệt cần
+quyết định đó là cố ý hay mất mát; (3) việc hệ thống **không thẩm định** quyền chưa nằm trong chuỗi
+được ký.
+
+Cố ý **không** đề xuất: giới hạn trách nhiệm, bồi thường, luật áp dụng, cơ quan tài phán, dữ liệu cá
+nhân/khuôn mặt người. Đó là phần phải do luật sư viết.
+
+`Q-11` **vẫn mở** cho tới khi có người chịu trách nhiệm ghi duyệt/sửa/bác cho từng mục. Nếu họ bác
+toàn bộ, `Q-11` vẫn đóng được — bằng một câu xác nhận rằng v2 đã đủ.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
