@@ -246,8 +246,12 @@ nào, và **không có** lệnh xoá nào trong mã) · `Q-P3-07` (**0** provide
 
 ## 18. Gate này KHÔNG phải GO_LIVE
 
-**Khẳng định riêng**: `NOT_READY_FOR_GO_LIVE` **giữ nguyên**. Ba blocker go-live **còn lại**:
-kho object dùng chung (`Q-23`) · dấu vết AI vẫn `unknown` · chưa có việc dọn dữ liệu nào chạy thật.
+**Khẳng định riêng**: `NOT_READY_FOR_GO_LIVE` **giữ nguyên**. Hai blocker go-live **còn lại**:
+kho object dùng chung (`Q-23`) · chưa có việc dọn dữ liệu nào chạy thật.
+
+> **Dấu vết AI thôi là blocker** (`D-069`): nay đã có bộ đo thật, biên nhận khai `verified` có cơ sở.
+> Nhưng bộ đo **chỉ dò sự hiện diện, không xác thực chữ ký**, và **chưa từng đối chiếu với tệp do
+> công cụ C2PA thật sinh ra** — việc đó còn nợ, chỉ là nó không chặn go-live.
 
 > Hai câu hỏi câu chữ **không còn** là blocker, và cả hai đều đóng bằng **quyết định của owner** chứ
 > không phải bằng đo đạc: `Q-P3-08` owner duyệt (`D-065`), `Q-11` owner trả lời **không cần** luật sư

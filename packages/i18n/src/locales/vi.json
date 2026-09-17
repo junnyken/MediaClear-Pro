@@ -293,6 +293,7 @@
   "presence.absent": "Không có",
   "presence.unknown": "Chưa đo được",
   "provenance.limitation.no_c2pa_reader": "Hệ thống chưa có cách đọc dấu hiệu cho biết tệp do AI tạo ra. Phần này chưa được kiểm tra.",
+  "provenance.limitation.presence_only": "Hệ thống chỉ kiểm tra xem tệp có kèm dấu cho biết tệp do AI tạo ra hay không. Hệ thống không xác minh dấu đó là thật.",
   "preset.tiktok_vertical": "TikTok (dọc 9:16)",
   "preset.reels_vertical": "Reels (dọc 9:16)",
   "preset.shorts_vertical": "Shorts (dọc 9:16)",

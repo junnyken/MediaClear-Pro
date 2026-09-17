@@ -293,6 +293,7 @@
   "presence.absent": "Not present",
   "presence.unknown": "Not measured",
   "provenance.limitation.no_c2pa_reader": "The system cannot yet read the markers that show whether a file was made by AI. This part was not checked.",
+  "provenance.limitation.presence_only": "The system only checks whether the file carries a mark saying it was made by AI. It does not verify that the mark is genuine.",
   "preset.tiktok_vertical": "TikTok (vertical 9:16)",
   "preset.reels_vertical": "Reels (vertical 9:16)",
   "preset.shorts_vertical": "Shorts (vertical 9:16)",

@@ -1565,3 +1565,61 @@ tài liệu nói về **trạng thái hiện tại** được cập nhật: `OPE
 dấu vết AI vẫn `unknown` · chưa có việc dọn dữ liệu nào chạy thật.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-069 — `Q-12`: tự viết bộ dò dấu hiệu AI thay vì thêm thư viện
+
+**Câu hỏi gốc:** *"Thư viện nào đọc được C2PA / AI provenance thật?"* **Trả lời: không dùng thư viện
+nào.** Đã tự viết `apps/api/src/media/c2pa-probe.ts`.
+
+**Vì sao không thêm thư viện.** Bộ đọc C2PA đầy đủ kéo theo native binding — đúng loại phụ thuộc đã
+làm hỏng build Docker một lần (`D-039`, argon2 → đổi sang `scrypt` có sẵn trong Node). Và phần đắt
+nhất của thư viện đó là **xác thực chữ ký**, thứ hệ thống này **không cần**: `evaluatePreservation`
+chỉ hỏi *"dấu hiệu có còn không"*, không hỏi *"dấu hiệu có thật không"*.
+
+**Phạm vi — nói rõ để không ai đọc quá.** Bộ dò trả lời **đúng một câu hỏi**: trong tệp có bản khai
+theo chuẩn Content Credentials / C2PA hay không. Nó **không** kiểm chữ ký, **không** xác thực chuỗi
+tin cậy, **không** đọc nội dung bản khai. *"Có dấu hiệu"* khác hẳn *"dấu hiệu thật và còn nguyên
+vẹn"* — nên có **khoá câu chữ riêng** (`provenance.limitation.presence_only`), không dùng lại khoá
+cũ: *"chưa đọc được"* và *"đọc được nhưng không xác minh"* là hai sự thật khác nhau.
+
+**Chỗ nào dám nói `absent`, chỗ nào không — đây là phần tuân thủ `D-044`.** `absent` nghĩa là *"đã
+tìm và không thấy"*, chỉ đúng khi đã duyệt **hết** chỗ có thể chứa. Các container dạng thẻ nối tiếp
+thẻ thì duyệt hết thẻ là duyệt hết chỗ:
+
+| Container | Chỗ chứa | Kết luận khi không thấy |
+|---|---|---|
+| JPEG | đoạn `APP11` | `absent` |
+| PNG | thẻ `caBX` | `absent` |
+| WebP | thẻ `C2PA` trong RIFF | `absent` |
+| MP4 / MOV | box `uuid` ở mức gốc | `absent` |
+| **WebM / Matroska** | cấu trúc EBML khác hẳn | **`unknown`** |
+| không nhận dạng được / tệp hỏng | — | **`unknown`** |
+
+**Hằng số UUID của BMFF lấy từ hiểu biết về chuẩn, không từ tệp thật.** Nếu nó sai thì đường đọc thứ
+nhất trượt — và test của chính nó **cũng không phát hiện được**, vì fixture dựng từ cùng hằng số đó.
+Vì vậy `detectBmff` tìm **cả** nhãn ASCII `c2pa` bên trong box `uuid`: hai đường độc lập, sai một
+đường vẫn còn đường kia. Có test riêng ép UUID sai để chứng minh đường thứ hai bắt được.
+
+**Giới hạn lớn nhất, ghi ra để không tự lừa mình:** bộ dò **chưa từng được đối chiếu với tệp do công
+cụ C2PA thật sinh ra**. Ca *"không có dấu hiệu"* dùng **tệp thật trong repo** (đó là bằng chứng thật:
+không kêu nhầm). Ca *"có dấu hiệu"* dùng tệp thật **đã được chèn thêm** thẻ do tôi dựng theo chuẩn.
+Nếu hiểu biết đó sai, test vẫn xanh mà bản thật vẫn trượt. **Việc còn lại:** chạy một tệp do
+`c2patool` hoặc một công cụ AI thật sinh ra qua bộ dò.
+
+**Hệ quả lên biên nhận — đây là thứ `Q-12` mở ra.** Trước đây `evidenceStatus` **luôn** là `unknown`
+vì phép đo chưa bao giờ chạy. Nay nó chạy thật, nên `verified` trở thành lời khai **có cơ sở**. Ba
+phép kiểm trong `p2-receipt.test.ts` từng khẳng định *"không đọc được nên luôn unknown"* đã được viết
+lại: chúng mô tả **hiện trạng cũ**, không phải bất biến. Bất biến `D-044` vẫn được canh **đầy đủ ở
+tầng hợp đồng** (`packages/contracts/tests/provenance.test.ts`) và nay thêm một ca ở tầng biên nhận
+cho WebM.
+
+**Guardrail 4 không bị đụng tới.** Bản khai C2PA nằm **công khai trong container**, không phải dấu ẩn
+trong pixel. Hệ thống vẫn **không** phát hiện, **không** gỡ, **không** cam kết kiểm soát dấu ẩn vô
+hình (kể cả SynthID) — câu miễn trừ vẫn đi kèm mọi biên nhận, và có test đòi đúng điều đó.
+
+**Bằng chứng.** 6 phép kiểm mới + **4 đối chứng âm** (bỏ quét APP11 · bỏ quét `caBX` · trả `absent`
+cho Matroska · trả `absent` cho container lạ) — hai cái sau là phép kiểm trực tiếp cho `D-044`.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

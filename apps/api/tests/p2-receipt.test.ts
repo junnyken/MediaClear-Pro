@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { INVISIBLE_WATERMARK_DISCLAIMER_KEY } from '@mediaclear/contracts';
 import { JobWorker } from '../src/worker/job-worker.js';
-import { probeProvenance, C2PA_LIMITATION_KEY } from '../src/media/provenance-probe.js';
+import { probeProvenance, C2PA_LIMITATION_KEY, C2PA_PRESENCE_ONLY_KEY } from '../src/media/provenance-probe.js';
 import { attest, auth, createJob, createProject, createWorkspace, makeApp, signIn, uploadFixture, validateAsset, FIXTURES } from './helpers.js';
 
 async function runWith(fixture: string) {
@@ -43,9 +43,22 @@ describe('P2-MCP-30 — bo do dau vet nguon goc', () => {
     expect((await probeProvenance(without, 'image')).originalMetadataPresence).toBe('absent');
   });
 
-  it('KHONG doc duoc C2PA => luon "unknown", KHONG BAO GIO "absent"', async () => {
+  /*
+   * `Q-12` da dong (`D-069`): nay CO bo do that. Phep kiem nay doi lai theo su that moi, nhung
+   * luat cu van nguyen ven — chi doi cho ap dung:
+   *   - container duyet HET cho duoc  => duoc noi 'absent' ("da tim va khong thay");
+   *   - container CHUA duyet het cho  => van phai la 'unknown' ("chua tim duoc het").
+   */
+  it('DO DUOC dau hieu AI: PNG khong co dau thi noi "absent", kem dung cau gioi han', async () => {
     const probe = await probeProvenance(readFileSync(join(FIXTURES, 'sample-with-exif.png')), 'image');
-    // 'absent' = "da tim va khong thay". Su that la "chua tung tim". Hai cai khac han nhau.
+    expect(probe.aiProvenancePresence).toBe('absent');
+    // Do duoc roi thi cau gioi han phai doi: "khong xac minh" chu khong con la "chua doc duoc".
+    expect(probe.detectorLimitationNote).toBe(C2PA_PRESENCE_ONLY_KEY);
+  });
+
+  it('CHUA duyet het cho thi VAN phai la "unknown", khong duoc noi "absent" (D-044)', async () => {
+    // WebM/Matroska: cau truc EBML, he thong chua duyet het cho dat dau hieu.
+    const probe = await probeProvenance(readFileSync(join(FIXTURES, 'sample.webm')), 'video');
     expect(probe.aiProvenancePresence).toBe('unknown');
     expect(probe.detectorLimitationNote).toBe(C2PA_LIMITATION_KEY);
   });
@@ -76,15 +89,28 @@ describe('P2-MCP-30 — bien nhan', () => {
     await app.close();
   });
 
-  it('CA QUAN TRONG NHAT: khong doc duoc C2PA thi bien nhan KHONG duoc khai "da kiem chung"', async () => {
+  /*
+   * DAY LA THU `Q-12` MO RA.
+   *
+   * Truoc `D-069`, bien nhan LUON phai noi 'unknown' — vi phep do chua bao gio chay. Nay no chay
+   * that, nen 'verified' tro thanh mot loi khai CO CO SO: he thong da tim dau hieu o truoc va sau,
+   * va khong co gi bien mat.
+   *
+   * Nhung 'verified' o day chi noi ve MOT dieu: dau hieu khong bi mat. No KHONG noi dau hieu la
+   * that (bo do khong kiem chu ky), va KHONG noi gi ve dau AN vo hinh — cau mien tru ve dau an
+   * van phai di kem, va phep kiem duoi day doi dung dieu do.
+   */
+  it('do duoc that thi bien nhan DUOC khai "da kiem chung" — va van kem cau mien tru', async () => {
     const { app, token, ws, jobId } = await runWith('sample-with-exif.png');
     const body = (await app.inject({ method: 'GET', url: `/v1/jobs/${jobId}/receipt`, headers: auth(token, ws) })).json().data;
 
-    expect(body.receipt.evidenceStatus).not.toBe('verified');
-    expect(body.receipt.evidenceStatus).toBe('unknown');
-    expect(body.provenanceBefore.aiProvenancePresence).toBe('unknown');
+    expect(body.receipt.evidenceStatus).toBe('verified');
+    expect(body.provenanceBefore.aiProvenancePresence).toBe('absent');
+    expect(body.provenanceAfter.aiProvenancePresence).toBe('absent');
     // Gioi han phai duoc NOI RA, khong giau trong tai lieu.
-    expect(body.provenanceBefore.limitationNote).toBe(C2PA_LIMITATION_KEY);
+    expect(body.provenanceBefore.limitationNote).toBe(C2PA_PRESENCE_ONLY_KEY);
+    // Do duoc dau hieu C2PA KHONG co nghia la kiem soat duoc dau AN vo hinh.
+    expect(body.receipt.invisibleWatermarkDisclaimerKey).toBe(INVISIBLE_WATERMARK_DISCLAIMER_KEY);
     await app.close();
   });
 
@@ -118,7 +144,13 @@ describe('P2-MCP-30 — bien nhan', () => {
     const body = (await app.inject({ method: 'GET', url: `/v1/jobs/${jobId}/receipt`, headers: auth(token, ws) })).json().data;
     expect(body.provenanceBefore.originalMetadataPresence).toBe('absent');
     expect(body.provenanceAfter.originalMetadataPresence).toBe('present');
-    expect(body.receipt.evidenceStatus).not.toBe('verified');
+    /*
+     * Tu `D-069`: dau hieu AI DO DUOC (khong co, truoc va sau), nen `evidenceStatus` nay la
+     * 'verified' — co co so. Truoc do no la 'unknown' vi phep do chua tung chay.
+     * Luu y: 'verified' noi ve DAU HIEU AI, khong noi rang metadata duoc bao toan — chinh test
+     * nay vua ghi nhan cong cu TU THEM ho so mau vao ket qua.
+     */
+    expect(body.receipt.evidenceStatus).toBe('verified');
 
     // Ghim lai CHINH XAC thu duoc them vao, de lan sau no doi thi test do.
     const output = await ctx.persistence.outputs.findByJob(ws, jobId);
