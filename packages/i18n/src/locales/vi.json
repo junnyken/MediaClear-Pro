@@ -368,5 +368,9 @@
   "field.file_fingerprint": "Mã kiểm tra tệp",
   "field.file_name": "Tên tệp",
   "screen.asset_upload.no_file_chosen": "Chưa chọn tệp nào",
-  "screen.asset_upload.pick_button": "Chọn tệp…"
+  "screen.asset_upload.pick_button": "Chọn tệp…",
+  "screen.dashboard.welcome_title": "Chào mừng đến MediaClear Pro",
+  "screen.dashboard.welcome_body": "Đăng nhập để tải ảnh hoặc video của bạn lên và làm sạch vùng logo, dấu hiệu nhận diện. Tệp gốc luôn được giữ nguyên.",
+  "nav.open_menu": "Mở danh mục",
+  "nav.close_menu": "Đóng danh mục"
 }

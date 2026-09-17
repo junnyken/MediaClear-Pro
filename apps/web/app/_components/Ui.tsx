@@ -49,6 +49,30 @@ export function Empty({ message }: { message?: string }) {
 }
 
 /**
+ * Trang thai rong CO LOI DI TIEP.
+ *
+ * `Empty` chi noi "chua co gi" roi de nguoi dung dung do — man hinh Tong quan va Du an deu la ngo
+ * cut nhu vay: cau "Tao du an dau tien de bat dau" KHONG phai mot lien ket, nen doc xong khong biet
+ * bam vao dau. Mot trang thai rong tot phai mang theo viec can lam ke ben.
+ */
+export function EmptyState({
+  message,
+  actionHref,
+  actionLabel,
+}: {
+  message: string;
+  actionHref: string;
+  actionLabel: string;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 'var(--mcp-space-4)' }}>
+      <p style={{ color: 'var(--mcp-text-secondary)', margin: 0 }}>{message}</p>
+      <LinkButton href={actionHref}>{actionLabel}</LinkButton>
+    </div>
+  );
+}
+
+/**
  * Hien thi loi: neu la loi quyen/dang nhap thi noi dung nguoi dung hieu duoc,
  * con lai dung dung cau chu theo ma loi. Khong in stack, khong in ma tho.
  */

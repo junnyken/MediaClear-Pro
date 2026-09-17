@@ -5,7 +5,27 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { PRIMITIVE_COLORS } from '@mediaclear/design-tokens';
 import { apiFetchChecked, readSession, translate, writeSession } from '../_lib/api';
+
+/**
+ * Man hinh hep hay khong.
+ *
+ * Du an dung INLINE STYLE nen khong viet duoc media query. Doc bang `matchMedia` la cach dung dan
+ * duy nhat con lai — va phai doc trong `useEffect`, khong doc luc render, vi may chu khong co
+ * `window`: doc som se lech giua HTML may chu sinh ra va lan render dau o trinh duyet.
+ */
+function useNarrowScreen(): boolean {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 720px)');
+    const apply = () => setNarrow(mql.matches);
+    apply();
+    mql.addEventListener('change', apply);
+    return () => mql.removeEventListener('change', apply);
+  }, []);
+  return narrow;
+}
 
 /**
  * Dieu huong theo WORKFLOW cua nguoi dung, khong phoi bay module noi bo.
@@ -47,20 +67,61 @@ export function Shell({ children }: { children: ReactNode }) {
     router.push('/sign-in');
   }
 
+  /*
+   * Tren dien thoai, thanh dieu huong CU chiem tron ~350px dau MOI trang: mo bat ky man nao cung
+   * phai cuon qua het danh muc moi thay noi dung. Nay no thu gon lai thanh mot hang tieu de, bam
+   * moi mo. May tinh de ban giu nguyen cot ben trai — khong cho gi de thu gon.
+   */
+  const narrow = useNarrowScreen();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Chuyen trang thi dong danh muc, neu khong no che mat trang vua mo.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+  const navVisible = !narrow || menuOpen;
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', flexWrap: 'wrap', alignContent: 'flex-start' }}>
       <nav
         aria-label={translate('nav.dashboard')}
         style={{
           background: 'var(--mcp-surface)',
           padding: 'var(--mcp-space-5)',
-          minWidth: 220,
+          boxSizing: 'border-box',
+          minWidth: narrow ? 0 : 220,
           flex: '0 0 auto',
           width: '100%',
-          maxWidth: 260,
+          maxWidth: narrow ? '100%' : 260,
         }}
       >
-        <strong style={{ display: 'block', marginBottom: 'var(--mcp-space-4)' }}>{translate('app.name')}</strong>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--mcp-space-3)' }}>
+          <strong style={{ display: 'block', marginBottom: navVisible ? 'var(--mcp-space-4)' : 0 }}>
+            {translate('app.name')}
+          </strong>
+          {narrow ? (
+            <button
+              type="button"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-expanded={menuOpen}
+              aria-controls="mcp-nav-items"
+              style={{
+                background: 'transparent',
+                border: `1px solid ${PRIMITIVE_COLORS.textSecondary}`,
+                borderRadius: 'var(--mcp-radius-sm)',
+                color: 'var(--mcp-text-primary)',
+                cursor: 'pointer',
+                minHeight: 44,
+                minWidth: 44,
+                padding: '0 var(--mcp-space-3)',
+                marginBottom: navVisible ? 'var(--mcp-space-4)' : 0,
+              }}
+            >
+              {menuOpen ? translate('nav.close_menu') : translate('nav.open_menu')}
+            </button>
+          ) : null}
+        </div>
+
+        <div id="mcp-nav-items" hidden={!navVisible}>
 
         <div style={{ marginBottom: 'var(--mcp-space-5)', color: 'var(--mcp-text-secondary)', fontSize: 'var(--mcp-font-size-sm)' }}>
           {current ? (
@@ -106,6 +167,7 @@ export function Shell({ children }: { children: ReactNode }) {
               {translate('screen.sign_in.title')}
             </Link>
           )}
+        </div>
         </div>
       </nav>
       <main style={{ flex: '1 1 320px', padding: 'var(--mcp-space-6)', minWidth: 0 }}>{children}</main>

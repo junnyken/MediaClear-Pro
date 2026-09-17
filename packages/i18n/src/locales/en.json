@@ -368,5 +368,9 @@
   "field.file_fingerprint": "File fingerprint",
   "field.file_name": "File name",
   "screen.asset_upload.no_file_chosen": "No file chosen",
-  "screen.asset_upload.pick_button": "Choose file…"
+  "screen.asset_upload.pick_button": "Choose file…",
+  "screen.dashboard.welcome_title": "Welcome to MediaClear Pro",
+  "screen.dashboard.welcome_body": "Sign in to upload your images or videos and clean up logo and branding areas. Your original file is always kept.",
+  "nav.open_menu": "Open menu",
+  "nav.close_menu": "Close menu"
 }

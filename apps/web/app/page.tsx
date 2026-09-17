@@ -4,7 +4,7 @@ import { ME_RESPONSE_SCHEMA, PROJECT_LIST_SCHEMA, USAGE_SUMMARY_SCHEMA } from '@
 import Link from 'next/link';
 import { apiFetchChecked, readSession, translate } from './_lib/api';
 import { useResource } from './_lib/use-resource';
-import { Card, DefinitionRow, ErrorNotice, LinkButton, Loading, PageTitle } from './_components/Ui';
+import { Card, DefinitionRow, EmptyState, ErrorNotice, LinkButton, Loading, PageTitle } from './_components/Ui';
 
 export default function DashboardPage() {
   const me = useResource(() => apiFetchChecked('/v1/me', ME_RESPONSE_SCHEMA), []);
@@ -29,13 +29,32 @@ export default function DashboardPage() {
 
   if (me.status === 'loading') return <Loading />;
   if (me.status === 'error' && me.error) {
+    /*
+     * CHUA DANG NHAP khong phai mot LOI.
+     *
+     * Truoc day man hinh dau tien ma khach nhin thay la mot the do "Khong tai duoc du lieu" — noi
+     * dung mot su that ky thuat nhung sai hoan toan ve y: nguoi ta vua mo trang, chua lam gi sai ca.
+     * Chi giu the loi do cho loi THAT SU.
+     */
+    const chuaDangNhap = me.error.code === 'MCP_AUTHZ_SESSION_REQUIRED';
     return (
       <>
         <PageTitle>{translate('screen.dashboard.title')}</PageTitle>
-        <ErrorNotice error={me.error} onRetry={me.reload} />
-        <Card>
-          <LinkButton href="/sign-in">{translate('screen.sign_in.submit')}</LinkButton>
-        </Card>
+        {chuaDangNhap ? (
+          <Card title={translate('screen.dashboard.welcome_title')}>
+            <p style={{ color: 'var(--mcp-text-secondary)', marginTop: 0 }}>
+              {translate('screen.dashboard.welcome_body')}
+            </p>
+            <LinkButton href="/sign-in">{translate('screen.sign_in.submit')}</LinkButton>
+          </Card>
+        ) : (
+          <>
+            <ErrorNotice error={me.error} onRetry={me.reload} />
+            <Card>
+              <LinkButton href="/sign-in">{translate('screen.sign_in.submit')}</LinkButton>
+            </Card>
+          </>
+        )}
       </>
     );
   }
@@ -55,7 +74,11 @@ export default function DashboardPage() {
         {projects.status === 'error' && projects.error ? <ErrorNotice error={projects.error} onRetry={projects.reload} /> : null}
         {projects.status === 'ready' && projects.data ? (
           projects.data.items.length === 0 ? (
-            <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('screen.project_list.empty')}</p>
+            <EmptyState
+              message={translate('screen.project_list.empty')}
+              actionHref="/projects/new"
+              actionLabel={translate('screen.project_list.create_cta')}
+            />
           ) : (
             <ul>
               {projects.data.items.slice(0, 5).map((project) => (
