@@ -22,6 +22,7 @@ import type {
 import type { NormalizedRegion } from './provider.js';
 import type { WorkspaceRole } from './tenancy.js';
 import type { BlockReasonKind } from './policy.js';
+import type { DisclosureState, MetadataCategory, MetadataVerdict } from './phase5.js';
 
 export type Id = string;
 /** ISO-8601 UTC, vd 2026-09-15T07:00:00.000Z */
@@ -223,6 +224,27 @@ export interface ProcessingReceipt {
   outputVerified: boolean;
   failureReason: string | null;
   reviewReason: string | null;
+
+  /* --- P5 (`D-075`). `null` = KHONG DO DUOC hoac khong ap dung — khong phai gia tri mac dinh. --- */
+
+  /** `P5-MCP-51`: ket luan doi chieu metadata TUNG TRUONG. */
+  metadataVerdict: MetadataVerdict | null;
+  metadataEvidence: EvidenceStatus | null;
+  /** Nhom metadata bi go THEO CHINH SACH — dung y do, nhung nguoi dung van co quyen biet. */
+  metadataStrippedCategories: MetadataCategory[];
+  /** `P5-MCP-54`: cong bo AI. KHONG bao gio suy `ai_not_used` tu viec khong doc duoc gi. */
+  disclosureState: DisclosureState | null;
+  disclosureLimitationKey: string | null;
+  /**
+   * `P5-MCP-53`: bo nhan dien DA AP DUNG, kem PHIEN BAN.
+   *
+   * Phai ghi ca phien ban: sua bo nhan dien khong duoc lam doi ho so cua mot ban xuat da phat hanh.
+   * `null` = nguoi dung KHONG chon bo nhan dien nao — va khi do ban xuat khong duoc co lop phu.
+   */
+  brandKitId: Id | null;
+  brandKitVersion: number | null;
+  /** Doi hinh dang bien nhan ve sau se tang so nay; ban doc cu biet minh dang doc phien ban nao. */
+  schemaVersion: number;
 }
 
 /** Anh chup luong tieng tai mot thoi diem. `present: false` = DA DO va khong thay. */
@@ -257,7 +279,9 @@ export interface AuditEvent {
     | 'provider_run'
     /* Moi tu `D-070`: viec don du lieu sinh su kien ve hai loai chu the nay. */
     | 'source_file'
-    | 'upload_session';
+    | 'upload_session'
+    /** P5-MCP-53. */
+    | 'brand_kit';
   subjectId: Id;
   /** CHI metadata phi nhay cam. Cam log media bytes, API key, PII (guardrail 15). */
   detail: Record<string, string | number | boolean | null>;

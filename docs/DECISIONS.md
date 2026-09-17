@@ -1985,3 +1985,91 @@ Statement không đổi một ký tự · không route DELETE mới · không đ
 **Phase 5 vẫn `NOT_STARTED`**.
 
 - **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-075 — Phase 5: Provenance & Brand Kit (MCP-50…54)
+
+### Quyết định nền: KHÔNG có nguồn sự thật thứ hai
+
+`MCP-50` **không** tạo bảng `provenance_events`. Dòng thời gian dựng từ các nguồn đã có: tệp gốc,
+bản xem trước, job, biên nhận, lịch sử sửa khung hình, ảnh chụp thông tin kèm theo, nhật ký.
+
+Một bảng sự kiện riêng sẽ lập tức trở thành nguồn sự thật thứ hai, và hai nguồn sẽ lệch nhau
+(`D-047`). Đổi lại, quan hệ cha–con phải **tự dựng** — và mục nào trỏ tới cha không tồn tại thì
+**lộ ra** ở `orphanIds`, đi qua được biên giới API **có chủ đích**. Lọc ở máy chủ sẽ làm dòng thời
+gian trông như đã đầy đủ.
+
+### `MCP-51` — đo theo TỪNG TRƯỜNG, không kết luận chung chung
+
+`"metadata preserved"` sau khi chỉ kiểm vài trường là một lỗ hổng quen thuộc: nó đúng với những
+trường đã kiểm và **nói dối về phần còn lại**. `compareMetadata` lấy **hợp** của hai phía làm tập
+khoá, và mọi khoá đều phải có một trạng thái. Còn bất kỳ `unknown` nào ⇒ verdict là `unknown`.
+
+`removed_by_policy` **tách riêng** khỏi `removed`: một bên là quyết định, một bên là mất mát.
+
+**Giới hạn thật, ghi rõ**: ảnh đọc EXIF bằng bộ duyệt TIFF/IFD tự viết cho **danh sách đóng 5 thẻ**
+(không thêm thư viện — `D-039`). Thẻ ngoài danh sách không được đọc, và vì vậy **không** được báo
+cáo là "không có". Xem `Q-P5-04`.
+
+### `MCP-54` — ba điều không bao giờ được làm
+
+1. `absent` của bộ dò **không** thành `ai_not_used`. Một tệp do AI tạo rồi bị gỡ thông tin sẽ cho
+   `absent` — kết luận "không phải AI" từ đó sai theo hướng nguy hiểm nhất.
+2. `unknown` **không** thành một kết luận.
+3. `present` **không** thành "đã xác minh" — bộ dò không kiểm chữ ký nào (`D-069`).
+
+Trạng thái **dịch vụ xử lý** được trả lời **trước**: chưa có dịch vụ thật thì mọi kết luận về AI
+đều chưa có cơ sở. Thực tế hiện nay: `provider_blocked`, và đó là **kết luận đúng**.
+
+### `MCP-53` — sửa là tạo phiên bản, không có đường xoá
+
+Biên nhận trỏ tới `(brandKitId, version)`. Sửa trực tiếp sẽ làm biên nhận cũ trỏ tới một thứ **khác**
+với cái đã thật sự được áp dụng. Bảng phiên bản không có đường `UPDATE`. Bộ không dùng nữa thì
+`archived` — xoá dòng là xoá luôn bằng chứng.
+
+**Không hàm nào tự điền `brandKitId` vào biên nhận.** Bản xuất chỉ mang lớp phủ khi người dùng chọn.
+
+Quyền: đọc `asset.read`, sửa `project.manage`. **Không thêm quyền mới** — ma trận quyền là quyết
+định của owner (`Q-04`).
+
+### Một lỗi mà 806 phép kiểm không bắt được
+
+Một **dấu phẩy đôi** trong mảng tham số SQL (`receipt.reviewReason,,`) tạo một **lỗ thưa**: mảng dài
+thêm một phần tử `undefined`, và **mọi tham số phía sau bị đẩy lệch một ô**.
+
+`typecheck` xanh · `lint` xanh · **806 phép kiểm xanh** — vì mọi test chạm tới biên nhận đều chạy
+trên bản trong bộ nhớ. Bộ đối chiếu hai bản lưu trữ **không hề có** phép kiểm nào cho biên nhận.
+Chỉ một lượt chạy **thật** trên PostgreSQL mới lộ ra (job đổ với `MCP_PROVIDER_SUBMIT_FAILED`, lỗi
+thật bị `catch` bắt-tất-cả nuốt).
+
+**Hai phép chắn mới**, đã thử đối chứng âm: `no-sparse-arrays` (lint đỏ) và phép kiểm biên nhận đi
+tròn **từng trường** trên cả hai adapter (test đỏ). Lần thứ hai bộ đối chiếu phải mở rộng vì cùng
+một lý do (`D-066`).
+
+### Xung đột chính sách — không tự quyết
+
+`preserveOriginalMetadata` là `true` **cố định** theo **guardrail 6/7**. Đo thật: `exif.Make` đi
+nguyên vẹn vào bản xuất. Chính sách gỡ vị trí/thiết bị **mâu thuẫn** với cam kết đó.
+
+Mã được sửa để **không khai một chính sách nó không thi hành**:
+`METADATA_CATEGORIES_STRIPPED_BY_DEFAULT = []`. Xem `Q-P5-02`.
+
+### Ba lỗi chỉ bấm tay mới thấy
+
+1. Khoá dịch **thô** hiện ra cho người dùng đọc — phép chắn i18n chỉ quét chuỗi **tĩnh**, nhãn động
+   nằm ngoài tầm. Sửa: máy chủ nói rõ giá trị nào là khoá dịch (`valueKey`), giao diện không đoán.
+2. Ô nhập màu là **một dòng** nhưng hướng dẫn bảo "mỗi màu một dòng" ⇒ hai mã dính lại, nút lưu
+   khoá **vĩnh viễn** mà người dùng không hiểu vì sao.
+3. Mã kiểm tra 64 ký tự **đẩy tràn** màn hình ở khổ `390px`.
+
+Cả ba đều có phép chắn mới trong `p5-ui-contract.test.ts`.
+
+### Không đụng tới
+
+Provider thật **`blocked`** (`Q-P4-01`) · `MEDIACLEAR_CLEANUP_ENABLED` **tắt** · `Q-23` **blocked** ·
+go-live **`NOT_READY_FOR_GO_LIVE`** · Rights Statement v1/v2 **không đổi một ký tự**, **không có
+v3** · không route DELETE · không đánh số lại ID lịch sử · **không mở Phase 6, không billing, không
+tiện ích trình duyệt**.
+
+- **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro

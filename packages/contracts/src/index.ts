@@ -27,6 +27,7 @@ export * from './api.js';
 export * from './invariants.js';
 export * from './phase3-gate.js';
 export * from './phase4.js';
+export * from './phase5.js';
 
 /** Phase 0 marker: khong co xu ly AI production trong build nay. */
 export const PHASE = 'phase-0-foundation' as const;

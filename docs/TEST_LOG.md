@@ -2594,3 +2594,111 @@ lân cận (`beforeBox`/`afterBox`, `beforeState`/`afterState`, `beforeConfidenc
 
 Phase 1.1, Phase 2, Phase 3 (gồm video chạy thật), `Q-12`, cleanup 5 lớp chặn, `D-073` — **tất cả
 xanh** trong cùng lượt 764 phép kiểm.
+
+---
+
+## Phase 5 — Provenance & Brand Kit · `D-075` · 2026-09-18
+
+### Lệnh kiểm (chạy riêng từng lệnh)
+
+```
+typecheck        = 0
+lint             = 0
+vitest run       = 0     77 tệp · 816 phép kiểm · 0 bỏ qua
+build:web        = 0
+git diff --check = 0
+pnpm check       = 0
+```
+
+Chạy **có** `MEDIACLEAR_TEST_DATABASE_URL` (database riêng `mcp_test_p5`). Trước Phase 5: 764.
+**+52** phép kiểm mới.
+
+### Lỗi máy chủ mà 806 phép kiểm không bắt được
+
+Dấu phẩy đôi trong mảng tham số SQL ⇒ **lỗ thưa** ⇒ mọi tham số sau bị đẩy lệch một ô. Lượt chạy
+thật đầu tiên trên PostgreSQL: job đổ với `MCP_PROVIDER_SUBMIT_FAILED`; **ảnh chụp metadata vẫn
+được ghi**, nên lỗi nằm sau đó — ở bước ghi biên nhận. Lỗi thật bị `catch` bắt-tất-cả nuốt.
+
+Nguyên nhân gốc: bộ đối chiếu hai bản lưu trữ **không hề có** phép kiểm nào cho biên nhận.
+
+Hai phép chắn mới, đã thử đối chứng âm: `no-sparse-arrays` (lint đỏ) và biên nhận đi tròn **từng
+trường** trên cả hai adapter (test đỏ).
+
+### 14 đối chứng âm
+
+| # | Đột biến | Lần đầu | Sau khi siết |
+|---|---|---|---|
+| 1 | Giấu mục mồ côi, UI vẫn báo đầy đủ | **đỏ** | — |
+| 2 | `unknown` hiển thị thành `verified` | **XANH** ← đột biến rơi vào nhánh **chết** | **2 đỏ** (đột biến nhánh trả sớm) |
+| 3 | Trường bị mất nhưng báo `preserved` | **5 đỏ** | — |
+| 4 | Biên nhận `completed` trước khi kiểm kết quả | **3 đỏ** | — |
+| 5 | Sửa bộ nhận diện **ghi đè** phiên bản cũ | **đỏ** | — |
+| 6 | Bỏ qua cô lập workspace | **đỏ** | — |
+| 7 | Phiên bản bộ nhận diện không ghi vào biên nhận | **XANH** ← phép kiểm dùng `null` | **đỏ** (đổi sang giá trị thật) |
+| 8 | Lớp phủ áp dụng ngoài lựa chọn người dùng | **đỏ** | — |
+| 9 | Dịch vụ `blocked` hiển thị thành verified | **đỏ** | — |
+| 10 | Lớp phủ hiện nhưng biên nhận không ghi công bố | **2 đỏ** | — |
+| 11 | `absent` diễn giải thành "chắc chắn không phải AI" | **đỏ** | — |
+| 12 | Khai chính sách gỡ mà hệ thống không thi hành | **2 đỏ** | — |
+| 13 | Bản giả tự khai là dịch vụ production | **đỏ** | — |
+| 14 | Lệch hợp đồng UI/máy chủ | **XANH** ← không test nào chạy **phản hồi thật** qua schema | **đỏ** |
+
+**11/14 đỏ ngay.** Ba cái xanh đều là lỗi của **chính phép đo**, không phải của mã:
+
+- **#2**: dòng tôi đột biến **không tới được** — nhánh chính không bao giờ sinh verdict `unknown`.
+  Đột biến đúng chỗ (nhánh trả sớm khi không đọc được) ⇒ 2 đỏ.
+- **#7**: phép kiểm dùng `brandKitVersion: null`, nên null hoá nó **không đổi gì**. Đổi sang giá trị
+  thật (`bkt_thu`, `7`) ⇒ đỏ.
+- **#14**: không phép kiểm nào chạy **phản hồi thật của máy chủ** qua schema chung — các test khác
+  gọi thẳng vào mức dịch vụ, còn test route chỉ kiểm `Array.isArray`. Thêm phép chắn dùng
+  `schema.checkEnvelope` trên `app.inject` ⇒ đỏ.
+
+### Đo trên tệp thật
+
+Bốn fixture tất định mới: ảnh **có**/**không** thông tin kèm theo, video **có**/**không** thẻ.
+
+```
+image-with-metadata.jpg   readable  15 truong  ImageDescription/Make/Model/Software doc duoc
+image-no-metadata.jpg     readable  15 truong  5 the EXIF deu `null` — ket luan DO DUOC
+corrupt.png               KHONG doc duoc       phep do that bai, khong phai anh chup rong
+video-with-metadata.mp4   readable  20 truong  title/comment/location doc duoc
+video-no-metadata.mp4     readable  20 truong  cac the `null`
+```
+
+### Lượt chạy thật (PostgreSQL + worker + build production)
+
+Job ảnh `job_dcb1d2b3…` → `completed`; nhật ký xác nhận *"dọn dữ liệu: tắt (chỉ chạy thử)"*.
+
+```
+metadata_verdict             changed
+metadata_evidence            verified
+metadata_stripped_categories {}
+disclosure_state             provider_blocked
+brand_kit_id                 (rong — khong ai chon, he thong khong tu them)
+schema_version               2
+```
+
+Đối chiếu từng trường, đo được: `image.format jpeg→png` · `image.channels 3→4` ·
+`image.hasIcc false→true`. Các thẻ EXIF **giữ nguyên** (xác nhận trực tiếp từ hai ảnh chụp trong
+database) — đây chính là bằng chứng của xung đột `Q-P5-02`.
+
+### Bấm tay trên Chrome (bản đã build)
+
+| Kiểm | 1280×900 | 390×844 |
+|---|---|---|
+| Lịch sử truy ngược đủ 7 mục, 0 mục mồ côi | ✔ | ✔ |
+| Nhãn bằng chứng từng mục | ✔ | ✔ |
+| Thẻ giới hạn ở **đầu** trang | ✔ | ✔ |
+| Tạo bộ nhận diện, lịch sử phiên bản hiện ngay | ✔ | ✔ |
+| Nút tạo **khoá** khi dữ liệu sai | ✔ | — |
+| Không tràn ngang | — | ✔ (390 = 390, 0 phần tử tràn) |
+| Không lọt khoá dịch thô | ✔ | ✔ |
+| Console | sạch | sạch |
+
+**Ba lỗi bấm tay tìm ra** (chi tiết ở `D-075`): khoá dịch thô lọt ra màn hình · ô nhập màu một dòng
+mâu thuẫn với hướng dẫn "mỗi màu một dòng" · mã kiểm tra 64 ký tự đẩy tràn khổ điện thoại. Cả ba đã
+sửa và có phép chắn.
+
+### Regression
+
+Phase 1.1, 2, 3, 4 (gồm `D-073`, `D-074`) — **tất cả xanh** trong cùng lượt 816 phép kiểm.

@@ -433,6 +433,49 @@ function contractSuite(label: string, make: () => Promise<PersistencePort>): voi
      * trong bo nho ghi tung dong theo vong lap, no se de lai du lieu nua voi trong khi PostgreSQL
      * thi khong, va khac biet do chi lo ra tren production.
      */
+    /*
+     * `D-075`. Bien nhan KHONG he co phep kiem nao trong bo doi chieu hai ban luu tru cho toi day.
+     *
+     * Hau qua do duoc: mot dau phay doi trong mang tham so SQL lam MOI tham so sau no bi day lech
+     * mot o. Typecheck xanh, lint xanh, 806 phep kiem xanh — vi moi test cham toi bien nhan deu
+     * chay tren ban trong bo nho. Chi mot luot chay THAT tren PostgreSQL moi lo ra.
+     *
+     * Day la lan thu hai bo doi chieu hai ban luu tru phai duoc mo rong vi cung mot ly do (`D-066`).
+     */
+    it('receipts: MOI truong di qua tang luu tru va quay ve KHONG doi mot o nao', async () => {
+      const receipt = {
+        id: 'rcp_1', workspaceId: WS, jobId: 'job_1', sourceAssetId: 'ast_1', outputAssetId: null,
+        operations: ['blur'] as const, providerRunIds: [],
+        provenanceBeforeId: 'prv_1', provenanceAfterId: null,
+        invisibleWatermarkDisclaimerKey: 'x.y', evidenceStatus: 'unknown' as const, createdAt: at(5),
+        operationMode: 'mask' as const, presetId: 'p1',
+        inputChecksum: 'a'.repeat(64), outputChecksum: 'b'.repeat(64),
+        audioBefore: null, audioAfter: null, audioVerdict: 'preserved',
+        outputVerified: true, failureReason: null, reviewReason: 'can xem lai',
+        // Phase 5: cac truong de bi day lech nhat vi chung nam CUOI mang tham so.
+        metadataVerdict: 'partially_preserved' as const,
+        metadataEvidence: 'verified' as const,
+        metadataStrippedCategories: ['location' as const, 'device' as const],
+        disclosureState: 'provider_blocked' as const,
+        disclosureLimitationKey: 'disclosure.limitation.provider_blocked',
+        // KHONG dung `null`: mot o `null` khong canh duoc viec o do bi ghi `null` mat.
+        // Do dung la cach doi chung am `NC7` lot qua o lan chay dau.
+        brandKitId: 'bkt_thu', brandKitVersion: 7, schemaVersion: 2,
+      };
+      await db.provenance.create({
+        id: 'prv_1', workspaceId: WS,
+        originalMetadataPresence: 'present', aiProvenancePresence: 'unknown',
+        preservationRequested: true, preservationAttempted: true, preservationResult: 'partial',
+        limitationNote: null, evidenceStatus: 'unknown', recordedAt: at(4),
+      });
+      await db.receipts.create(receipt);
+
+      const doc = await db.receipts.findByJob(WS, 'job_1');
+      expect(doc, 'bien nhan bien mat sau khi ghi').not.toBeNull();
+      // So TUNG truong: mot tham so bi day lech se lam mot o mang gia tri cua o ben canh.
+      expect(doc).toEqual(receipt);
+    });
+
     it('jobFrames: mot lan sua ghi audit + moi frame trong MOT giao dich', async () => {
       await db.jobFrames.saveTimeline({
         jobId: 'job_1', workspaceId: WS, expectedFrameCount: 3, declaredFrameCount: 3,

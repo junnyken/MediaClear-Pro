@@ -106,6 +106,11 @@ export const AUDIT_EVENTS = {
   SOURCE_FILE_DELETED: 'source_file_deleted',
   /** P3 (`D-070`): manh thua cua mot phien tai len qua han da duoc don. */
   UPLOAD_SESSION_CLEANED: 'upload_session_cleaned',
+  /* P5-MCP-53. Khong co su kien `brand_kit_deleted`: Phase 5 khong mo duong xoa nao. */
+  BRAND_KIT_CREATED: 'brand_kit_created',
+  BRAND_KIT_VERSION_ADDED: 'brand_kit_version_added',
+  BRAND_KIT_STATE_CHANGED: 'brand_kit_state_changed',
+  BRAND_KIT_APPLIED: 'brand_kit_applied',
   PERMISSION_DENIED: 'permission_denied',
 } as const;
 

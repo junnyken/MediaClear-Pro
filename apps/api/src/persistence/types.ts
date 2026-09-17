@@ -22,7 +22,10 @@ import type {
   Workspace,
   WorkspaceMembership,
 } from '@mediaclear/contracts';
-import type { ApiError, FrameState, MaskBox, MaskSource, MediaType, QualityGateVerdict, RetentionState } from '@mediaclear/contracts';
+import type {
+  ApiError, BrandKitState, FrameState, MaskBox, MaskSource, MediaType, MetadataField,
+  OverlayPosition, QualityGateVerdict, RetentionState,
+} from '@mediaclear/contracts';
 
 export interface MeasuredSourceFile {
   /** MIME doc tu magic bytes, KHONG phai tu client. */
@@ -249,4 +252,50 @@ export interface JobFrameCorrectionNeighbour {
   afterSource: MaskSource;
   afterBox: MaskBox | null;
   afterConfidence: number | null;
+}
+
+/* ----------------------------------------------------------------- Phase 5 (D-075) */
+
+/**
+ * `P5-MCP-51` — anh chup metadata tai MOT thoi diem cua mot luot xu ly.
+ *
+ * `before` va `after` la HAI DONG rieng. Chung mot dong thi mot lenh cap nhat se dong vao ca hai,
+ * va ban goc — thu duy nhat cho phep doi chieu — bien mat.
+ */
+export interface JobMetadataSnapshotRecord {
+  id: Id;
+  jobId: Id;
+  workspaceId: Id;
+  phase: 'before' | 'after';
+  /** `false` = KHONG DOC DUOC. Khac han mot anh chup rong (`fields: []`, `readable: true`). */
+  readable: boolean;
+  fields: MetadataField[];
+  detectorId: string;
+  recordedAt: IsoTimestamp;
+}
+
+/** `P5-MCP-53` — bo nhan dien thuong hieu, pham vi workspace. */
+export interface BrandKitRecord {
+  id: Id;
+  workspaceId: Id;
+  state: BrandKitState;
+  currentVersion: number;
+  createdAt: IsoTimestamp;
+  updatedAt: IsoTimestamp;
+  createdByUserId: Id | null;
+}
+
+/** Mot PHIEN BAN. BAT BIEN — sua = ghi them dong moi, khong bao gio UPDATE. */
+export interface BrandKitVersionRecord {
+  brandKitId: Id;
+  workspaceId: Id;
+  version: number;
+  name: string;
+  colors: string[];
+  logoAssetId: Id | null;
+  overlayPosition: OverlayPosition;
+  overlayOpacity: number;
+  overlayIncludeDisclosure: boolean;
+  createdAt: IsoTimestamp;
+  createdByUserId: Id | null;
 }

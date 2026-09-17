@@ -34,6 +34,7 @@ import type { AppContext } from '../app-context.js';
 import { executeTrackedVideoJob } from './run-tracked-video-job.js';
 import { DeterministicVideoProvider, operationToMode } from '../providers/deterministic-video.js';
 import { newId } from '../ids.js';
+import { recordMetadataAndDisclosure, receiptPhase5Fields, type MetadataProvenanceOutcome } from './metadata-provenance.js';
 import { recordAudit, AUDIT_EVENTS } from './audit.js';
 
 export interface VideoJobOutcome {
@@ -150,6 +151,20 @@ export async function executeVideoJob(ctx: AppContext, job: ProcessingJob): Prom
      */
     const { probeVideo } = await import('../media/ffmpeg.js');
     const afterProbe = await probeVideo(readBack);
+
+    /*
+     * `P5-MCP-51` + `P5-MCP-54`. Do MOT LAN cho ca bon nhanh ket qua o duoi — do lai o tung nhanh
+     * se dat ra kha nang bon bien nhan noi bon dieu khac nhau ve cung mot cap byte.
+     *
+     * `aiStepUsed: false`: duong video Phase 3 chay bang ffmpeg trong chinh tien trinh nay, khong
+     * goi provider AI nao. Day la ket luan do duoc, khong phai gia dinh.
+     */
+    const phase5 = await recordMetadataAndDisclosure(ctx, {
+      workspaceId: job.workspaceId, jobId: job.id, mediaType: job.mediaType,
+      beforeBytes: bytes, afterBytes: outputVerified ? readBack : null,
+      inputAiPresence: 'unknown',
+      aiStepUsed: false,
+    });
     const audioAfter: AudioTrack = afterProbe.audio;
     const verdict = compareAudio(processed.audioBefore, audioAfter);
 
@@ -159,7 +174,7 @@ export async function executeVideoJob(ctx: AppContext, job: ProcessingJob): Prom
         outputChecksum: actual, audioBefore: processed.audioBefore, audioAfter,
         verdict, outputVerified: false, outputAssetId: output.id,
         failureReason: ERROR_CODES.MCP_STATE_OUTPUT_NOT_VERIFIED, reviewReason: null,
-      });
+      }, phase5);
       const failed = await failJob(ctx, current, apiError(ERROR_CODES.MCP_STATE_OUTPUT_NOT_VERIFIED));
       return { ...failed, receiptId, audioVerdict: verdict };
     }
@@ -178,7 +193,7 @@ export async function executeVideoJob(ctx: AppContext, job: ProcessingJob): Prom
         mode, presetId: job.request.presetId, inputChecksum, outputChecksum: actual,
         audioBefore: processed.audioBefore, audioAfter, verdict, outputVerified: true,
         outputAssetId: output.id, failureReason: 'audio_lost', reviewReason: null,
-      });
+      }, phase5);
       const failed = await failJob(ctx, current, apiError(ERROR_CODES.MCP_STATE_OUTPUT_NOT_VERIFIED, { reason: 'audio_lost' }));
       return { ...failed, receiptId, audioVerdict: verdict };
     }
@@ -188,7 +203,7 @@ export async function executeVideoJob(ctx: AppContext, job: ProcessingJob): Prom
         mode, presetId: job.request.presetId, inputChecksum, outputChecksum: actual,
         audioBefore: processed.audioBefore, audioAfter, verdict, outputVerified: true,
         outputAssetId: output.id, failureReason: null, reviewReason: `audio_${verdict}`,
-      });
+      }, phase5);
       current = { ...current, state: 'review_required', outputAssetId: output.id, updatedAt: now() };
       if (canTransition(job.state, 'review_required').allowed) await ctx.persistence.jobs.update(current);
       await recordAudit(ctx.persistence, {
@@ -202,7 +217,7 @@ export async function executeVideoJob(ctx: AppContext, job: ProcessingJob): Prom
       mode, presetId: job.request.presetId, inputChecksum, outputChecksum: actual,
       audioBefore: processed.audioBefore, audioAfter, verdict, outputVerified: true,
       outputAssetId: output.id, failureReason: null, reviewReason: null,
-    });
+    }, phase5);
 
     current = { ...current, state: 'completed', outputAssetId: output.id, updatedAt: now() };
     await ctx.persistence.jobs.update(current);
@@ -240,7 +255,9 @@ interface ReceiptInput {
  * Ghi bien nhan cua luot xu ly video. `providerStatus` la `unconfirmed`: ban tat dinh chay trong
  * tien trinh nay, khong goi provider ngoai nao — va `verified` phai co bang chung, khong duoc suy ra.
  */
-async function writeVideoReceipt(ctx: AppContext, job: ProcessingJob, input: ReceiptInput): Promise<string> {
+async function writeVideoReceipt(
+  ctx: AppContext, job: ProcessingJob, input: ReceiptInput, phase5: MetadataProvenanceOutcome | null,
+): Promise<string> {
   const now = ctx.now().toISOString();
   const record = async (): Promise<string> => {
     const row = await ctx.persistence.provenance.create({
@@ -284,6 +301,7 @@ async function writeVideoReceipt(ctx: AppContext, job: ProcessingJob, input: Rec
     outputVerified: input.outputVerified,
     failureReason: input.failureReason,
     reviewReason: input.reviewReason,
+    ...receiptPhase5Fields(phase5),
   });
   return receipt.id;
 }

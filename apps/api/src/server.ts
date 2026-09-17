@@ -47,6 +47,11 @@ import { createAttestation, getAttestation } from './services/attestations.js';
 import { runJob } from './services/run-job.js';
 import { cancelJob, createJob, getJob } from './services/jobs.js';
 import { createJobOutputDownloadUrl, estimateJob, getJobOutput, getJobReceipt } from './services/outputs.js';
+import { getAssetProvenance } from './services/provenance-inspector.js';
+import { getJobMetadataComparison } from './services/metadata-provenance.js';
+import {
+  addBrandKitVersion, createBrandKit, getBrandKit, listBrandKits, setBrandKitState,
+} from './services/brand-kits.js';
 import { previewJob } from './services/preview.js';
 import { createVideoProxy, createVideoProxyDownloadUrl, getVideoProxy } from './services/video-proxy.js';
 import { EXPORT_PRESETS } from '@mediaclear/contracts';
@@ -829,6 +834,56 @@ export function buildServer(options: BuildServerOptions = {}) {
       request, reply, 'job.frame_correction', actor,
       await correctJobFrame(ctx, actor, param(request, 'jobId'), Number(param(request, 'frameIndex')), body.box),
     );
+  });
+
+  /* --------------------------------------------------- P5: nguon goc & bo nhan dien */
+
+  app.get('/v1/assets/:assetId/provenance', async (request, reply) => {
+    const actor = await withActor(request, reply, 'asset.provenance', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'asset.provenance', actor,
+      await getAssetProvenance(ctx, actor, param(request, 'assetId')));
+  });
+
+  app.get('/v1/jobs/:jobId/metadata', async (request, reply) => {
+    const actor = await withActor(request, reply, 'job.metadata', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'job.metadata', actor,
+      await getJobMetadataComparison(ctx, actor, param(request, 'jobId')));
+  });
+
+  app.get('/v1/brand-kits', async (request, reply) => {
+    const actor = await withActor(request, reply, 'brand_kit.list', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'brand_kit.list', actor, await listBrandKits(ctx, actor));
+  });
+
+  app.post('/v1/brand-kits', async (request, reply) => {
+    const actor = await withActor(request, reply, 'brand_kit.create', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'brand_kit.create', actor, await createBrandKit(ctx, actor, request.body));
+  });
+
+  app.get('/v1/brand-kits/:brandKitId', async (request, reply) => {
+    const actor = await withActor(request, reply, 'brand_kit.read', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'brand_kit.read', actor,
+      await getBrandKit(ctx, actor, param(request, 'brandKitId')));
+  });
+
+  app.post('/v1/brand-kits/:brandKitId/versions', async (request, reply) => {
+    const actor = await withActor(request, reply, 'brand_kit.version', workspaceHeader(request));
+    if (!actor) return reply;
+    return respond(request, reply, 'brand_kit.version', actor,
+      await addBrandKitVersion(ctx, actor, param(request, 'brandKitId'), request.body));
+  });
+
+  app.post('/v1/brand-kits/:brandKitId/state', async (request, reply) => {
+    const actor = await withActor(request, reply, 'brand_kit.state', workspaceHeader(request));
+    if (!actor) return reply;
+    const body = (request.body ?? {}) as { state?: unknown };
+    return respond(request, reply, 'brand_kit.state', actor,
+      await setBrandKitState(ctx, actor, param(request, 'brandKitId'), body.state));
   });
 
   app.post('/v1/jobs/:jobId/estimate', async (request, reply) => {

@@ -58,6 +58,13 @@
 | GET | `/v1/jobs/:jobId/receipt` | implemented | P2-MCP-30 |
 | GET | `/v1/jobs/:jobId/frames` | implemented |
 | POST | `/v1/jobs/:jobId/frames/:frameIndex/correction` | implemented |
+| GET | `/v1/assets/:assetId/provenance` | implemented |
+| GET | `/v1/jobs/:jobId/metadata` | implemented |
+| GET | `/v1/brand-kits` | implemented |
+| POST | `/v1/brand-kits` | implemented |
+| GET | `/v1/brand-kits/:brandKitId` | implemented |
+| POST | `/v1/brand-kits/:brandKitId/versions` | implemented |
+| POST | `/v1/brand-kits/:brandKitId/state` | implemented |
 | POST | `/v1/jobs/:jobId/estimate` | implemented | P2-MCP-31 |
 | POST | `/v1/jobs/:jobId/preview` | implemented | P2-MCP-31 |
 

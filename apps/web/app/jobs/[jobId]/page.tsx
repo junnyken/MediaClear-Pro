@@ -52,6 +52,14 @@ interface AudioRow {
 
 interface JobReceipt {
   receipt: {
+    /* P5 (`D-075`). `null` = khong do duoc / khong ap dung. */
+    metadataVerdict: string | null;
+    metadataStrippedCategories: string[];
+    disclosureState: string | null;
+    disclosureLimitationKey: string | null;
+    brandKitId: string | null;
+    brandKitVersion: number | null;
+    schemaVersion: number;
     operations: string[];
     evidenceStatus: string;
     /* P3: `null` voi bien nhan ANH cua Phase 2 — "khong ap dung", khong phai "chua do duoc". */
@@ -283,6 +291,60 @@ export default function JobStatusPage() {
         * Quay lai tep goc. O tang du lieu tep goc LUON con (I-1) va chay lai = job MOI (D-005),
         * nen day khong phai "hoan tac" — no la duong mo lai ban goc chua he bi dung toi.
         */}
+      {/*
+        ---------------- `P5-MCP-51` + `P5-MCP-54` ----------------
+
+        Hai the rieng, khong gop vao bien nhan. Cong bo AI la thu nguoi dung di tim, va no co gioi
+        han rieng PHAI noi ro — gop vao mot bang chung se lam cau gioi han do bien mat.
+      */}
+      {receipt.data?.receipt.metadataVerdict ? (
+        <Card title={translate('screen.metadata.title')}>
+          <DefinitionRow label={translate('screen.metadata.verdict')}>
+            {translate(`metadata.verdict.${receipt.data.receipt.metadataVerdict}`)}
+          </DefinitionRow>
+          {receipt.data.receipt.metadataStrippedCategories.length > 0 ? (
+            <>
+              <DefinitionRow label={translate('screen.metadata.stripped')}>
+                {receipt.data.receipt.metadataStrippedCategories
+                  .map((c) => translate(`metadata.category.${c}`)).join(', ')}
+              </DefinitionRow>
+              <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('screen.metadata.stripped_note')}</p>
+            </>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {receipt.data?.receipt.disclosureState ? (
+        <Card title={translate('provenance.node.disclosure')}>
+          <DefinitionRow label={translate('screen.job_status.title')}>
+            {translate(`disclosure.state.${receipt.data.receipt.disclosureState}`)}
+          </DefinitionRow>
+          {/*
+            Cau GIOI HAN luon hien, khong an sau mot nut "xem them". Mot ket luan ve AI ma nguoi doc
+            khong thay gioi han cua no se duoc hieu la chac chan — va o day khong ket luan nao chac chan.
+          */}
+          {receipt.data.receipt.disclosureLimitationKey ? (
+            <p style={{ color: 'var(--mcp-warning)' }}>
+              {translate(receipt.data.receipt.disclosureLimitationKey)}
+            </p>
+          ) : null}
+          {receipt.data.receipt.brandKitId ? (
+            <DefinitionRow label={translate('screen.brand.title')}>
+              {`${receipt.data.receipt.brandKitId} · ${receipt.data.receipt.brandKitVersion ?? '—'}`}
+            </DefinitionRow>
+          ) : (
+            <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('screen.brand.not_applied')}</p>
+          )}
+        </Card>
+      ) : null}
+
+      {/* Duong di toi lich su cua tep — mot man hinh khong co loi vao thi voi nguoi dung no khong ton tai. */}
+      <Card title={translate('screen.provenance.history_title')}>
+        <LinkButton href={`/assets/${encodeURIComponent(view.job.assetId)}/provenance`}>
+          {translate('screen.provenance.history_title')}
+        </LinkButton>
+      </Card>
+
       <Card title={translate('screen.job_status.reset_title')}>
         <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('screen.job_status.reset_note')}</p>
         <LinkButton href={`/assets/${view.job.assetId}`}>{translate('screen.job_status.reset_cta')}</LinkButton>

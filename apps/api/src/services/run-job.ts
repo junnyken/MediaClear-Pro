@@ -33,6 +33,7 @@ import { DeterministicImageProvider } from '../providers/deterministic-image.js'
 import { newId } from '../ids.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
 import { probeProvenance } from '../media/provenance-probe.js';
+import { recordMetadataAndDisclosure, receiptPhase5Fields, type MetadataProvenanceOutcome } from './metadata-provenance.js';
 import { executeVideoJob } from './run-video-job.js';
 
 /** Toan bo anh - dung khi nguoi dung khong chon vung nao. */
@@ -176,7 +177,22 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
      * nhan phai noi ve tep NGUOI DUNG SE NHAN, khong phai tep he thong dinh ghi.
      */
     const probeAfter = await probeProvenance(readBack, job.mediaType);
-    const receiptId = await writeReceipt(ctx, current, operation, output.id, probeBefore, probeAfter);
+
+    /*
+     * `P5-MCP-51` + `P5-MCP-54`. Do metadata TUNG TRUONG tren CUNG cap byte vua dung de do dau vet
+     * nguon goc — hai ket luan trong mot bien nhan phai noi ve dung mot tep.
+     *
+     * `aiStepUsed: false` o day la ket luan DO DUOC, khong phai gia dinh: duong anh cua Phase 2
+     * chay bang bo xu ly tat dinh trong chinh tien trinh nay, khong goi provider AI nao.
+     */
+    const phase5 = await recordMetadataAndDisclosure(ctx, {
+      workspaceId, jobId: job.id, mediaType: job.mediaType,
+      beforeBytes: bytes, afterBytes: readBack,
+      inputAiPresence: probeBefore.aiProvenancePresence,
+      aiStepUsed: false,
+    });
+
+    const receiptId = await writeReceipt(ctx, current, operation, output.id, probeBefore, probeAfter, phase5);
 
     current = { ...current, state: 'completed', outputAssetId: output.id, updatedAt: now() };
     await ctx.persistence.jobs.update(current);
@@ -223,6 +239,7 @@ async function writeReceipt(
   outputAssetId: string,
   probeBefore: ProvenanceProbe,
   probeAfter: ProvenanceProbe,
+  phase5: MetadataProvenanceOutcome,
 ): Promise<string> {
   const now = ctx.now().toISOString();
   const outcome = evaluatePreservation(probeBefore, probeAfter, true);
@@ -275,6 +292,7 @@ async function writeReceipt(
     outputVerified: true,
     failureReason: null,
     reviewReason: null,
+    ...receiptPhase5Fields(phase5),
   });
   return receipt.id;
 }

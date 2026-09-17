@@ -215,6 +215,15 @@ export const API_ROUTES = [
   { method: 'GET', path: '/v1/jobs/:jobId/receipt', status: 'implemented', mcp: 'P2-MCP-30' },
   { method: 'GET', path: '/v1/jobs/:jobId/frames', status: 'implemented', mcp: 'P4-MCP-40' },
   { method: 'POST', path: '/v1/jobs/:jobId/frames/:frameIndex/correction', status: 'implemented', mcp: 'P4-MCP-42' },
+
+  /* ------------------------------------------------------------------ Phase 5 */
+  { method: 'GET', path: '/v1/assets/:assetId/provenance', status: 'implemented', mcp: 'P5-MCP-50' },
+  { method: 'GET', path: '/v1/jobs/:jobId/metadata', status: 'implemented', mcp: 'P5-MCP-51' },
+  { method: 'GET', path: '/v1/brand-kits', status: 'implemented', mcp: 'P5-MCP-53' },
+  { method: 'POST', path: '/v1/brand-kits', status: 'implemented', mcp: 'P5-MCP-53' },
+  { method: 'GET', path: '/v1/brand-kits/:brandKitId', status: 'implemented', mcp: 'P5-MCP-53' },
+  { method: 'POST', path: '/v1/brand-kits/:brandKitId/versions', status: 'implemented', mcp: 'P5-MCP-53' },
+  { method: 'POST', path: '/v1/brand-kits/:brandKitId/state', status: 'implemented', mcp: 'P5-MCP-53' },
 ] as const;
 
 export type ApiRoute = (typeof API_ROUTES)[number];

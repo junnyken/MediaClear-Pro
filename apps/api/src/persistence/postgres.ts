@@ -13,10 +13,13 @@
  * Moi duong doc deu phai di qua `iso()` - quen mot cho la ban ghi doc ra khac ban ghi ghi vao.
  */
 import { ERROR_CODES } from '@mediaclear/contracts';
-import type { QualityGateVerdict } from '@mediaclear/contracts';
+import type { BrandKitState, QualityGateVerdict } from '@mediaclear/contracts';
 import type { Pool, PoolClient } from 'pg';
 import type { PersistencePort } from './port.js';
 import type {
+  BrandKitRecord,
+  BrandKitVersionRecord,
+  JobMetadataSnapshotRecord,
   JobFrameCorrectionNeighbour,
   JobFrameCorrectionRecord,
   JobFrameRecord,
@@ -521,6 +524,12 @@ export class PostgresPersistence implements PersistencePort {
       );
       return rows[0] ? toJob(rows[0]) : null;
     },
+    listByAsset: async (workspaceId: string, assetId: string): Promise<ProcessingJob[]> => {
+      const rows = await this.q<JobRow>(
+        'SELECT * FROM processing_jobs WHERE workspace_id = $1 AND asset_id = $2 ORDER BY created_at DESC',
+        [workspaceId, assetId]);
+      return rows.map(toJob);
+    },
     update: async (job: ProcessingJob): Promise<ProcessingJob> => {
       // Danh sach tham so RIENG cho UPDATE: truyen thua tham so khong dung o dau thi
       // PostgreSQL khong suy duoc kieu va bao "could not determine data type".
@@ -793,9 +802,13 @@ export class PostgresPersistence implements PersistencePort {
               invisible_watermark_disclaimer_key, evidence_status, created_at,
               operation_mode, preset_id, input_checksum, output_checksum,
               audio_before, audio_after, audio_verdict, output_verified,
-              failure_reason, review_reason)
+              failure_reason, review_reason,
+              metadata_verdict, metadata_evidence, metadata_stripped_categories,
+              disclosure_state, disclosure_limitation_key,
+              brand_kit_id, brand_kit_version, schema_version)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-                   $13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22)`,
+                   $13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22,
+                   $23,$24,$25,$26,$27,$28,$29,$30)`,
           [
             receipt.id, receipt.workspaceId, receipt.jobId, receipt.sourceAssetId, receipt.outputAssetId,
             JSON.stringify(receipt.operations), JSON.stringify(receipt.providerRunIds),
@@ -806,6 +819,9 @@ export class PostgresPersistence implements PersistencePort {
             receipt.audioAfter === null ? null : JSON.stringify(receipt.audioAfter),
             receipt.audioVerdict, receipt.outputVerified,
             receipt.failureReason, receipt.reviewReason,
+            receipt.metadataVerdict, receipt.metadataEvidence, receipt.metadataStrippedCategories,
+            receipt.disclosureState, receipt.disclosureLimitationKey,
+            receipt.brandKitId, receipt.brandKitVersion, receipt.schemaVersion
           ],
         );
       } catch (error) {
@@ -1020,6 +1036,118 @@ export class PostgresPersistence implements PersistencePort {
     },
   };
 
+  /** `P5-MCP-51`. Chi sha index `(job_id, phase)` la thu ep tinh APPEND-ONLY o tang du lieu. */
+  readonly metadataSnapshots = {
+    save: async (r: JobMetadataSnapshotRecord): Promise<JobMetadataSnapshotRecord> => {
+      /*
+       * KHONG `ON CONFLICT DO UPDATE`. Ghi de mot anh chup `before` da co nghia la xoa mat ban goc
+       * — thu duy nhat cho phep doi chieu. Trung khoa thi de rang buoc UNIQUE nem loi.
+       */
+      await this.q(
+        `INSERT INTO job_metadata_snapshots
+           (id, job_id, workspace_id, phase, readable, fields, detector_id, recorded_at)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)`,
+        [r.id, r.jobId, r.workspaceId, r.phase, r.readable, JSON.stringify(r.fields), r.detectorId, r.recordedAt],
+      );
+      return r;
+    },
+    findByJob: async (workspaceId: string, jobId: string): Promise<JobMetadataSnapshotRecord[]> => {
+      const rows = await this.q<Record<string, unknown>>(
+        'SELECT * FROM job_metadata_snapshots WHERE workspace_id = $1 AND job_id = $2 ORDER BY phase ASC',
+        [workspaceId, jobId]);
+      return rows.map((row) => ({
+        id: row.id as string,
+        jobId: row.job_id as string,
+        workspaceId: row.workspace_id as string,
+        phase: row.phase as 'before' | 'after',
+        readable: row.readable as boolean,
+        fields: (row.fields as JobMetadataSnapshotRecord['fields']) ?? [],
+        detectorId: row.detector_id as string,
+        recordedAt: isoRequired(row.recorded_at as Date | string),
+      }));
+    },
+  };
+
+  /** `P5-MCP-53`. Khong mot cau lenh nao o day la `DELETE` — bo khong dung nua thi `archive`. */
+  readonly brandKits = {
+    create: async (kit: BrandKitRecord, first: BrandKitVersionRecord): Promise<BrandKitRecord> => {
+      const client: PoolClient = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `INSERT INTO brand_kits (id, workspace_id, state, current_version, created_at, updated_at, created_by_user_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [kit.id, kit.workspaceId, kit.state, kit.currentVersion, kit.createdAt, kit.updatedAt, kit.createdByUserId]);
+        await client.query(BRAND_VERSION_INSERT_SQL, brandVersionParams(first));
+        await client.query('COMMIT');
+      } catch (error) {
+        try { await client.query('ROLLBACK'); } catch { /* loi goc moi can nem len */ }
+        throw error;
+      } finally {
+        client.release();
+      }
+      return kit;
+    },
+    addVersion: async (
+      workspaceId: string, brandKitId: string, version: BrandKitVersionRecord,
+    ): Promise<BrandKitRecord> => {
+      const client: PoolClient = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        // Khoa dong lai: hai lan sua dong thoi khong duoc cung sinh ra mot so phien ban.
+        const cur = await client.query<Record<string, unknown>>(
+          'SELECT * FROM brand_kits WHERE id = $1 AND workspace_id = $2 FOR UPDATE', [brandKitId, workspaceId]);
+        if (!cur.rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+        await client.query(BRAND_VERSION_INSERT_SQL, brandVersionParams(version));
+        const updated = await client.query<Record<string, unknown>>(
+          `UPDATE brand_kits SET current_version = $3, updated_at = $4
+            WHERE id = $1 AND workspace_id = $2 RETURNING *`,
+          [brandKitId, workspaceId, version.version, version.createdAt]);
+        await client.query('COMMIT');
+        return toBrandKit(updated.rows[0]!);
+      } catch (error) {
+        try { await client.query('ROLLBACK'); } catch { /* loi goc moi can nem len */ }
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    setState: async (
+      workspaceId: string, brandKitId: string, state: BrandKitState, at: string,
+    ): Promise<BrandKitRecord> => {
+      const rows = await this.q<Record<string, unknown>>(
+        `UPDATE brand_kits SET state = $3, updated_at = $4
+          WHERE id = $1 AND workspace_id = $2 RETURNING *`,
+        [brandKitId, workspaceId, state, at]);
+      if (!rows[0]) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      return toBrandKit(rows[0]);
+    },
+    findById: async (workspaceId: string, brandKitId: string): Promise<BrandKitRecord | null> => {
+      const rows = await this.q<Record<string, unknown>>(
+        'SELECT * FROM brand_kits WHERE id = $1 AND workspace_id = $2', [brandKitId, workspaceId]);
+      return rows[0] ? toBrandKit(rows[0]) : null;
+    },
+    listByWorkspace: async (workspaceId: string): Promise<BrandKitRecord[]> => {
+      const rows = await this.q<Record<string, unknown>>(
+        'SELECT * FROM brand_kits WHERE workspace_id = $1 ORDER BY created_at DESC', [workspaceId]);
+      return rows.map(toBrandKit);
+    },
+    listVersions: async (workspaceId: string, brandKitId: string): Promise<BrandKitVersionRecord[]> => {
+      const rows = await this.q<Record<string, unknown>>(
+        `SELECT * FROM brand_kit_versions WHERE workspace_id = $1 AND brand_kit_id = $2 ORDER BY version ASC`,
+        [workspaceId, brandKitId]);
+      return rows.map(toBrandVersion);
+    },
+    findVersion: async (
+      workspaceId: string, brandKitId: string, version: number,
+    ): Promise<BrandKitVersionRecord | null> => {
+      const rows = await this.q<Record<string, unknown>>(
+        `SELECT * FROM brand_kit_versions WHERE workspace_id = $1 AND brand_kit_id = $2 AND version = $3`,
+        [workspaceId, brandKitId, version]);
+      return rows[0] ? toBrandVersion(rows[0]) : null;
+    },
+  };
+
   readonly audit = {
     append: async (event: AuditEvent): Promise<AuditEvent> => {
       await this.q(
@@ -1086,6 +1214,12 @@ type ReceiptRow = {
   input_checksum: string | null; output_checksum: string | null;
   audio_before: unknown; audio_after: unknown; audio_verdict: string | null;
   output_verified: boolean; failure_reason: string | null; review_reason: string | null;
+  // P5 (`D-075`). `null` = khong do duoc / khong ap dung, khong phai gia tri mac dinh.
+  metadata_verdict: string | null; metadata_evidence: string | null;
+  metadata_stripped_categories: string[] | null;
+  disclosure_state: string | null; disclosure_limitation_key: string | null;
+  brand_kit_id: string | null; brand_kit_version: number | null;
+  schema_version: number | null;
 };
 
 type SessionRow = {
@@ -1231,6 +1365,16 @@ function toReceipt(r: ReceiptRow): ProcessingReceipt {
     outputVerified: r.output_verified,
     failureReason: r.failure_reason,
     reviewReason: r.review_reason,
+    metadataVerdict: (r.metadata_verdict ?? null) as ProcessingReceipt['metadataVerdict'],
+    metadataEvidence: (r.metadata_evidence ?? null) as ProcessingReceipt['metadataEvidence'],
+    metadataStrippedCategories: (r.metadata_stripped_categories ?? []) as ProcessingReceipt['metadataStrippedCategories'],
+    disclosureState: (r.disclosure_state ?? null) as ProcessingReceipt['disclosureState'],
+    disclosureLimitationKey: r.disclosure_limitation_key ?? null,
+    brandKitId: r.brand_kit_id ?? null,
+    brandKitVersion: r.brand_kit_version === null || r.brand_kit_version === undefined
+      ? null : Number(r.brand_kit_version),
+    // Dong ghi truoc Phase 5 khong co cot nay o gia tri nao khac `1` — va do la su that ve chung.
+    schemaVersion: Number(r.schema_version ?? 1),
   };
 }
 
@@ -1398,6 +1542,46 @@ function correctionInsertParams(r: JobFrameCorrectionRecord): unknown[] {
     r.flickerBefore, r.flickerAfter, r.gateVerdictBefore, r.gateVerdictAfter,
     r.correctedAt, r.actorUserId,
   ];
+}
+
+const BRAND_VERSION_INSERT_SQL = `INSERT INTO brand_kit_versions
+   (brand_kit_id, workspace_id, version, name, colors, logo_asset_id,
+    overlay_position, overlay_opacity, overlay_include_disclosure, created_at, created_by_user_id)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`;
+
+function brandVersionParams(v: BrandKitVersionRecord): unknown[] {
+  return [
+    v.brandKitId, v.workspaceId, v.version, v.name, v.colors, v.logoAssetId,
+    v.overlayPosition, v.overlayOpacity, v.overlayIncludeDisclosure, v.createdAt, v.createdByUserId,
+  ];
+}
+
+function toBrandKit(row: Record<string, unknown>): BrandKitRecord {
+  return {
+    id: row.id as string,
+    workspaceId: row.workspace_id as string,
+    state: row.state as BrandKitState,
+    currentVersion: Number(row.current_version),
+    createdAt: isoRequired(row.created_at as Date | string),
+    updatedAt: isoRequired(row.updated_at as Date | string),
+    createdByUserId: (row.created_by_user_id as string | null) ?? null,
+  };
+}
+
+function toBrandVersion(row: Record<string, unknown>): BrandKitVersionRecord {
+  return {
+    brandKitId: row.brand_kit_id as string,
+    workspaceId: row.workspace_id as string,
+    version: Number(row.version),
+    name: row.name as string,
+    colors: (row.colors as string[]) ?? [],
+    logoAssetId: (row.logo_asset_id as string | null) ?? null,
+    overlayPosition: row.overlay_position as BrandKitVersionRecord['overlayPosition'],
+    overlayOpacity: Number(row.overlay_opacity),
+    overlayIncludeDisclosure: row.overlay_include_disclosure as boolean,
+    createdAt: isoRequired(row.created_at as Date | string),
+    createdByUserId: (row.created_by_user_id as string | null) ?? null,
+  };
 }
 
 function toFrameRecord(row: Record<string, unknown>): JobFrameRecord {

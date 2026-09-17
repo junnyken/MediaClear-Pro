@@ -20,6 +20,11 @@
 import { arrayOf, boolean, enumOf, nullable, number, object, optional, string } from './schema.js';
 import { JOB_STATE_SCHEMA } from './phase3.js';
 import { FRAME_STATES, MASK_SOURCES, QUALITY_GATE_REASONS, QUALITY_GATE_VERDICTS } from './phase4.js';
+import {
+  BRAND_KIT_STATES, DISCLOSURE_STATES, METADATA_CATEGORIES, METADATA_FIELD_STATUSES,
+  METADATA_VERDICTS, OVERLAY_POSITIONS, PROVENANCE_NODE_KINDS,
+} from './phase5.js';
+import { EVIDENCE_STATUSES } from './vocabulary.js';
 import type { Infer } from './schema.js';
 
 /* ------------------------------------------------------------- chung --- */
@@ -259,6 +264,15 @@ export const JOB_RECEIPT_SCHEMA = object({
     audioVerdict: nullable(string()),
     outputVerified: boolean(),
     reviewReason: nullable(string()),
+    /* P5 (`D-075`). `null` = khong do duoc / khong ap dung — khong phai gia tri mac dinh. */
+    metadataVerdict: nullable(enumOf(METADATA_VERDICTS)),
+    metadataStrippedCategories: arrayOf(enumOf(METADATA_CATEGORIES)),
+    disclosureState: nullable(enumOf(DISCLOSURE_STATES)),
+    /** LUON di kem khi co `disclosureState`: khong ket luan nao o day la tuyet doi. */
+    disclosureLimitationKey: nullable(string()),
+    brandKitId: nullable(string()),
+    brandKitVersion: nullable(number()),
+    schemaVersion: number(),
   }),
   provenanceBefore: PROVENANCE_ROW_SCHEMA,
   provenanceAfter: nullable(PROVENANCE_ROW_SCHEMA),
@@ -354,3 +368,89 @@ export const FRAME_TRACKING_VIEW_SCHEMA = object({
 });
 
 export type FrameTrackingView = Infer<typeof FRAME_TRACKING_VIEW_SCHEMA>;
+
+/* ------------------------------------------------------------------- Phase 5 (D-075) */
+
+export const METADATA_FIELD_COMPARISON_SCHEMA = object({
+  key: string(),
+  category: enumOf(METADATA_CATEGORIES),
+  before: nullable(string()),
+  after: nullable(string()),
+  status: enumOf(METADATA_FIELD_STATUSES),
+});
+
+/**
+ * Ket qua doi chieu metadata cua MOT luot xu ly.
+ *
+ * `verdict` KHONG duoc suy o giao dien — no den tu `compareMetadata` cua contract. Hai ben tu tinh
+ * lay se lech nhau dung o cho nguy hiem nhat (`D-047`).
+ */
+export const METADATA_COMPARISON_SCHEMA = object({
+  verdict: enumOf(METADATA_VERDICTS),
+  fields: arrayOf(METADATA_FIELD_COMPARISON_SCHEMA),
+  strippedCategories: arrayOf(enumOf(METADATA_CATEGORIES)),
+  evidenceStatus: enumOf(EVIDENCE_STATUSES),
+  /** `false` = mot trong hai anh chup khong doc duoc. Khac han "khong co truong nao". */
+  bothReadable: boolean(),
+});
+
+export const DISCLOSURE_SCHEMA = object({
+  state: nullable(enumOf(DISCLOSURE_STATES)),
+  /** LUON co khi co `state`: khong ket luan nao o day la tuyet doi. */
+  limitationKey: nullable(string()),
+  evidenceStatus: enumOf(EVIDENCE_STATUSES),
+});
+
+export const PROVENANCE_NODE_SCHEMA = object({
+  kind: enumOf(PROVENANCE_NODE_KINDS),
+  id: string(),
+  occurredAt: string(),
+  parentId: nullable(string()),
+  labelKey: string(),
+  detail: arrayOf(object({ key: string(), value: nullable(string()), valueKey: nullable(string()) })),
+  evidenceStatus: enumOf(EVIDENCE_STATUSES),
+});
+
+/**
+ * Dong thoi gian nguon goc.
+ *
+ * `orphanIds` co mat trong hop dong CO CHU DINH: muc mo coi phai di qua duoc bien gioi API de giao
+ * dien hien ra. Loc chung o may chu se lam dong thoi gian trong nhu da day du — dung kieu noi doi
+ * ma `MCP-50` ton tai de chan.
+ */
+export const PROVENANCE_TIMELINE_SCHEMA = object({
+  assetId: string(),
+  nodes: arrayOf(PROVENANCE_NODE_SCHEMA),
+  orphanIds: arrayOf(string()),
+  limitationKeys: arrayOf(string()),
+});
+
+export const BRAND_KIT_VERSION_SCHEMA = object({
+  version: number(),
+  name: string(),
+  colors: arrayOf(string()),
+  logoAssetId: nullable(string()),
+  overlayDefaults: object({
+    position: enumOf(OVERLAY_POSITIONS),
+    opacity: number(),
+    includeDisclosure: boolean(),
+  }),
+  createdAt: string(),
+  createdByUserId: nullable(string()),
+});
+
+export const BRAND_KIT_SCHEMA = object({
+  id: string(),
+  state: enumOf(BRAND_KIT_STATES),
+  currentVersion: number(),
+  createdAt: string(),
+  updatedAt: string(),
+  /** Lich su phien ban. BAT BIEN — khong duong nao sua mot phien ban da ghi. */
+  versions: arrayOf(BRAND_KIT_VERSION_SCHEMA),
+});
+
+export const BRAND_KIT_LIST_SCHEMA = object({ items: arrayOf(BRAND_KIT_SCHEMA) });
+
+export type ProvenanceTimelineView = Infer<typeof PROVENANCE_TIMELINE_SCHEMA>;
+export type BrandKitView = Infer<typeof BRAND_KIT_SCHEMA>;
+export type MetadataComparisonView = Infer<typeof METADATA_COMPARISON_SCHEMA>;

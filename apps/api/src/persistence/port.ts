@@ -5,7 +5,11 @@
  * Khong ton tai `findById(id)` tran => khong the vo tinh doc cheo tenant.
  * Media binary KHONG bao gio di qua day (guardrail 10 Phase 1).
  */
+import type { BrandKitState } from '@mediaclear/contracts';
 import type {
+  BrandKitRecord,
+  BrandKitVersionRecord,
+  JobMetadataSnapshotRecord,
   JobFrameCorrectionRecord,
   JobFrameRecord,
   JobFrameTimelineRecord,
@@ -115,6 +119,13 @@ export interface PersistencePort {
     create(job: ProcessingJob): Promise<ProcessingJob>;
     findById(workspaceId: string, id: string): Promise<ProcessingJob | null>;
     findByIdempotencyKey(workspaceId: string, key: string): Promise<ProcessingJob | null>;
+    /**
+     * `P5-MCP-50`: moi job da chay tren MOT asset, moi nhat truoc.
+     *
+     * Can mot duong doc rieng vi dong thoi gian nguon goc di TU asset xuong, chu khong tu job len.
+     * Doc het job cua workspace roi loc trong bo nho se hong ngay khi mot workspace co nhieu viec.
+     */
+    listByAsset(workspaceId: string, assetId: string): Promise<ProcessingJob[]>;
     update(job: ProcessingJob): Promise<ProcessingJob>;
     /**
      * P2-MCP-28 (owner decision Q-02): NHAN mot job dang `queued` va chuyen sang `processing`
@@ -239,6 +250,34 @@ export interface PersistencePort {
       frames: readonly JobFrameRecord[];
     }): Promise<void>;
     listCorrections(workspaceId: string, jobId: string): Promise<JobFrameCorrectionRecord[]>;
+  };
+
+  /**
+   * `P5-MCP-51` — anh chup metadata. APPEND-ONLY: khong co duong sua hay xoa.
+   *
+   * `save` ghi mot lan cho moi `(jobId, phase)`. Ghi de mot anh chup `before` da co nghia la xoa
+   * mat ban goc — nen tang du lieu TU CHOI, khong am tham cho qua.
+   */
+  metadataSnapshots: {
+    save(record: JobMetadataSnapshotRecord): Promise<JobMetadataSnapshotRecord>;
+    findByJob(workspaceId: string, jobId: string): Promise<JobMetadataSnapshotRecord[]>;
+  };
+
+  /**
+   * `P5-MCP-53` — bo nhan dien thuong hieu.
+   *
+   * KHONG co `delete`. Bo khong dung nua thi `archive` — ban ghi o lai lam bia mo, va bien nhan cu
+   * van tro toi duoc phien ban da ap dung.
+   */
+  brandKits: {
+    create(kit: BrandKitRecord, first: BrandKitVersionRecord): Promise<BrandKitRecord>;
+    /** Sua = ghi them mot PHIEN BAN moi. Dong phien ban cu khong bao gio bi dung toi. */
+    addVersion(workspaceId: string, brandKitId: string, version: BrandKitVersionRecord): Promise<BrandKitRecord>;
+    setState(workspaceId: string, brandKitId: string, state: BrandKitState, at: string): Promise<BrandKitRecord>;
+    findById(workspaceId: string, brandKitId: string): Promise<BrandKitRecord | null>;
+    listByWorkspace(workspaceId: string): Promise<BrandKitRecord[]>;
+    listVersions(workspaceId: string, brandKitId: string): Promise<BrandKitVersionRecord[]>;
+    findVersion(workspaceId: string, brandKitId: string, version: number): Promise<BrandKitVersionRecord | null>;
   };
 
   audit: {

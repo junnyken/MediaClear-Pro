@@ -36,6 +36,7 @@ const NAV = [
   { href: '/new-cleanup', key: 'nav.new_cleanup' },
   { href: '/projects', key: 'nav.projects' },
   { href: '/usage', key: 'nav.usage' },
+  { href: '/brand-kits', key: 'nav.brand_kits' },
   { href: '/activity', key: 'nav.activity' },
 ] as const;
 

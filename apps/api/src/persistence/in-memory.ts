@@ -6,8 +6,12 @@
  * db/migrations/0001_phase1_init.sql (da chay thu tren database sach).
  */
 import { ERROR_CODES, RELEASE_REASONS } from '@mediaclear/contracts';
+import type { BrandKitState } from '@mediaclear/contracts';
 import type { PersistencePort } from './port.js';
 import type {
+  BrandKitRecord,
+  BrandKitVersionRecord,
+  JobMetadataSnapshotRecord,
   JobFrameCorrectionRecord,
   JobFrameRecord,
   JobFrameTimelineRecord,
@@ -140,6 +144,9 @@ export class InMemoryPersistence implements PersistencePort {
   private readonly frameTimelineRows = new Map<string, JobFrameTimelineRecord>();
   private frameRows: JobFrameRecord[] = [];
   private readonly frameCorrectionRows: JobFrameCorrectionRecord[] = [];
+  private readonly metadataSnapshotRows: JobMetadataSnapshotRecord[] = [];
+  private readonly brandKitRows: BrandKitRecord[] = [];
+  private readonly brandKitVersionRows: BrandKitVersionRecord[] = [];
   private readonly validationRows: ValidationRecord[] = [];
   private readonly attestationRows: RightsAttestation[] = [];
   private readonly jobRows: ProcessingJob[] = [];
@@ -325,6 +332,11 @@ export class InMemoryPersistence implements PersistencePort {
       this.jobRows[index] = job;
       return job;
     },
+    listByAsset: async (workspaceId: string, assetId: string): Promise<ProcessingJob[]> =>
+      this.jobRows
+        .filter((j) => j.workspaceId === workspaceId && j.assetId === assetId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((j) => ({ ...j })),
     claimQueued: async (now: string): Promise<ProcessingJob | null> => {
       // Khong co `await` giua luc tim va luc doi trang thai => khong co cho nao de hai lenh
       // xen vao nhau. Trong mot tien trinh Node, day la nguyen tu that su.
@@ -529,6 +541,70 @@ export class InMemoryPersistence implements PersistencePort {
       // Chi khi moi dong deu ghi duoc moi doi ban that — va audit la buoc cuoi cung khong the hong.
       this.frameCorrectionRows.push({ ...input.audit });
       this.frameRows = draft;
+    },
+  };
+
+  /** `P5-MCP-51`. APPEND-ONLY: ghi de mot anh chup da co bi TU CHOI, khong am tham cho qua. */
+  readonly metadataSnapshots = {
+    save: async (record: JobMetadataSnapshotRecord): Promise<JobMetadataSnapshotRecord> => {
+      const trung = this.metadataSnapshotRows.some(
+        (r) => r.jobId === record.jobId && r.phase === record.phase,
+      );
+      if (trung) throw new Error(ERROR_CODES.MCP_STATE_INVALID_TRANSITION);
+      this.metadataSnapshotRows.push({ ...record });
+      return record;
+    },
+    findByJob: async (workspaceId: string, jobId: string): Promise<JobMetadataSnapshotRecord[]> =>
+      this.metadataSnapshotRows
+        .filter((r) => r.jobId === jobId && r.workspaceId === workspaceId)
+        .map((r) => ({ ...r })),
+  };
+
+  /** `P5-MCP-53`. Khong co duong xoa — chi `archive`. */
+  readonly brandKits = {
+    create: async (kit: BrandKitRecord, first: BrandKitVersionRecord): Promise<BrandKitRecord> => {
+      this.brandKitRows.push({ ...kit });
+      this.brandKitVersionRows.push({ ...first });
+      return kit;
+    },
+    addVersion: async (
+      workspaceId: string, brandKitId: string, version: BrandKitVersionRecord,
+    ): Promise<BrandKitRecord> => {
+      const i = this.brandKitRows.findIndex((r) => r.id === brandKitId && r.workspaceId === workspaceId);
+      if (i < 0) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      // Dong phien ban CU khong bao gio bi dung toi — chi noi them.
+      this.brandKitVersionRows.push({ ...version });
+      const next = { ...this.brandKitRows[i]!, currentVersion: version.version, updatedAt: version.createdAt };
+      this.brandKitRows[i] = next;
+      return next;
+    },
+    setState: async (
+      workspaceId: string, brandKitId: string, state: BrandKitState, at: string,
+    ): Promise<BrandKitRecord> => {
+      const i = this.brandKitRows.findIndex((r) => r.id === brandKitId && r.workspaceId === workspaceId);
+      if (i < 0) throw new Error(ERROR_CODES.MCP_RESOURCE_NOT_FOUND);
+      const next = { ...this.brandKitRows[i]!, state, updatedAt: at };
+      this.brandKitRows[i] = next;
+      return next;
+    },
+    findById: async (workspaceId: string, brandKitId: string): Promise<BrandKitRecord | null> => {
+      const row = this.brandKitRows.find((r) => r.id === brandKitId && r.workspaceId === workspaceId);
+      return row ? { ...row } : null;
+    },
+    listByWorkspace: async (workspaceId: string): Promise<BrandKitRecord[]> =>
+      this.brandKitRows.filter((r) => r.workspaceId === workspaceId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((r) => ({ ...r })),
+    listVersions: async (workspaceId: string, brandKitId: string): Promise<BrandKitVersionRecord[]> =>
+      this.brandKitVersionRows
+        .filter((r) => r.brandKitId === brandKitId && r.workspaceId === workspaceId)
+        .sort((a, b) => a.version - b.version).map((r) => ({ ...r })),
+    findVersion: async (
+      workspaceId: string, brandKitId: string, version: number,
+    ): Promise<BrandKitVersionRecord | null> => {
+      const row = this.brandKitVersionRows.find(
+        (r) => r.brandKitId === brandKitId && r.workspaceId === workspaceId && r.version === version,
+      );
+      return row ? { ...row } : null;
     },
   };
 

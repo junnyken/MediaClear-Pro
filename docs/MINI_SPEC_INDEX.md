@@ -69,6 +69,11 @@ nhau (Object Storage Abstraction và Authentication & Workspace Boundary), còn 
 | `P4-MCP-42` | — | Phase 4 | Keyframe Correction | `docs/mini-specs/phase-4/P4-MCP-42.md` | completed |
 | `P4-MCP-43` | — | Phase 4 | Temporal Consistency Check | `docs/mini-specs/phase-4/P4-MCP-43.md` | completed |
 | `P4-MCP-44` | — | Phase 4 | Quality Review Gate | `docs/mini-specs/phase-4/P4-MCP-44.md` | completed |
+| `P5-MCP-50` | — | Phase 5 | Provenance Inspector | `docs/mini-specs/phase-5/P5-MCP-50.md` | completed |
+| `P5-MCP-51` | — | Phase 5 | Preserve Metadata Pipeline | `docs/mini-specs/phase-5/P5-MCP-51.md` | completed |
+| `P5-MCP-52` | — | Phase 5 | Processing Receipt | `docs/mini-specs/phase-5/P5-MCP-52.md` | completed |
+| `P5-MCP-53` | — | Phase 5 | Brand Kit | `docs/mini-specs/phase-5/P5-MCP-53.md` | completed |
+| `P5-MCP-54` | — | Phase 5 | AI Disclosure Overlay | `docs/mini-specs/phase-5/P5-MCP-54.md` | completed |
 
 ## Điểm mơ hồ duy nhất còn lại
 
@@ -79,7 +84,7 @@ theo thư mục chứa nó. Từ Phase 1.1 trở đi, mọi tham chiếu mới p
 ## ID đã dùng — không được tái sử dụng
 
 `MCP-00` … `MCP-15` (cả hai phase), `P0-MCP-00` … `P0-MCP-10`, `P1-MCP-10` … `P1-MCP-15`,
-`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`, `P2-MCP-23`, `P2-MCP-24`, `P2-MCP-25`, `P2-MCP-26`, `P2-MCP-27`, `P2-MCP-28`, `P2-MCP-29`, `P2-MCP-30`, `P2-MCP-31`, `P2-MCP-32`, `P2-MCP-33`, `P2-MCP-34`, `P2-MCP-35`, `P3-MCP-30` … `P3-MCP-34`, `P4-MCP-40` … `P4-MCP-44`.
+`P1.1-MCP-16` … `P1.1-MCP-19`, `P1.1-Q20-MCP-20`, `P1.1-Q22-MCP-22`, `P1.1-Q21-MCP-21`, `P2-MCP-23`, `P2-MCP-24`, `P2-MCP-25`, `P2-MCP-26`, `P2-MCP-27`, `P2-MCP-28`, `P2-MCP-29`, `P2-MCP-30`, `P2-MCP-31`, `P2-MCP-32`, `P2-MCP-33`, `P2-MCP-34`, `P2-MCP-35`, `P3-MCP-30` … `P3-MCP-34`, `P4-MCP-40` … `P4-MCP-44`, `P5-MCP-50` … `P5-MCP-54`.
 
 > Lưu ý: số `20` đã dùng bởi `P1.1-Q20-MCP-20`, số `21` bởi `P1.1-Q21-MCP-21`, số `22` bởi
 > `P1.1-Q22-MCP-22`. Để tránh mọi khả năng hiểu nhầm, **Phase 2 bắt đầu từ `P2-MCP-23`** (đã dùng; tiếp theo là `P2-MCP-36`).

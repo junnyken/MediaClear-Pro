@@ -126,3 +126,22 @@ nâng cao ngoài 4 role · Gỡ dấu vết nguồn gốc · Tự động thu th
 > Về các dấu ẩn không nhìn thấy được trong tệp (gồm SynthID): hệ thống **không** phát hiện,
 > **không** gỡ và **không** cam kết kiểm soát chúng. Đây là giới hạn được nêu rõ với người dùng ngay
 > trong hộp thoại xác nhận quyền.
+
+---
+
+## Phase 5 — Nguồn gốc & Bộ nhận diện (`D-075`)
+
+| Tính năng | Trạng thái | Sự thật cần nói rõ |
+|---|---|---|
+| **Lịch sử của tệp** (`P5-MCP-50`) | `verified` | Dựng từ các nguồn đã có, **không** có bảng sự kiện riêng. Mục thiếu liên kết **hiện ra**, không bị giấu |
+| **Thông tin kèm theo tệp** (`P5-MCP-51`) | `verified` | Đo **từng trường** trước/sau. Ảnh chỉ đọc được **5 thẻ EXIF** — thẻ ngoài danh sách **không** được báo là "không có" (`Q-P5-04`) |
+| **Biên nhận xử lý** (`P5-MCP-52`) | `verified` | APPEND-ONLY. `null` nghĩa là **không đo được / không áp dụng**, không phải giá trị mặc định |
+| **Bộ nhận diện** (`P5-MCP-53`) | `partially_verified` | Sửa = **phiên bản mới**, không ghi đè. Không có đường xoá — chỉ lưu trữ. **Chưa có** tải logo (`Q-P5-03`) |
+| **Công bố về việc dùng AI** (`P5-MCP-54`) | `partially_verified` | Không có dấu hiệu **không** có nghĩa là chắc chắn không dùng AI. Hệ thống **không** xác minh chữ ký. **Chưa vẽ** lớp phủ vào bản xuất (`Q-P5-03`) |
+
+> **Thông tin gốc của bạn được giữ nguyên.** Hệ thống **không gỡ** vị trí chụp hay thiết bị chụp
+> khỏi bản xuất — đó là cam kết có từ đầu (guardrail 6/7). Nếu bạn cần bản xuất **không** mang những
+> thông tin đó, đây là điều đang chờ quyết định: `Q-P5-02`.
+
+> **Lớp phủ thương hiệu là tuỳ bạn chọn.** Bản xuất chỉ mang lớp phủ khi bạn bật. Hệ thống không tự
+> thêm, và biên nhận ghi rõ bộ nhận diện nào cùng **phiên bản** nào đã được áp dụng.

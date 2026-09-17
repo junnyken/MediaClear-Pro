@@ -1,14 +1,18 @@
-# PHASE 5 — Ranh giới phạm vi (CHƯA BẮT ĐẦU)
+# PHASE 5 — Ranh giới phạm vi
 
-- **Ngày**: 2026-09-17 · **Quyết định liên quan**: `D-073`
-- **Trạng thái**: `NOT_STARTED` — tài liệu này **chỉ vạch ranh giới**, không có một dòng mã nào
+- **Ngày**: 2026-09-17, cập nhật 2026-09-18 · **Quyết định**: `D-073`, `D-075`
+- **Trạng thái**: `STARTED` (2026-09-18, `D-075`) — xem `PHASE_5_CLOSURE.md`
 
 ```
-Phase 5 code written:   NONE
-Phase 5 migrations:     NONE
-Phase 5 routes:         NONE
-Phase 5 ID reserved:    P5-MCP-50 … P5-MCP-54  (chưa dùng)
+Phase 5 code written:   YES   (D-075)
+Phase 5 migrations:     0012_phase5_provenance_brand
+Phase 5 routes:         7  (/v1/assets/:assetId/provenance, /v1/jobs/:jobId/metadata, /v1/brand-kits*)
+Phase 5 ID:             P5-MCP-50 … P5-MCP-54  (Q-P5-01: owner chua xac nhan quy uoc)
 ```
+
+> Tài liệu này **giữ nguyên** làm ranh giới gốc. Phần dưới là những gì đã vạch ra **trước khi** viết
+> dòng mã đầu tiên — đọc nó cạnh `PHASE_5_CLOSURE.md` để thấy cái gì đã làm đúng như dự kiến và cái
+> gì không.
 
 > Tài liệu này tồn tại để trả lời **"cái gì KHÔNG thuộc Phase 4"**, chứ không phải để bắt đầu Phase 5.
 > Đọc nó như một danh sách việc **chưa làm**, không phải một kế hoạch đã duyệt.
