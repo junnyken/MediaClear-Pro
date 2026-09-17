@@ -357,5 +357,16 @@
   "audit_event.usage_reserved": "Giữ trước mức dùng",
   "audit_event.usage_released": "Hoàn lại mức dùng",
   "audit_event.usage_reservation_expired": "Khoản giữ mức dùng hết hạn",
-  "audit_event.permission_denied": "Từ chối vì không đủ quyền"
+  "audit_event.permission_denied": "Từ chối vì không đủ quyền",
+  "field.max_file_size": "Dung lượng tối đa",
+  "field.video_limits": "Giới hạn video",
+  "field.accepted_types": "Định dạng nhận được",
+  "field.frame_size": "Kích thước khung hình",
+  "field.duration": "Thời lượng",
+  "field.file_size": "Dung lượng",
+  "field.file_format": "Định dạng",
+  "field.file_fingerprint": "Mã kiểm tra tệp",
+  "field.file_name": "Tên tệp",
+  "screen.asset_upload.no_file_chosen": "Chưa chọn tệp nào",
+  "screen.asset_upload.pick_button": "Chọn tệp…"
 }

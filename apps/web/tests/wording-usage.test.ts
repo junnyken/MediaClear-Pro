@@ -43,4 +43,27 @@ describe('UI dung bo khoa dang hieu luc', () => {
     const offenders = SOURCES.filter((s) => /MediaClear Pro (chỉ|không)/.test(s.text)).map((s) => s.file);
     expect(offenders, 'cau chinh sach phai di qua translation key').toEqual([]);
   });
+
+  /*
+   * Chu VIET THANG vao JSX di vong qua MOI phep chan cau chu.
+   *
+   * Phep chan thuat ngu cua `D-059` soi GIA TRI trong tu dien i18n. Nhung `label="MIME"` va
+   * `label="SHA-256"` khong bao gio di qua tu dien — chung nam thang trong `.tsx`. Tu dien co
+   * dung 0 khoa chua hai tu do, nen phep chan VAN XANH trong khi ca hai hien ro ra man hinh
+   * nguoi dung. Bam tay moi thay (`D-064`).
+   *
+   * Cung ly do do, chuoi viet thang khong bao gio dich duoc sang `en`.
+   */
+  it('khong man hinh nao viet thang nhan hien thi vao JSX', () => {
+    const offenders: string[] = [];
+    for (const s of SOURCES) {
+      for (const m of s.text.matchAll(/\blabel="([^"]*)"/g)) {
+        offenders.push(`${s.file}: label="${m[1]}"`);
+      }
+    }
+    expect(
+      offenders,
+      'nhan hien thi phai di qua translate() — viet thang thi khong dich duoc va moi phep chan cau chu deu mu',
+    ).toEqual([]);
+  });
 });

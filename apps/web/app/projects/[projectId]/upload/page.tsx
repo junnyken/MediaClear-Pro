@@ -4,6 +4,9 @@ import { ASSET_VIEW_SCHEMA, UPLOAD_INTENT_SCHEMA, VALIDATION_RESULT_SCHEMA } fro
 import { useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { apiFetchChecked, apiUpload, fetchHealth, translate, type ApiErrorShape } from '../../../_lib/api';
+import { friendlyTypeList } from '../../../_lib/media-format';
+import { FilePicker } from '../../../_components/FilePicker';
+import { DEFAULT_LOCALE, formatBytes, formatDuration } from '@mediaclear/i18n';
 import { useResource } from '../../../_lib/use-resource';
 import { Button, Card, DefinitionRow, ErrorNotice, Loading, PageTitle, ValueOrUnknown, LinkButton } from '../../../_components/Ui';
 
@@ -85,14 +88,17 @@ export default function UploadPage() {
       <Card title={translate('screen.asset_upload.limits_title')}>
         {limits ? (
           <>
-            <DefinitionRow label={translate('screen.asset_upload.limits_title')}>
+            <DefinitionRow label={translate('field.max_file_size')}>
               {Math.round(limits.maxFileBytes / (1024 * 1024))} MB
             </DefinitionRow>
-            <DefinitionRow label="Video">
+            <DefinitionRow label={translate('field.video_limits')}>
               {Math.floor(limits.maxVideoDurationSeconds / 60)}:
               {String(limits.maxVideoDurationSeconds % 60).padStart(2, '0')} · {limits.maxVideoWidthPx} × {limits.maxVideoHeightPx} px
             </DefinitionRow>
-            <DefinitionRow label="MIME">{[...limits.imageMimeTypes, ...limits.videoMimeTypes].join(', ')}</DefinitionRow>
+            {/* Ten dinh dang cho NGUOI DOC, khong phai chuoi may `image/jpeg`. */}
+            <DefinitionRow label={translate('field.accepted_types')}>
+              {friendlyTypeList([...limits.imageMimeTypes, ...limits.videoMimeTypes])}
+            </DefinitionRow>
           </>
         ) : (
           <Loading />
@@ -102,7 +108,10 @@ export default function UploadPage() {
       <Card>
         <label style={{ display: 'block', marginBottom: 'var(--mcp-space-4)' }}>
           <span style={{ display: 'block', marginBottom: 'var(--mcp-space-2)' }}>{translate('screen.asset_upload.choose_file')}</span>
-          <input ref={fileInput} type="file" name="file" style={{ minHeight: 44 }} />
+          <FilePicker
+            inputRef={fileInput}
+            accept={limits ? [...limits.imageMimeTypes, ...limits.videoMimeTypes].join(',') : undefined}
+          />
         </label>
         <Button onClick={submit} disabled={step === 'uploading' || step === 'checking'}>
           {step === 'uploading'
@@ -124,14 +133,19 @@ export default function UploadPage() {
           {measured ? (
             <>
               <h3 style={{ fontSize: 'var(--mcp-font-size-md)' }}>{translate('screen.upload_validation.measured_title')}</h3>
-              <DefinitionRow label="px">
-                <ValueOrUnknown value={measured.widthPx} /> × <ValueOrUnknown value={measured.heightPx} />
+              <DefinitionRow label={translate('field.frame_size')}>
+                <ValueOrUnknown value={measured.widthPx} /> × <ValueOrUnknown value={measured.heightPx} /> px
               </DefinitionRow>
-              <DefinitionRow label="giây">
-                <ValueOrUnknown value={measured.durationSeconds === null ? null : Math.round(measured.durationSeconds)} />
+              <DefinitionRow label={translate('field.duration')}>
+                {measured.durationSeconds === null
+                  ? <ValueOrUnknown value={null} />
+                  : formatDuration(DEFAULT_LOCALE, measured.durationSeconds)}
               </DefinitionRow>
-              <DefinitionRow label="byte">
-                <ValueOrUnknown value={measured.byteSize} />
+              {/* `formatBytes` da co san; hien so byte tho la bat nguoi dung tu doi don vi. */}
+              <DefinitionRow label={translate('field.file_size')}>
+                {measured.byteSize === null
+                  ? <ValueOrUnknown value={null} />
+                  : formatBytes(DEFAULT_LOCALE, measured.byteSize)}
               </DefinitionRow>
             </>
           ) : null}

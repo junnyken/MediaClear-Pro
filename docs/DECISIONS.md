@@ -1364,3 +1364,61 @@ chứng **từ nền tảng** không có và **không đo được từ repo**; 
 `NOT_READY_FOR_GO_LIVE`.
 
 - **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-064 — Owner duyệt câu chữ `Q-P3-08`, và 6 lỗi giao diện chỉ bấm tay mới thấy
+
+**A. `Q-P3-08` — owner đã duyệt.** Owner duyệt **100 khoá** liệt kê ở `PHASE_3_CLOSURE.md` §12 vào
+`2026-09-17`. Ghi nhận đúng thẩm quyền: duyệt là của owner, không phải agent tự cấp.
+
+**B. Bấm tay bản HIỆN TẠI trên Chrome thật** (`1280×900` + `390×844`, tài khoản mới, video thật
+`sample-with-audio.mp4`, console sạch). Owner báo *"giao diện rất xấu, tính năng không dùng được,
+không giống như có thể tải ảnh hay video lên"*. **Lời chê đúng**, và nguyên nhân chia làm hai:
+
+**B1. Bản online là build PHASE 1** — không liên quan tới thiết kế. Dò trực tiếp: `/v1/auth/sign-in`
+và `/v1/auth/register` trả **404**, `/v1/export-presets` **404**, `/openapi.json` **404**; chỉ
+`/v1/me`, `/v1/workspaces` trả 401. **Bản online không có cả đường đăng nhập bằng mật khẩu**
+(`P2-MCP-25`) nên không ai đăng nhập được, và toàn bộ Phase 2 + Phase 3 chưa từng được deploy. Đây
+là lý do chính khiến "tính năng không dùng được".
+
+*Lưu ý cách đo*: lần đầu tôi lấy `/v1/openapi.json`, nó trả 404, và bảng so sánh sinh ra **41 route
+"thiếu"** — con số đó là **giả tạo do fetch hỏng**, không phải kết quả so sánh. Đã bỏ và dò lại từng
+route. Ghi ra đây vì suýt nữa thành một lời khai sai.
+
+**B2. Sáu lỗi có thật trong mã hiện tại** — không test nào bắt được:
+
+| # | Lỗi | Vì sao test không thấy |
+|---|---|---|
+| 1 | Ô chọn tệp là `<input type="file">` thô: nút xám + chữ **tiếng Anh** "Choose File"/"No file chosen" giữa giao diện tiếng Việt nền tối | chữ do **trình duyệt** vẽ, không nằm trong từ điển i18n |
+| 2 | Nhãn **`MIME`** và **`SHA-256`** hiện thẳng cho người dùng | viết thẳng `label="MIME"` trong JSX ⇒ **lách mọi phép chắn câu chữ** |
+| 3 | Nhãn hàng là **đơn vị** (`px`, `giây`, `byte`) thay vì tên chỉ số | không phép chắn nào soi ngữ nghĩa nhãn |
+| 4 | Dung lượng hiện **`9658`** thô, dù `formatBytes` đã có sẵn và đã từng sửa đúng lỗi này | `formatBytes` có test riêng, màn hình này không gọi nó |
+| 5 | Nhãn hàng dùng lại **tiêu đề thẻ** ⇒ "Tệp gốc / Tệp gốc", "Giới hạn tệp / Giới hạn tệp" | khoá hợp lệ, chỉ dùng sai chỗ |
+| 6 | Giá trị định dạng là chuỗi máy `image/jpeg, video/quicktime` | như trên |
+
+**C. Hai phép chắn mới — quan trọng hơn sáu bản vá.**
+
+1. **Cấm viết thẳng nhãn hiển thị vào JSX.** Phép chắn thuật ngữ của `D-059` soi **giá trị trong từ
+   điển i18n**; từ điển có **0** khoá chứa `MIME`/`SHA-256` nên nó **vẫn xanh** trong khi cả hai hiện
+   rõ ra màn hình. Chuỗi viết thẳng cũng **không bao giờ dịch được** sang `en`.
+2. **Cấm dùng token CSS chưa khai báo.** *Lỗi này là của chính tôi trong lượt này*: ô chọn tệp dùng
+   ba tên **không tồn tại** — `--mcp-border`, `--mcp-surface-2`, `--mcp-accent`. Trình duyệt gặp
+   `var(--không-tồn-tại)` không có giá trị dự phòng thì **bỏ luôn thuộc tính**: không lỗi, không cảnh
+   báo. `tsc`, `eslint`, toàn bộ test và `next build` **đều xanh**, và tôi chỉ phát hiện khi **nhìn
+   ảnh chụp** thấy ô chọn tệp không có viền. Phép chắn đọc tên token **thẳng từ `tokens.css`**.
+
+**D. Chưa làm — cố ý.** Phần **thiết kế** (nhịp thị giác, phân cấp, thanh điều hướng mobile chiếm
+trọn ~350px đầu trang, màn hình chưa đăng nhập chào bằng **thẻ lỗi đỏ**) **không** sửa trong lượt
+này: đó là quyết định thiết kế, và quy ước tổ chức là UI dựng qua `agy`/`/mb-frontend` rồi Claude ráp
+và review. Cần owner chốt hướng trước.
+
+**E. `wordingOwnerApproved` vẫn `false`** — **không phải** vì bỏ qua quyết định của owner, mà vì lượt
+này **thêm 11 khoá mới** (`field.*`, `screen.asset_upload.pick_button`,
+`screen.asset_upload.no_file_chosen`) **sau** thời điểm duyệt. 100 khoá cũ: **đã duyệt**. 11 khoá
+mới: chờ một câu xác nhận.
+
+**Bằng chứng.** 5 test mới + **3 đối chứng âm**. Bấm tay lại sau khi sửa: tải lên vẫn chạy, bảng
+thông số hiện *"Kích thước khung hình 320 × 240 px · Thời lượng 0:02 · Dung lượng 20,3 KB"*.
+
+- **Status**: `confirmed` · **Date**: 2026-09-17 · **Owner**: Owner MediaClear Pro

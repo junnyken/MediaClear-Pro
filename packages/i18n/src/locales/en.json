@@ -357,5 +357,16 @@
   "audit_event.usage_reserved": "Usage held",
   "audit_event.usage_released": "Usage returned",
   "audit_event.usage_reservation_expired": "Usage hold expired",
-  "audit_event.permission_denied": "Denied — not enough permission"
+  "audit_event.permission_denied": "Denied — not enough permission",
+  "field.max_file_size": "Maximum file size",
+  "field.video_limits": "Video limits",
+  "field.accepted_types": "Accepted formats",
+  "field.frame_size": "Frame size",
+  "field.duration": "Duration",
+  "field.file_size": "File size",
+  "field.file_format": "Format",
+  "field.file_fingerprint": "File fingerprint",
+  "field.file_name": "File name",
+  "screen.asset_upload.no_file_chosen": "No file chosen",
+  "screen.asset_upload.pick_button": "Choose file…"
 }

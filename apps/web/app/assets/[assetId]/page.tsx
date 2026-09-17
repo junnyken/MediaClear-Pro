@@ -4,6 +4,7 @@ import { ASSET_VIEW_SCHEMA, RETENTION_VIEW_SCHEMA, SIGNED_URL_SCHEMA } from '@me
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { apiFetchChecked, translate } from '../../_lib/api';
+import { friendlyType } from '../../_lib/media-format';
 import { useResource } from '../../_lib/use-resource';
 import { Button, Card, DefinitionRow, ErrorNotice, Loading, PageTitle, ValueOrUnknown, LinkButton } from '../../_components/Ui';
 import { RightsDialog } from '../../_components/RightsDialog';
@@ -37,15 +38,15 @@ export default function AssetDetailPage() {
       <PageTitle>{translate('screen.asset_detail.title')}</PageTitle>
 
       <Card title={translate('screen.asset_detail.source_title')}>
-        <DefinitionRow label={translate('screen.asset_detail.source_title')}>{view.sourceFile.originalFilename}</DefinitionRow>
-        <DefinitionRow label="MIME">
-          <ValueOrUnknown value={view.sourceFile.measured?.mimeType ?? null} />
+        <DefinitionRow label={translate('field.file_name')}>{view.sourceFile.originalFilename}</DefinitionRow>
+        <DefinitionRow label={translate('field.file_format')}>
+          <ValueOrUnknown value={view.sourceFile.measured ? friendlyType(view.sourceFile.measured.mimeType) : null} />
         </DefinitionRow>
-        <DefinitionRow label="px">
+        <DefinitionRow label={translate('field.frame_size')}>
           <ValueOrUnknown value={view.sourceFile.measured?.widthPx ?? null} /> ×{' '}
-          <ValueOrUnknown value={view.sourceFile.measured?.heightPx ?? null} />
+          <ValueOrUnknown value={view.sourceFile.measured?.heightPx ?? null} /> px
         </DefinitionRow>
-        <DefinitionRow label="SHA-256">
+        <DefinitionRow label={translate('field.file_fingerprint')}>
           <ValueOrUnknown value={view.sourceFile.measured?.checksumSha256.slice(0, 16) ?? null} />
         </DefinitionRow>
         <p style={{ color: 'var(--mcp-text-secondary)' }}>{translate('common.original_file_safe')}</p>
