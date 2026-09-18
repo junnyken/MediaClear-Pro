@@ -33,7 +33,14 @@ import { DeterministicImageProvider } from '../providers/deterministic-image.js'
 import { newId } from '../ids.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
 import { probeProvenance } from '../media/provenance-probe.js';
-import { recordMetadataAndDisclosure, receiptPhase5Fields, type MetadataProvenanceOutcome } from './metadata-provenance.js';
+import {
+  providerEvidenceStatus, recordMetadataAndDisclosure, receiptPhase5Fields,
+  type AppliedBranding, type MetadataProvenanceOutcome,
+} from './metadata-provenance.js';
+import { disclosureStatusFor } from '@mediaclear/contracts';
+import { DEFAULT_LOCALE, t } from '@mediaclear/i18n';
+import { resolveBranding } from './branding.js';
+import { applyImageBranding } from '../media/branding-overlay.js';
 import { executeVideoJob } from './run-video-job.js';
 
 /** Toan bo anh - dung khi nguoi dung khong chon vung nao. */
@@ -141,10 +148,56 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
     const regions = job.request.regions.length > 0 ? job.request.regions : [WHOLE_IMAGE];
     const processed = await provider.process(bytes, operation, regions);
 
+    /*
+     * `D-077` — DAN lop phu nhan dien / cong bo AI, NGAY SAU khi render va NGAY TRUOC khi ghi.
+     *
+     * Thu tu nay bat buoc: dan sau khi ghi se lam checksum trong `outputs` mo ta mot tep khac voi
+     * tep nam trong kho, va bat bien `I-2` se do oan. Dan truoc khi render se bi chinh buoc render
+     * xoa di.
+     *
+     * `branding` chi khac `null` khi nguoi dung CHON. Khong duong nao trong ma tu dien gia tri.
+     */
+    const disclosure = disclosureStatusFor({
+      inputAiPresence: probeBefore.aiProvenancePresence,
+      detectorVerifiesSignature: false,
+      providerStatus: providerEvidenceStatus(ctx),
+      aiStepUsed: false,
+    });
+    const branding = await resolveBranding(
+      ctx, workspaceId, job.request.branding, (d) => t(DEFAULT_LOCALE, `disclosure.state.${d.state}`), disclosure);
+
+    let finalBytes = processed.bytes;
+    let finalMime = processed.mimeType;
+    let finalChecksum = processed.checksumSha256;
+    let finalSize = processed.byteSize;
+    let applied: AppliedBranding | null = null;
+
+    if (branding) {
+      const stamped = await applyImageBranding({
+        rendered: processed.bytes,
+        logo: branding.logoBytes,
+        position: branding.position,
+        opacity: branding.opacity,
+        disclosureText: branding.disclosureText,
+      });
+      finalBytes = stamped.bytes;
+      finalMime = 'image/png';
+      finalChecksum = stamped.checksumSha256;
+      finalSize = stamped.byteSize;
+      applied = {
+        brandKitId: branding.brandKitId,
+        brandKitVersion: branding.brandKitVersion,
+        // DO DUOC, khong phai loi khai: logo hong thi `logoApplied` la `false` va o day la `null`.
+        brandLogoAssetId: stamped.logoApplied ? branding.logoAssetId : null,
+        brandOverlayApplied: stamped.logoApplied,
+        disclosureOverlayApplied: stamped.disclosureApplied,
+      };
+    }
+
     // Ket qua LUON la mot object MOI, khoa khac han tep goc (bat bien I-1).
     const outputId = newId('out');
     const outputKey = storageKeyFor(workspaceId, 'output', outputId, '.png');
-    await ctx.storage.putObject({ bucket: ctx.bucket, key: outputKey }, processed.bytes, processed.mimeType);
+    await ctx.storage.putObject({ bucket: ctx.bucket, key: outputKey }, finalBytes, finalMime);
 
     const output = await ctx.persistence.outputs.create({
       id: outputId,
@@ -152,9 +205,9 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
       jobId: job.id,
       sourceAssetId: job.assetId,
       storageKey: outputKey,
-      mimeType: processed.mimeType,
-      byteSize: processed.byteSize,
-      checksumSha256: processed.checksumSha256,
+      mimeType: finalMime,
+      byteSize: finalSize,
+      checksumSha256: finalChecksum,
       // CHUA kiem => false. Chi dat true sau khi doc lai byte o duoi.
       validated: false,
       createdAt: now(),
@@ -167,7 +220,7 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
      */
     const readBack = await ctx.storage.getObject({ bucket: ctx.bucket, key: outputKey });
     const actual = createHash('sha256').update(Buffer.from(readBack)).digest('hex');
-    if (actual !== processed.checksumSha256 || readBack.byteLength !== processed.byteSize) {
+    if (actual !== finalChecksum || readBack.byteLength !== finalSize) {
       return await failJob(ctx, current, apiError(ERROR_CODES.MCP_STATE_OUTPUT_NOT_VERIFIED));
     }
     await ctx.persistence.outputs.markValidated(workspaceId, output.id);
@@ -192,7 +245,7 @@ export async function executeClaimedJob(ctx: AppContext, job: ProcessingJob): Pr
       aiStepUsed: false,
     });
 
-    const receiptId = await writeReceipt(ctx, current, operation, output.id, probeBefore, probeAfter, phase5);
+    const receiptId = await writeReceipt(ctx, current, operation, output.id, probeBefore, probeAfter, phase5, applied);
 
     current = { ...current, state: 'completed', outputAssetId: output.id, updatedAt: now() };
     await ctx.persistence.jobs.update(current);
@@ -240,6 +293,7 @@ async function writeReceipt(
   probeBefore: ProvenanceProbe,
   probeAfter: ProvenanceProbe,
   phase5: MetadataProvenanceOutcome,
+  branding: AppliedBranding | null,
 ): Promise<string> {
   const now = ctx.now().toISOString();
   const outcome = evaluatePreservation(probeBefore, probeAfter, true);
@@ -292,7 +346,7 @@ async function writeReceipt(
     outputVerified: true,
     failureReason: null,
     reviewReason: null,
-    ...receiptPhase5Fields(phase5),
+    ...receiptPhase5Fields(phase5, branding),
   });
   return receipt.id;
 }

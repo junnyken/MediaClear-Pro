@@ -535,5 +535,17 @@
   "provenance.detail.hasAudio": "Has audio",
   "media_type.image": "Image",
   "media_type.video": "Video",
-  "screen.brand.state": "Status"
+  "screen.brand.state": "Status",
+  "audit_event.brand_logo_uploaded": "Brand logo uploaded",
+  "screen.brand.none": "No brand kit",
+  "screen.brand.logo": "Logo file",
+  "screen.brand.no_logo": "This version has no logo yet",
+  "screen.brand.has_logo": "Logo present",
+  "screen.brand.apply_logo": "Stamp the logo onto the export",
+  "screen.brand.apply_disclosure": "Stamp the AI use disclosure line onto the export",
+  "screen.brand.preview_none": "The export will have NO overlay.",
+  "screen.brand.preview_summary": "The export will use version {version} · logo: {logo} · disclosure line: {disclosure}.",
+  "common.yes": "yes",
+  "common.no": "no",
+  "screen.brand.upload_logo": "Upload a logo file"
 }

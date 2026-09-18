@@ -52,6 +52,7 @@ import { getJobMetadataComparison } from './services/metadata-provenance.js';
 import {
   addBrandKitVersion, createBrandKit, getBrandKit, listBrandKits, setBrandKitState,
 } from './services/brand-kits.js';
+import { uploadBrandLogo } from './services/brand-logo.js';
 import { previewJob } from './services/preview.js';
 import { createVideoProxy, createVideoProxyDownloadUrl, getVideoProxy } from './services/video-proxy.js';
 import { EXPORT_PRESETS } from '@mediaclear/contracts';
@@ -761,6 +762,8 @@ export function buildServer(options: BuildServerOptions = {}) {
       operations: payload.operations,
       regions: payload.regions,
       presetId: payload.presetId,
+      // `D-077`: lua chon lop phu. `undefined`/sai hinh dang => `null` o tang phan tich = khong dan gi.
+      branding: payload.branding,
       idempotencyKey: payload.idempotencyKey,
     });
     if (!result.ok) return sendError(request, reply, result.error, 'job.create', actor);
@@ -876,6 +879,24 @@ export function buildServer(options: BuildServerOptions = {}) {
     if (!actor) return reply;
     return respond(request, reply, 'brand_kit.version', actor,
       await addBrandKitVersion(ctx, actor, param(request, 'brandKitId'), request.body));
+  });
+
+  /*
+   * `D-077` — tai tep logo. Nhan BYTE THO (`application/octet-stream`), khong phai JSON:
+   * nhet anh vao JSON se phong to 33% va bat ca hai ben lam viec ma-hoa khong can thiet.
+   *
+   * Kieu tep va kich thuoc duoc do tren CHINH byte o tang dich vu — `content-type` cua client
+   * chi duoc dung de DOI CHIEU, khong duoc tin.
+   */
+  app.put('/v1/brand-kits/:brandKitId/logo', async (request, reply) => {
+    const actor = await withActor(request, reply, 'brand_kit.logo', workspaceHeader(request));
+    if (!actor) return reply;
+    const body = request.body;
+    const bytes = Buffer.isBuffer(body) ? new Uint8Array(body) : new Uint8Array();
+    return respond(
+      request, reply, 'brand_kit.logo', actor,
+      await uploadBrandLogo(ctx, actor, param(request, 'brandKitId'), bytes, request.headers['content-type']),
+    );
   });
 
   app.post('/v1/brand-kits/:brandKitId/state', async (request, reply) => {

@@ -46,3 +46,28 @@ và đó là **kết luận đúng**, không phải chỗ trống.
 
 `Q-23` **blocked** · `MEDIACLEAR_CLEANUP_ENABLED` **tắt** · Rights Statement v1/v2 **không đổi một
 ký tự**, không có v3 · không route DELETE · không đánh số lại ID lịch sử.
+
+---
+
+## 6. Kết quả completion patch (`D-076`, `D-077` · 2026-09-18)
+
+### `Q-P5-02` đã chốt
+
+Mục 3 ở trên nêu xung đột. Chốt: **giữ nguyên** thông tin gốc, đúng guardrail 6/7. Mã nay nói đúng
+điều nó làm — `METADATA_POLICIES` chỉ có `preserve`, và `METADATA_CATEGORIES_STRIPPED_BY_DEFAULT`
+rỗng. Chi tiết: `D-076`.
+
+### `Q-P5-04` — đã bớt nguy hiểm, vẫn còn mở
+
+Bộ đọc vẫn chỉ phủ **5 thẻ EXIF**. Nhưng nay nó **kê tên** những thẻ nó không đọc được
+(`unmeasuredKeys`), nên phép đối chiếu gọi chúng là `unknown` thay vì im lặng bỏ qua, và
+`evidenceStatus` tụt xuống `partially_verified`.
+
+Câu hỏi vẫn mở — nhưng hậu quả của nó **không còn là một lời nói dối im lặng**.
+
+### Hai gói hệ thống biến mất giữa hai phiên
+
+`ffmpeg` và **toàn bộ font** mất sau một lần khởi động lại. Hệ quả: 78 phép kiểm bị bỏ qua im lặng,
+và bộ dán lớp phủ vẽ ra dải công bố trống ruột. Đây là rủi ro **môi trường**, không phải mã — nhưng
+`D-077` bổ sung một đối chứng âm **lúc chạy** để mã tự phát hiện, thay vì phụ thuộc vào việc máy có
+font hay không.

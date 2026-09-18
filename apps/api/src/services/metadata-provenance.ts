@@ -69,7 +69,11 @@ export async function recordMetadataAndDisclosure(
   const before = await snapshotMetadata(input.beforeBytes, input.mediaType);
   const after: MetadataSnapshot = input.afterBytes
     ? await snapshotMetadata(input.afterBytes, input.mediaType)
-    : { readable: false, fields: [], detectorId: before.detectorId };
+    /*
+     * Chua render thi KHONG DO DUOC — va `unmeasuredKeys` phai mang theo dung danh sach cua phia
+     * truoc, neu khong bao cao se im lang ve chinh nhung the no biet la chua doc duoc.
+     */
+    : { readable: false, fields: [], detectorId: before.detectorId, unmeasuredKeys: before.unmeasuredKeys };
 
   // Ghi CA HAI anh chup. APPEND-ONLY — tang du lieu tu choi ghi de.
   for (const [phase, snap] of [['before', before], ['after', after]] as const) {
@@ -80,6 +84,7 @@ export async function recordMetadataAndDisclosure(
       phase,
       readable: snap.readable,
       fields: snap.fields,
+      unmeasuredKeys: snap.unmeasuredKeys,
       detectorId: snap.detectorId,
       recordedAt: now,
     });
@@ -103,7 +108,18 @@ export async function recordMetadataAndDisclosure(
 }
 
 /** Phan bien nhan do Phase 5 sinh ra. Gom lai de ba noi tao bien nhan khong tu che moi noi mot kieu. */
-export function receiptPhase5Fields(outcome: MetadataProvenanceOutcome | null): {
+export interface AppliedBranding {
+  brandKitId: string;
+  brandKitVersion: number;
+  brandLogoAssetId: string | null;
+  brandOverlayApplied: boolean;
+  disclosureOverlayApplied: boolean;
+}
+
+export function receiptPhase5Fields(
+  outcome: MetadataProvenanceOutcome | null,
+  branding: AppliedBranding | null = null,
+): {
   metadataVerdict: MetadataComparison['verdict'] | null;
   metadataEvidence: EvidenceStatus | null;
   metadataStrippedCategories: MetadataComparison['strippedCategories'];
@@ -111,6 +127,9 @@ export function receiptPhase5Fields(outcome: MetadataProvenanceOutcome | null): 
   disclosureLimitationKey: string | null;
   brandKitId: string | null;
   brandKitVersion: number | null;
+  brandLogoAssetId: string | null;
+  brandOverlayApplied: boolean;
+  disclosureOverlayApplied: boolean;
   schemaVersion: number;
 } {
   return {
@@ -120,12 +139,18 @@ export function receiptPhase5Fields(outcome: MetadataProvenanceOutcome | null): 
     disclosureState: outcome?.disclosure.state ?? null,
     disclosureLimitationKey: outcome?.disclosure.limitationKey ?? null,
     /*
-     * Bo nhan dien: `null` o day la MAC DINH va la cho an toan. Ban xuat chi mang lop phu khi
-     * nguoi dung CHON — khong duong nao trong ma tu dien gia tri vao hai o nay.
+     * Bo nhan dien: `null` khi nguoi dung KHONG chon. Gia tri chi den tu `branding`, va `branding`
+     * chi khac `null` khi duong xu ly DA THUC SU dan lop phu — khong duong nao trong ma tu dien.
+     *
+     * `brandOverlayApplied` la o RIENG, khong suy tu `brandKitId !== null`: nguoi dung co the chon
+     * mot bo nhan dien roi TAT lop phu.
      */
-    brandKitId: null,
-    brandKitVersion: null,
-    schemaVersion: 2,
+    brandKitId: branding?.brandKitId ?? null,
+    brandKitVersion: branding?.brandKitVersion ?? null,
+    brandLogoAssetId: branding?.brandLogoAssetId ?? null,
+    brandOverlayApplied: branding?.brandOverlayApplied ?? false,
+    disclosureOverlayApplied: branding?.disclosureOverlayApplied ?? false,
+    schemaVersion: 3,
   };
 }
 
@@ -140,7 +165,10 @@ export async function getJobMetadataComparison(
   ctx: AppContext, actor: Actor, jobId: string,
 ): Promise<ServiceResult<{
   verdict: MetadataComparison['verdict'];
-  fields: Array<{ key: string; category: string; before: string | null; after: string | null; status: string }>;
+  fields: Array<{
+    key: string; category: string; before: string | null; after: string | null;
+    status: string; changeReason: string | null;
+  }>;
   strippedCategories: string[];
   evidenceStatus: EvidenceStatus;
   bothReadable: boolean;
@@ -158,8 +186,8 @@ export async function getJobMetadataComparison(
   }
 
   const comparison = compareMetadata(
-    { readable: before.readable, fields: before.fields, detectorId: before.detectorId },
-    { readable: after.readable, fields: after.fields, detectorId: after.detectorId },
+    { readable: before.readable, fields: before.fields, detectorId: before.detectorId, unmeasuredKeys: before.unmeasuredKeys },
+    { readable: after.readable, fields: after.fields, detectorId: after.detectorId, unmeasuredKeys: after.unmeasuredKeys },
   );
 
   return ok({
@@ -173,6 +201,8 @@ export async function getJobMetadataComparison(
       before: f.before === null ? null : String(f.before),
       after: f.after === null ? null : String(f.after),
       status: f.status,
+      // `D-076`: doi ma khong noi duoc VI SAO thi bao cao chi la mot canh bao trong.
+      changeReason: f.changeReason,
     })),
     strippedCategories: comparison.strippedCategories,
     evidenceStatus: comparison.evidenceStatus,

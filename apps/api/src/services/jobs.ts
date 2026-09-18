@@ -33,6 +33,7 @@ import {
   type ProcessingJob,
   type UsageLedgerEntry,
 } from '@mediaclear/contracts';
+import type { ProcessingJobRequest } from '@mediaclear/contracts';
 import type { AppContext } from '../app-context.js';
 import { newId } from '../ids.js';
 import { AUDIT_EVENTS, recordAudit } from './audit.js';
@@ -47,6 +48,7 @@ export interface CreateJobInput {
   operations: unknown;
   regions: unknown;
   presetId: unknown;
+  branding?: unknown;
   idempotencyKey: unknown;
 }
 
@@ -70,7 +72,31 @@ interface ParsedRequest {
   operations: CleanupOperation[];
   regions: NormalizedRegion[];
   presetId: string | null;
+  branding: ProcessingJobRequest['branding'];
   idempotencyKey: string;
+}
+
+/**
+ * `D-077` — doc lua chon lop phu. `null` la MAC DINH va la cho an toan.
+ *
+ * Moi duong sai deu tra `null`, KHONG tra mot doi tuong mot nua: mot yeu cau hong khong duoc bien
+ * thanh "ap dung lop phu" — he thong khong bao gio duoc dan gi ma nguoi dung khong chon.
+ * Kiem quyen doc bo nhan dien va su ton tai cua phien ban nam o tang xu ly, khong phai o day.
+ */
+function parseBranding(input: unknown): ProcessingJobRequest['branding'] {
+  if (typeof input !== 'object' || input === null) return null;
+  const b = input as Record<string, unknown>;
+  if (typeof b.brandKitId !== 'string' || b.brandKitId.length === 0) return null;
+  if (!Number.isInteger(b.brandKitVersion) || (b.brandKitVersion as number) < 1) return null;
+  const applyLogo = b.applyLogo === true;
+  const applyDisclosure = b.applyDisclosure === true;
+  // Khong chon gi ca thi khong co lop phu — khong luu mot ban ghi rong.
+  if (!applyLogo && !applyDisclosure) return null;
+  return {
+    brandKitId: b.brandKitId,
+    brandKitVersion: b.brandKitVersion as number,
+    applyLogo, applyDisclosure,
+  };
 }
 
 function parseRequest(input: CreateJobInput): ParsedRequest | ApiError {
@@ -115,6 +141,7 @@ function parseRequest(input: CreateJobInput): ParsedRequest | ApiError {
     operations,
     regions,
     presetId: typeof input.presetId === 'string' ? input.presetId : null,
+    branding: parseBranding(input.branding),
     idempotencyKey: input.idempotencyKey.trim(),
   };
 }
@@ -178,6 +205,7 @@ export async function createJob(
       preserveOriginalMetadata: true,
       preserveAiProvenance: true,
       presetId: parsed.presetId,
+      branding: parsed.branding,
     },
     outputAssetId: null,
     reasonCode: null,

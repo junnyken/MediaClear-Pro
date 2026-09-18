@@ -63,15 +63,31 @@ export const UI_ERROR = {
   UNKNOWN: { code: 'UI_UNKNOWN_ERROR', messageKey: 'ui.error.unknown' },
 } as const;
 
+export interface ApiInit {
+  method?: string;
+  body?: unknown;
+  /** `D-077`: byte tho (tep logo). Loai tru voi `body`. */
+  rawBody?: ArrayBuffer;
+  contentType?: string;
+  workspaceId?: string | null;
+}
+
 export async function apiFetch<T>(
   path: string,
-  init: { method?: string; body?: unknown; workspaceId?: string | null } = {},
+  init: ApiInit = {},
 ): Promise<ApiResult<T>> {
   const session = readSession();
   // Chi khai content-type khi THAT SU co body: POST khong tham so ma van khai
   // application/json se bi tang HTTP tu choi truoc khi vao ung dung.
   const headers: Record<string, string> = {};
   if (init.body !== undefined) headers['content-type'] = 'application/json';
+  /*
+   * `D-077` — byte THO cho tep logo.
+   *
+   * Khong nhet anh vao JSON: ma hoa base64 phong to 33% va bat ca hai ben lam viec khong can thiet.
+   * `content-type` o day chi de may chu DOI CHIEU — may chu do kieu tep tren chinh byte.
+   */
+  if (init.rawBody !== undefined) headers['content-type'] = init.contentType ?? 'application/octet-stream';
   if (session.token) headers.authorization = `Bearer ${session.token}`;
   const workspaceId = init.workspaceId ?? session.workspaceId;
   if (workspaceId) headers['x-workspace-id'] = workspaceId;
@@ -81,7 +97,9 @@ export async function apiFetch<T>(
     response = await fetch(`${apiBaseUrl()}${path}`, {
       method: init.method ?? 'GET',
       headers,
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      body: init.rawBody !== undefined
+        ? init.rawBody
+        : init.body === undefined ? undefined : JSON.stringify(init.body),
     });
   } catch {
     return { ok: false, error: { ...UI_ERROR.NETWORK } };
@@ -181,7 +199,7 @@ export async function apiFetchChecked<T>(
    * dien lai mat kieu, tuc la mat chinh thu ma D-047 di sua.
    */
   schema: schema.Schema<T>,
-  init: { method?: string; body?: unknown; workspaceId?: string | null } = {},
+  init: ApiInit = {},
 ): Promise<ApiResult<T>> {
   const raw = await apiFetch<unknown>(path, init);
   if (!raw.ok) return raw;

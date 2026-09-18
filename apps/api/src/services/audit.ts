@@ -111,6 +111,7 @@ export const AUDIT_EVENTS = {
   BRAND_KIT_VERSION_ADDED: 'brand_kit_version_added',
   BRAND_KIT_STATE_CHANGED: 'brand_kit_state_changed',
   BRAND_KIT_APPLIED: 'brand_kit_applied',
+  BRAND_LOGO_UPLOADED: 'brand_logo_uploaded',
   PERMISSION_DENIED: 'permission_denied',
 } as const;
 

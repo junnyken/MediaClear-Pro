@@ -284,3 +284,19 @@ Cặp `before/after` của cổng chặn trả lời câu hỏi thật sự củ
 hình tốt lên hay xấu đi*.
 
 Dòng ghi **trước** `D-074` giữ `neighbours = '[]'` và bốn cột còn lại `NULL`.
+
+---
+
+## Phase 5 completion patch — migration `0013` (`D-076`, `D-077`)
+
+| Bảng / cột | Kiểu | Ý nghĩa |
+|---|---|---|
+| `job_metadata_snapshots.unmeasured_keys` | `text[]` | Thẻ hệ thống **biết là có thể tồn tại** nhưng **không đọc được**. **Phải lưu**, không được tính lại lúc đọc: danh sách này là thuộc tính của **lần đo đó**, không phải của mã nguồn hôm nay. Tính lại theo danh sách mới sẽ làm hồ sơ cũ nói rằng nó đã đo những thẻ nó chưa hề đọc |
+| `brand_logo_assets` | bảng | Tệp logo của một bộ nhận diện. **Bảng riêng**, không nhét vào `brand_kit_versions`: phiên bản là **bất biến**, còn tệp logo cần đo lại và có vòng đời riêng. Gộp chung sẽ buộc phải `UPDATE` một dòng bất biến |
+| `processing_receipts.brand_logo_asset_id` | `text` | Tệp logo **đã thật sự** được dán |
+| `processing_receipts.brand_overlay_applied` | `boolean` | Cột **RIÊNG**, không suy từ `brand_kit_id IS NOT NULL` — người dùng có thể chọn một bộ rồi **tắt** lớp phủ |
+| `processing_receipts.disclosure_overlay_applied` | `boolean` | `false` khi không vẽ được chữ |
+| `processing_jobs.branding` | `jsonb` | Lựa chọn lớp phủ. `NULL` = không chọn gì, và đó là **mặc định**. Một cột jsonb chứ không phải bốn cột rời: bốn trường này chỉ có nghĩa **khi đi cùng nhau** — tách ra sẽ mở khả năng một job có `applyLogo = true` mà không có `brandKitId` nào |
+
+`brand_logo_assets` và `brand_kit_versions` đều **APPEND-ONLY**: không câu lệnh `UPDATE` hay `DELETE`
+nào trong toàn bộ mã.

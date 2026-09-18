@@ -65,6 +65,7 @@
 | GET | `/v1/brand-kits/:brandKitId` | implemented |
 | POST | `/v1/brand-kits/:brandKitId/versions` | implemented |
 | POST | `/v1/brand-kits/:brandKitId/state` | implemented |
+| PUT | `/v1/brand-kits/:brandKitId/logo` | implemented |
 | POST | `/v1/jobs/:jobId/estimate` | implemented | P2-MCP-31 |
 | POST | `/v1/jobs/:jobId/preview` | implemented | P2-MCP-31 |
 
@@ -378,3 +379,53 @@ nhảy sẽ khiến `gate.verdict` rời khỏi `completed`, và `GET /v1/jobs/:
 
 Toàn bộ thao tác ghi trong **một giao dịch**: hồ sơ và mọi khung hình bị đụng tới cùng đứng hoặc
 cùng đổ.
+
+---
+
+## Lớp phủ nhận diện & công bố AI (`D-077`)
+
+### `PUT /v1/brand-kits/:brandKitId/logo`
+
+Nhận **byte thô** (`application/octet-stream` hoặc kiểu ảnh). Không dùng JSON: mã hoá base64 phóng
+to 33% và bắt cả hai bên làm việc không cần thiết.
+
+Kiểu tệp và kích thước được đo trên **chính byte** ở máy chủ. `content-type` của client chỉ dùng để
+**đối chiếu** — lệch thì trả `MCP_VAL_MIME_MISMATCH`.
+
+| Trường phản hồi | Ý nghĩa |
+|---|---|
+| `widthPx` / `heightPx` / `byteSize` / `mimeType` | **đo trên byte**, không phải lời khai |
+| `checksumSha256` | để đối chiếu về sau |
+| `sharedStorage` | `false` = tệp nằm trên kho **cục bộ** của container, **không phải** kho dùng chung, và **không được gọi là** đã lưu trữ ở mức production (`Q-23`) |
+
+Tải logo thành công sẽ **tạo một phiên bản mới** của bộ nhận diện. Phiên bản cũ không bao giờ bị
+đụng tới.
+
+### `POST /v1/assets/:assetId/jobs` — trường `branding`
+
+```jsonc
+"branding": {
+  "brandKitId": "bkt_…",
+  "brandKitVersion": 2,   // PHIÊN BẢN CỤ THỂ, không phải "đang hiệu lực"
+  "applyLogo": true,
+  "applyDisclosure": true
+}
+```
+
+`null` (hoặc vắng mặt, hoặc sai hình dạng) ⇒ **không dán lớp phủ nào**. Đây là mặc định và là chỗ an
+toàn: hệ thống không bao giờ dán một thứ người dùng không chọn.
+
+**KHÔNG nhầm với thao tác `brand_overlay` trong `operations`**: thao tác đó là **mặt nạ xám đặc** tô
+kín một vùng (`Q-15`) — nó **xoá** thông tin. `branding` **thêm** thông tin lên trên.
+
+Bốn trường biên nhận tương ứng — và `brandOverlayApplied` là **cột riêng**, không suy từ
+`brandKitId !== null` (người dùng có thể chọn một bộ rồi **tắt** lớp phủ):
+
+| Trường | Ý nghĩa |
+|---|---|
+| `brandKitId` / `brandKitVersion` | bộ và **phiên bản** đã thật sự được dán |
+| `brandLogoAssetId` | tệp logo đã dán. `null` = không dán logo nào (kể cả khi `applyLogo` bật mà tệp hỏng) |
+| `brandOverlayApplied` | **đo được**, không phải lời khai |
+| `disclosureOverlayApplied` | `false` khi không vẽ được chữ — một công bố trống còn tệ hơn không công bố |
+
+Lớp phủ cho **video** chưa có (`Q-P5-03`); biên nhận video ghi `brandOverlayApplied: false`.

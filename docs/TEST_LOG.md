@@ -2702,3 +2702,81 @@ sửa và có phép chắn.
 ### Regression
 
 Phase 1.1, 2, 3, 4 (gồm `D-073`, `D-074`) — **tất cả xanh** trong cùng lượt 816 phép kiểm.
+
+---
+
+## Phase 5 completion patch — `D-076` + `D-077` · 2026-09-18
+
+### Hai gói hệ thống biến mất giữa hai phiên
+
+Sau một lần khởi động lại, workspace mất **ffmpeg** VÀ **toàn bộ font** (`fc-list` trả về 0).
+Hệ quả đo được:
+
+- 78 phép kiểm bị **bỏ qua im lặng** (`skipIf(!hasFfmpeg)`) — cả bộ vẫn báo xanh.
+- Bộ dán lớp phủ vẽ ra một **dải công bố trống ruột** mà không báo lỗi gì.
+
+Cài lại `ffmpeg` + `fontconfig` + `fonts-dejavu-core` (phải `apt-get update` trước — chỉ số cũ báo
+*"Unable to locate package"*). Sau đó: **0 bỏ qua**.
+
+### Lỗi thật lộ ra nhờ mất font
+
+Hai câu chữ khác nhau cho ra **ảnh y hệt** ⇒ chữ không được vẽ. Thư viện SVG vẫn trả về ảnh **hợp
+lệ**, nên không có ngoại lệ nào. Nếu cứ dán, bản xuất mang một dải tối màu trống và biên nhận khai
+**đã công bố**.
+
+Sửa: `renderDisclosureBand` tự chạy một **đối chứng âm lúc chạy** (vẽ có chữ ↔ vẽ chuỗi rỗng, so
+byte). Giống nhau ⇒ không dán, `disclosureApplied: false`. Kèm phép chắn riêng.
+
+### 16 đối chứng âm
+
+| # | Đột biến | Lần đầu | Sau khi siết |
+|---|---|---|---|
+| 1 | Đổi ngầm chính sách metadata sang GỠ | **2 đỏ** | — |
+| 2 | Trường chưa đo bị báo là `not_available` | **2 đỏ** | — |
+| 3 | Tải logo chéo workspace | **XANH ×2** ← phép thử quá yếu | **đỏ** |
+| 4 | Tải logo ghi đè phiên bản cũ | **3 đỏ** | — |
+| 5 | Không chọn lớp phủ nhưng vẫn render | **3 đỏ** | — |
+| 6 | Render nhưng không ghi quan hệ brand | **2 đỏ** | — |
+| 7 | Biên nhận có `brandKitId` mà output không có lớp phủ | **3 đỏ** | — |
+| 8 | Output có lớp phủ mà biên nhận không ghi | **đỏ** | — |
+| 9 | Dịch vụ `blocked` hiển thị verified | **đỏ** | — |
+| 10 | C2PA `absent` diễn giải thành "không phải AI" | **đỏ** | — |
+| 11 | Xem trước khác bản xuất (lấy phiên bản đang hiệu lực) | **đỏ** | — |
+| 12 | Output chưa verify nhưng completed | **XANH** ← kho luôn ghi đúng nên nhánh không chạy | **đỏ** |
+| 13 | Tệp gốc bị ghi đè | **5 đỏ** | — |
+| 14 | Bỏ qua cô lập workspace | **XANH** ← tầng lưu trữ vẫn lọc (phòng thủ kép) | **đỏ** (gỡ cả hai lớp) |
+| 15 | Lệch hợp đồng UI/máy chủ | **đỏ** | — |
+| 16 | Sai kiểu ở biên giới API | **3 đỏ** | — |
+
+**12/16 đỏ ngay. Bốn cái xanh đều là lỗi của chính phép đo:**
+
+- **#3** lọt **hai lần**: lần đầu người lạ có workspace **rỗng** nên không có gì để lấy nhầm; lần
+  hai không assertion nào nhìn vào **tổ hợp mồ côi** (`workspaceId` người lạ + `brandKitId` của A) —
+  đường bị đột biến ghi bản ghi **trước** khi thất bại ở bước sau, nên `r.ok === false` vẫn đúng
+  trong khi một tệp đã nằm trong kho.
+- **#12**: trong test kho luôn ghi đúng nên nhánh kiểm checksum **không bao giờ chạy**. Thêm phép
+  thử ép kho ghi **sai thật** ⇒ đỏ.
+- **#14**: cô lập workspace có **phòng thủ kép** (dịch vụ + tầng lưu trữ). Gỡ một lớp không đủ —
+  và đó là một kết quả **tốt**, không phải lỗ hổng.
+
+### Lệnh kiểm
+
+```
+typecheck=0 · lint=0 · vitest=0 · build:web=0 · git diff --check=0 · check=0
+```
+
+Chạy **có** `MEDIACLEAR_TEST_DATABASE_URL`. **0 bỏ qua.**
+
+### Một phép kiểm phải nới hạn — và vì sao đó không phải "làm cho xanh"
+
+`p2-migrate` chạy toàn bộ migration của repo bắt đầu quá giờ ở hạn **mặc định 5s** của vitest. Đo
+thật: áp dụng 13 migration mất **3087 ms** khi máy rảnh, và vượt 5s khi cả bộ chạy song song.
+
+Bốn phép kiểm đó khẳng định **nội dung** migration (đúng danh sách, chạy lần hai không làm gì, sửa
+migration đã phát hành thì dừng). **Tốc độ chưa bao giờ là điều chúng kiểm** — hạn 5s chỉ là một con
+số mặc định tình cờ đủ cho tới khi số migration đủ lớn. Đặt hạn tường minh 30s kèm lý do. Nếu về sau
+muốn canh tốc độ triển khai, đó phải là một phép kiểm **riêng** với ngưỡng được chọn có lý do.
+
+### Lượt chạy thật
+
+Migration `0013` áp dụng trên PostgreSQL thật (13 dòng `schema_migrations`). Ba bảng/cột mới có mặt.

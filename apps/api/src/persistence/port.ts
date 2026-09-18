@@ -9,6 +9,7 @@ import type { BrandKitState } from '@mediaclear/contracts';
 import type {
   BrandKitRecord,
   BrandKitVersionRecord,
+  BrandLogoAssetRecord,
   JobMetadataSnapshotRecord,
   JobFrameCorrectionRecord,
   JobFrameRecord,
@@ -278,6 +279,18 @@ export interface PersistencePort {
     listByWorkspace(workspaceId: string): Promise<BrandKitRecord[]>;
     listVersions(workspaceId: string, brandKitId: string): Promise<BrandKitVersionRecord[]>;
     findVersion(workspaceId: string, brandKitId: string, version: number): Promise<BrandKitVersionRecord | null>;
+  };
+
+  /**
+   * `D-077` — tep logo cua bo nhan dien. APPEND-ONLY: khong co `update`, khong co `delete`.
+   *
+   * Doi logo = tao mot ban ghi MOI va mot PHIEN BAN bo nhan dien moi tro toi no. Ghi de tep logo
+   * se lam moi ban xuat da phat hanh truoc do tro toi mot hinh anh khac voi cai da that su dan.
+   */
+  brandLogos: {
+    create(record: BrandLogoAssetRecord): Promise<BrandLogoAssetRecord>;
+    findById(workspaceId: string, id: string): Promise<BrandLogoAssetRecord | null>;
+    listByBrandKit(workspaceId: string, brandKitId: string): Promise<BrandLogoAssetRecord[]>;
   };
 
   audit: {

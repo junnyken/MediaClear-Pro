@@ -460,7 +460,10 @@ function contractSuite(label: string, make: () => Promise<PersistencePort>): voi
         disclosureLimitationKey: 'disclosure.limitation.provider_blocked',
         // KHONG dung `null`: mot o `null` khong canh duoc viec o do bi ghi `null` mat.
         // Do dung la cach doi chung am `NC7` lot qua o lan chay dau.
-        brandKitId: 'bkt_thu', brandKitVersion: 7, schemaVersion: 2,
+        brandKitId: 'bkt_thu', brandKitVersion: 7, schemaVersion: 3,
+        brandLogoAssetId: 'blg_thu',
+        // `brandOverlayApplied` la o RIENG, khong suy tu `brandKitId !== null` (`D-077`).
+        brandOverlayApplied: true, disclosureOverlayApplied: true,
       };
       await db.provenance.create({
         id: 'prv_1', workspaceId: WS,

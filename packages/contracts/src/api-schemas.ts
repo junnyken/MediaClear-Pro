@@ -454,3 +454,22 @@ export const BRAND_KIT_LIST_SCHEMA = object({ items: arrayOf(BRAND_KIT_SCHEMA) }
 export type ProvenanceTimelineView = Infer<typeof PROVENANCE_TIMELINE_SCHEMA>;
 export type BrandKitView = Infer<typeof BRAND_KIT_SCHEMA>;
 export type MetadataComparisonView = Infer<typeof METADATA_COMPARISON_SCHEMA>;
+
+/**
+ * `D-077` — ket qua tai tep logo.
+ *
+ * `sharedStorage: false` nghia la tep dang nam tren kho CUC BO cua container — **khong phai** kho
+ * dung chung, va **khong duoc goi la** da luu tru o muc production (`Q-23`). Truong nay di qua bien
+ * gioi API co chu dinh: giau no o may chu se lam giao dien noi qua muc ve noi tep dang nam.
+ */
+export const BRAND_LOGO_SCHEMA = object({
+  id: string(),
+  brandKitId: string(),
+  mimeType: string(),
+  byteSize: number(),
+  widthPx: number(),
+  heightPx: number(),
+  checksumSha256: string(),
+  createdAt: string(),
+  sharedStorage: boolean(),
+});

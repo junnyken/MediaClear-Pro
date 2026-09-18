@@ -6,7 +6,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_METADATA_POLICY,
   METADATA_CATEGORIES_STRIPPED_BY_DEFAULT,
+  METADATA_POLICIES,
   buildProvenanceTimeline,
   compareMetadata,
   disclosureStatusFor,
@@ -16,8 +18,8 @@ import {
   type ProvenanceNode,
 } from '../src/phase5.js';
 
-const snap = (fields: MetadataField[], readable = true): MetadataSnapshot =>
-  ({ readable, fields, detectorId: 'test' });
+const snap = (fields: MetadataField[], readable = true, unmeasuredKeys: string[] = []): MetadataSnapshot =>
+  ({ readable, fields, detectorId: 'test', unmeasuredKeys });
 
 const f = (key: string, category: MetadataField['category'], value: MetadataField['value']): MetadataField =>
   ({ key, category, value });
@@ -116,11 +118,69 @@ describe('P5-MCP-51 — doi chieu thong tin kem theo tep', () => {
     expect(r.fields.map((x) => x.key).sort()).toEqual(['chi_o_sau', 'chi_o_truoc']);
   });
 
-  it('`evidenceStatus` chi `verified` khi KHONG con `unknown` nao', () => {
+  it('`evidenceStatus` chi `verified` khi da doc duoc CA HAI phia VA khong con truong chua do', () => {
     const tot = compareMetadata(snap([f('a', 'technical', 1)]), snap([f('a', 'technical', 1)]));
     expect(tot.evidenceStatus).toBe('verified');
+    expect(tot.unmeasuredCount).toBe(0);
     const xau = compareMetadata(snap([], false), snap([]));
     expect(xau.evidenceStatus).toBe('unknown');
+  });
+
+  /**
+   * `D-076`, luat quan trong nhat cua Q-P5-02.
+   *
+   * Truong he thong BIET la co the ton tai nhung KHONG doc duoc phai la `unknown`, khong duoc vang
+   * mat khoi bao cao va cung khong duoc goi la `not_available` (`not_available` nghia la "da tim va
+   * khong co" — dung no cho mot truong chua he duoc tim la loi `D-044`).
+   */
+  it('truong CHUA DO la `unknown`, khong phai `not_available`, va khong bi bo qua', () => {
+    const r = compareMetadata(
+      snap([f('a', 'technical', 1)], true, ['exif.GPSLatitude']),
+      snap([f('a', 'technical', 1)], true, ['exif.GPSLatitude']),
+    );
+    const gps = r.fields.find((x) => x.key === 'exif.GPSLatitude');
+    expect(gps, 'truong chua do bi bo qua khoi bao cao').toBeDefined();
+    expect(gps!.status, 'chua do bi doc thanh "da tim va khong co"').toBe('unknown');
+    expect(r.unmeasuredCount).toBe(1);
+  });
+
+  /**
+   * Do phu KHONG duoc keo verdict ve `unknown`: bo doc luon co the ke ra the no khong doc, nen
+   * lam vay se khien MOI phep doi chieu cho cung mot ket qua — va mot ket luan luon giong nhau thi
+   * khong con la ket luan. Do phu duoc noi RIENG.
+   */
+  it('truong chua do KHONG keo verdict ve `unknown`, nhung KEO bang chung xuong `partially_verified`', () => {
+    const r = compareMetadata(
+      snap([f('a', 'technical', 1)], true, ['exif.ISO']),
+      snap([f('a', 'technical', 1)], true, ['exif.ISO']),
+    );
+    expect(r.verdict, 'do phu thap lam moi ket luan giong het nhau').toBe('preserved');
+    expect(r.evidenceStatus, 'bao cao khong phu het ma van tu goi la da kiem chung').toBe('partially_verified');
+  });
+
+  /** `D-076`: doi ma khong noi duoc VI SAO thi bao cao chi la mot canh bao trong. */
+  it('truong DOI gia tri mang theo LY DO doi', () => {
+    const chuyenDinhDang = compareMetadata(
+      snap([f('image.format', 'container', 'jpeg')]),
+      snap([f('image.format', 'container', 'png')]),
+    );
+    expect(chuyenDinhDang.fields[0]!.changeReason).toBe('container_conversion');
+
+    const veLai = compareMetadata(
+      snap([f('tag.title', 'descriptive', 'a')]),
+      snap([f('tag.title', 'descriptive', 'b')]),
+    );
+    expect(veLai.fields[0]!.changeReason).toBe('pipeline_render');
+
+    // Truong KHONG doi thi khong duoc bia ra mot ly do.
+    const khongDoi = compareMetadata(snap([f('a', 'technical', 1)]), snap([f('a', 'technical', 1)]));
+    expect(khongDoi.fields[0]!.changeReason).toBeNull();
+  });
+
+  /** `D-076`: chinh sach mac dinh la GIU NGUYEN. Khong co gia tri `redact` nao trong enum. */
+  it('chinh sach metadata mac dinh la `preserve`, va enum khong co duong go ngam', () => {
+    expect(DEFAULT_METADATA_POLICY).toBe('preserve');
+    expect([...METADATA_POLICIES], 'them mot gia tri ma duong xu ly chua thi hanh').toEqual(['preserve']);
   });
 });
 

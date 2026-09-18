@@ -38,6 +38,9 @@ importers:
       '@mediaclear/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@mediaclear/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       fastify:
         specifier: ^5.2.0
         version: 5.12.4

@@ -18,6 +18,20 @@ import {
 } from '../src/db/migrate.js';
 
 const URL = process.env.MEDIACLEAR_TEST_DATABASE_URL;
+
+/**
+ * Han rieng cho cac phep kiem chay TOAN BO migration cua repo.
+ *
+ * Han mac dinh cua vitest la 5s. Do duoc `2026-09-18`: ap dung 13 migration mat **3087 ms** khi may
+ * ranh — va vuot 5s khi ca bo test chay song song tren cung mot PostgreSQL.
+ *
+ * Nang han KHONG phai "lam cho test xanh": cac phep kiem nay khang dinh NOI DUNG migration (ap dung
+ * dung danh sach, chay lan hai khong lam gi, sua migration da phat hanh thi dung). Toc do chua bao
+ * gio la dieu chung kiem, va han 5s chi la mot con so mac dinh tinh co du cho toi khi so migration
+ * du lon. Neu ve sau muon canh toc do trien khai, do phai la mot phep kiem RIENG voi mot nguong
+ * duoc chon co ly do.
+ */
+const MIGRATION_TEST_TIMEOUT_MS = 30_000;
 const REPO_MIGRATIONS = join(import.meta.dirname, '../../../db/migrations');
 
 describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
@@ -36,6 +50,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0010_phase4_frame_tracking.sql',
       '0011_p4_correction_neighbours.sql',
       '0012_phase5_provenance_brand.sql',
+      '0013_p5_metadata_unmeasured_and_branding.sql',
     ]);
   });
 
@@ -62,6 +77,7 @@ describe('P2-MCP-23 — doc thu muc migration (khong can DB)', () => {
       '0010_phase4_frame_tracking',
       '0011_p4_correction_neighbours',
       '0012_phase5_provenance_brand',
+      '0013_p5_metadata_unmeasured_and_branding',
     ]);
   });
 
@@ -110,6 +126,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
       '0010_phase4_frame_tracking.sql',
       '0011_p4_correction_neighbours.sql',
       '0012_phase5_provenance_brand.sql',
+      '0013_p5_metadata_unmeasured_and_branding.sql',
     ]);
     expect(out.skipped).toEqual([]);
 
@@ -141,7 +158,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     );
     expect(cols.rows).toHaveLength(3);
     await p.end();
-  });
+  }, MIGRATION_TEST_TIMEOUT_MS);
 
   it('CHAY LAN HAI khong lam gi - day dung la loi PHASE_1_REPORT §11 canh bao', async () => {
     const p1 = await freshPool();
@@ -158,7 +175,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     const all = await readMigrations(REPO_MIGRATIONS);
     expect(out.skipped).toHaveLength(all.length);
     await p2.end();
-  });
+  }, MIGRATION_TEST_TIMEOUT_MS);
 
   it('sua migration DA PHAT HANH thi DUNG, khong im lang chay len', async () => {
     const p = await freshPool();
@@ -174,7 +191,7 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
 
     await expect(runMigrations(p, dir)).rejects.toThrow(MigrationChecksumError);
     await p.end();
-  });
+  }, MIGRATION_TEST_TIMEOUT_MS);
 
   it('migration loi giua chung KHONG de lai luoc do nua voi', async () => {
     const p = await freshPool();
@@ -196,5 +213,5 @@ describe.skipIf(!URL)('P2-MCP-23 — chay migration THAT tren PostgreSQL', () =>
     const ledger = await p.query<{ version: string }>('SELECT version FROM schema_migrations');
     expect(ledger.rows, 'khong duoc ghi so cho migration that bai').toEqual([]);
     await p.end();
-  });
+  }, MIGRATION_TEST_TIMEOUT_MS);
 });

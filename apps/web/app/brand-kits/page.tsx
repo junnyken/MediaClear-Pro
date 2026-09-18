@@ -9,7 +9,9 @@
  * Va: sua KHONG ghi de. Moi lan luu la mot PHIEN BAN moi, va lich su phien ban hien ngay tren man
  * hinh — de nguoi dung thay rang ban xuat cu van tro toi dung cai da duoc ap dung.
  */
-import { BRAND_KIT_LIST_SCHEMA, BRAND_KIT_SCHEMA, OVERLAY_POSITIONS, validateBrandKitDraft } from '@mediaclear/contracts';
+import {
+  BRAND_KIT_LIST_SCHEMA, BRAND_KIT_SCHEMA, BRAND_LOGO_SCHEMA, OVERLAY_POSITIONS, validateBrandKitDraft,
+} from '@mediaclear/contracts';
 import { useState } from 'react';
 import { PRIMITIVE_COLORS } from '@mediaclear/design-tokens';
 import { apiFetchChecked, translate, type ApiErrorShape } from '../_lib/api';
@@ -26,6 +28,7 @@ export default function BrandKitsPage() {
   const [opacity, setOpacity] = useState('0.5');
   const [includeDisclosure, setIncludeDisclosure] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState<ApiErrorShape | null>(null);
 
   /*
@@ -57,6 +60,24 @@ export default function BrandKitsPage() {
     if (!result.ok) { setError(result.error); return; }
     setName('');
     setColorsText('');
+    resource.reload();
+  }
+
+  /**
+   * Tai tep logo. Gui byte tho qua `PUT`.
+   *
+   * Sau khi tai thanh cong, may chu tao mot PHIEN BAN MOI cua bo nhan dien — nen phai nap lai de
+   * nguoi dung thay so phien ban that, khong phai so cu.
+   */
+  async function uploadLogo(id: string, file: File): Promise<void> {
+    setUploading(id);
+    setError(null);
+    const result = await apiFetchChecked(
+      `/v1/brand-kits/${encodeURIComponent(id)}/logo`, BRAND_LOGO_SCHEMA,
+      { method: 'PUT', rawBody: await file.arrayBuffer(), contentType: file.type },
+    );
+    setUploading(null);
+    if (!result.ok) { setError(result.error); return; }
     resource.reload();
   }
 
@@ -102,6 +123,7 @@ export default function BrandKitsPage() {
             {translate('screen.brand.position')}
           </span>
           <select
+            name="overlay-position"
             value={position}
             onChange={(e) => setPosition(e.target.value as Position)}
             style={{
@@ -121,6 +143,7 @@ export default function BrandKitsPage() {
         <label style={{ display: 'flex', gap: 'var(--mcp-space-2)', alignItems: 'center', minHeight: 44 }}>
           <input
             type="checkbox"
+            name="include-disclosure"
             checked={includeDisclosure}
             onChange={(e) => setIncludeDisclosure(e.target.checked)}
           />
@@ -159,6 +182,29 @@ export default function BrandKitsPage() {
               </li>
             ))}
           </ul>
+
+          {/*
+            `D-077` — tai tep logo. Gui BYTE THO, khong phai JSON: nhet anh vao JSON se phong to
+            33% va bat ca hai ben lam viec ma-hoa khong can thiet.
+            Kieu tep va kich thuoc duoc do o MAY CHU tren chinh byte — o day khong kiem thay.
+          */}
+          <label style={{ display: 'block', marginTop: 'var(--mcp-space-4)' }}>
+            <span style={{ display: 'block', color: 'var(--mcp-text-secondary)' }}>
+              {translate('screen.brand.upload_logo')}
+            </span>
+            <input
+              type="file"
+              name="brand-logo"
+              accept="image/png,image/jpeg,image/webp"
+              style={{ minHeight: 44 }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void uploadLogo(kit.id, file);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          {uploading === kit.id ? <p>{translate('screen.brand.saving')}</p> : null}
 
           <Button
             variant="secondary"

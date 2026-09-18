@@ -11,6 +11,7 @@ import type { PersistencePort } from './port.js';
 import type {
   BrandKitRecord,
   BrandKitVersionRecord,
+  BrandLogoAssetRecord,
   JobMetadataSnapshotRecord,
   JobFrameCorrectionRecord,
   JobFrameRecord,
@@ -147,6 +148,7 @@ export class InMemoryPersistence implements PersistencePort {
   private readonly metadataSnapshotRows: JobMetadataSnapshotRecord[] = [];
   private readonly brandKitRows: BrandKitRecord[] = [];
   private readonly brandKitVersionRows: BrandKitVersionRecord[] = [];
+  private readonly brandLogoRows: BrandLogoAssetRecord[] = [];
   private readonly validationRows: ValidationRecord[] = [];
   private readonly attestationRows: RightsAttestation[] = [];
   private readonly jobRows: ProcessingJob[] = [];
@@ -606,6 +608,22 @@ export class InMemoryPersistence implements PersistencePort {
       );
       return row ? { ...row } : null;
     },
+  };
+
+  /** `D-077`. APPEND-ONLY — khong co `update`, khong co `delete`. */
+  readonly brandLogos = {
+    create: async (record: BrandLogoAssetRecord): Promise<BrandLogoAssetRecord> => {
+      this.brandLogoRows.push({ ...record });
+      return record;
+    },
+    findById: async (workspaceId: string, id: string): Promise<BrandLogoAssetRecord | null> => {
+      const row = this.brandLogoRows.find((r) => r.id === id && r.workspaceId === workspaceId);
+      return row ? { ...row } : null;
+    },
+    listByBrandKit: async (workspaceId: string, brandKitId: string): Promise<BrandLogoAssetRecord[]> =>
+      this.brandLogoRows
+        .filter((r) => r.brandKitId === brandKitId && r.workspaceId === workspaceId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((r) => ({ ...r })),
   };
 
   readonly audit = {

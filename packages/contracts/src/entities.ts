@@ -107,6 +107,25 @@ export interface ProcessingJobRequest {
   preserveOriginalMetadata: true;
   preserveAiProvenance: true;
   presetId: string | null;
+  /**
+   * `D-077` — lop phu nhan dien / cong bo AI cho ban xuat NAY.
+   *
+   * `null` la MAC DINH va la cho an toan: khong co lop phu nao. Truong nay chi khac `null` khi
+   * nguoi dung CHON — khong duong nao trong ma tu dien gia tri vao day.
+   *
+   * KHONG nham voi thao tac `brand_overlay` trong `operations`: thao tac do la mat na xam dac to
+   * kin mot vung (`Q-15`) — no XOA thong tin. Truong nay THEM thong tin len tren. Hai viec nguoc nhau.
+   */
+  branding: BrandingRequest | null;
+}
+
+export interface BrandingRequest {
+  brandKitId: Id;
+  /** Phien ban CU THE. Khong dung "phien ban dang hieu luc": ban xuat phai tro toi thu da that su dan. */
+  brandKitVersion: number;
+  /** Nguoi dung co the chon bo nhan dien roi TAT logo — hai o nay doc lap nhau. */
+  applyLogo: boolean;
+  applyDisclosure: boolean;
 }
 
 export interface ProcessingJob {
@@ -243,6 +262,17 @@ export interface ProcessingReceipt {
    */
   brandKitId: Id | null;
   brandKitVersion: number | null;
+  /** `D-077`: tep logo THAT da duoc dan. `null` = khong dan logo nao. */
+  brandLogoAssetId: Id | null;
+  /**
+   * `D-077`. Cot RIENG, KHONG suy tu `brandKitId !== null`.
+   *
+   * Nguoi dung co the chon mot bo nhan dien roi TAT lop phu. Suy tu su co mat cua id se noi sai
+   * trong dung ca do — va do la mot trong nhung cau hoi bien nhan sinh ra de tra loi.
+   */
+  brandOverlayApplied: boolean;
+  /** `D-077`: lop phu cong bo AI co duoc dan vao ban xuat khong. Mac dinh `false` — opt-in. */
+  disclosureOverlayApplied: boolean;
   /** Doi hinh dang bien nhan ve sau se tang so nay; ban doc cu biet minh dang doc phien ban nao. */
   schemaVersion: number;
 }

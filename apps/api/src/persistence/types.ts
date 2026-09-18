@@ -270,8 +270,28 @@ export interface JobMetadataSnapshotRecord {
   /** `false` = KHONG DOC DUOC. Khac han mot anh chup rong (`fields: []`, `readable: true`). */
   readable: boolean;
   fields: MetadataField[];
+  /**
+   * `D-076`. PHAI luu, khong duoc tinh lai luc doc: danh sach nay la thuoc tinh cua LAN DO do,
+   * khong phai cua ma nguon hom nay.
+   */
+  unmeasuredKeys: string[];
   detectorId: string;
   recordedAt: IsoTimestamp;
+}
+
+/** `D-077` — tep logo cua mot bo nhan dien. Bang rieng: phien ban la bat bien, tep thi khong. */
+export interface BrandLogoAssetRecord {
+  id: Id;
+  workspaceId: Id;
+  brandKitId: Id;
+  storageKey: string;
+  mimeType: string;
+  byteSize: number;
+  widthPx: number;
+  heightPx: number;
+  checksumSha256: string;
+  createdAt: IsoTimestamp;
+  createdByUserId: Id | null;
 }
 
 /** `P5-MCP-53` — bo nhan dien thuong hieu, pham vi workspace. */

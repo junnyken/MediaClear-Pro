@@ -98,6 +98,17 @@ export interface MetadataSnapshot {
   fields: MetadataField[];
   /** Bo do da sinh ra anh chup nay, de ve sau biet ket luan den tu dau. */
   detectorId: string;
+  /**
+   * `D-076` — truong he thong BIET la co the ton tai nhung KHONG DO DUOC.
+   *
+   * Day la cho de noi doi nhat trong ca Phase 5. Bo doc EXIF cua he thong chi phu mot DANH SACH
+   * DONG 5 the (`Q-P5-04`); the ngoai danh sach khong duoc doc. Neu chung don gian la vang mat
+   * khoi `fields` thi phep doi chieu se khong bao gio nhac toi chung — va bao cao "da giu nguyen"
+   * se dung ve nhung the da do va IM LANG ve phan con lai.
+   *
+   * Liet ke chung o day bien su im lang do thanh mot cau tra loi: `unknown`.
+   */
+  unmeasuredKeys: string[];
 }
 
 export interface MetadataFieldComparison {
@@ -106,6 +117,13 @@ export interface MetadataFieldComparison {
   before: MetadataValue;
   after: MetadataValue;
   status: MetadataFieldStatus;
+  /**
+   * `D-076`. CHI khac `null` khi `status === 'changed'`.
+   *
+   * Mot truong doi gia tri ma bao cao khong noi duoc VI SAO thi do chi la mot canh bao trong —
+   * nguoi dung khong lam duoc gi voi no.
+   */
+  changeReason: MetadataChangeReason | null;
 }
 
 /** Ket luan CHUNG. Chi duoc `preserved` khi KHONG con truong nao `unknown`. */
@@ -113,11 +131,25 @@ export const METADATA_VERDICTS = ['preserved', 'partially_preserved', 'changed',
 export type MetadataVerdict = (typeof METADATA_VERDICTS)[number];
 
 export interface MetadataComparison {
+  /**
+   * Ket luan ve PHAN DA DO.
+   *
+   * KHONG bao gom truong chua do duoc — neu bao gom, verdict se LUON la `unknown` (vi bo doc luon
+   * co the ke ra the no khong doc), va mot ket luan luon giong nhau thi khong con la ket luan.
+   * Do phu cua phep do duoc noi RIENG o `unmeasuredCount` va `evidenceStatus`.
+   */
   verdict: MetadataVerdict;
   fields: MetadataFieldComparison[];
   counts: Record<MetadataFieldStatus, number>;
   /** Nhom co it nhat mot truong bi go theo chinh sach — de giao dien noi ro. */
   strippedCategories: MetadataCategory[];
+  /**
+   * So truong he thong BIET la co the ton tai nhung KHONG doc duoc.
+   *
+   * `> 0` keo `evidenceStatus` xuong `partially_verified`: phan da do la dung, nhung bao cao KHONG
+   * phu het. Giau con so nay di se lam "da giu nguyen" nghe nhu mot ket luan day du.
+   */
+  unmeasuredCount: number;
   evidenceStatus: EvidenceStatus;
 }
 
@@ -148,6 +180,49 @@ const emptyCounts = (): Record<MetadataFieldStatus, number> =>
  *  - Chi co `removed_by_policy`    -> `partially_preserved`: dung y do, nhung tep KHONG con nguyen.
  *  - Con lai                       -> `preserved`.
  */
+/**
+ * `D-076` — CHINH SACH metadata mac dinh, viet thanh ma chu khong chi thanh cau.
+ *
+ * `preserve`: giu nguyen thong tin goc. Day la cam ket cap owner (guardrail 6/7) va da do duoc tren
+ * luot chay that: `exif.Make = 'MatBao'` di nguyen ven tu tep vao sang ban xuat.
+ *
+ * KHONG co gia tri `redact` o day. Xoa vi tri/thiet bi la mot THAO TAC RIENG do nguoi dung yeu cau
+ * va duoc ghi rieng — khong phai mot hanh vi mac dinh am tham. Them mot gia tri vao enum nay ma
+ * duong xu ly chua thi hanh se lam he thong khai mot chinh sach no khong lam.
+ */
+export const METADATA_POLICIES = ['preserve'] as const;
+export type MetadataPolicy = (typeof METADATA_POLICIES)[number];
+export const DEFAULT_METADATA_POLICY: MetadataPolicy = 'preserve';
+
+/**
+ * Ly do mot truong ĐỔI gia tri. Doi ma khong noi duoc VI SAO thi bao cao chi la mot canh bao trong.
+ */
+export const METADATA_CHANGE_REASONS = [
+  /** Doi dinh dang chua (vd jpeg -> png) keo theo doi thuoc tinh. */
+  'container_conversion',
+  /** Duong xu ly ve lai diem anh (lam mo, cat, dan lop phu). */
+  'pipeline_render',
+  /** Do duoc la da doi, nhung he thong khong quy duoc ve nguyen nhan nao. */
+  'unattributed',
+] as const;
+export type MetadataChangeReason = (typeof METADATA_CHANGE_REASONS)[number];
+
+/**
+ * Truong bi doi boi viec doi dinh dang. Danh sach DONG, va la ly do co the noi ra duoc.
+ *
+ * Ngoai danh sach nay, mot truong doi gia tri se duoc quy cho `pipeline_render` — cung la mot cau
+ * tra loi THAT, chu khong phai mot o trong.
+ */
+const CONTAINER_CONVERSION_KEYS: readonly string[] = [
+  'image.format', 'image.channels', 'image.hasIcc', 'image.space', 'image.density',
+  'container.format', 'video.codec', 'audio.codec',
+];
+
+function changeReasonFor(key: string): MetadataChangeReason {
+  if (CONTAINER_CONVERSION_KEYS.includes(key)) return 'container_conversion';
+  return 'pipeline_render';
+}
+
 export function compareMetadata(
   before: MetadataSnapshot,
   after: MetadataSnapshot,
@@ -171,12 +246,25 @@ export function compareMetadata(
         before: b?.value ?? null,
         after: a?.value ?? null,
         status: 'unknown' as const,
+        changeReason: null,
       };
     });
-    return { verdict: 'unknown', fields, counts, strippedCategories: [], evidenceStatus: 'unknown' };
+    return {
+      verdict: 'unknown', fields, counts, strippedCategories: [],
+      unmeasuredCount: fields.length, evidenceStatus: 'unknown',
+    };
   }
 
-  const keys = [...new Set([...before.fields, ...after.fields].map((f) => f.key))].sort();
+  /*
+   * Tap khoa = hop cua CA BA nguon: truong doc duoc o hai phia, VA truong he thong biet la khong do
+   * duoc. Bo nguon thu ba thi truong chua do se bien mat khoi bao cao thay vi duoc goi la `unknown`.
+   */
+  const unmeasured = new Set([...before.unmeasuredKeys, ...after.unmeasuredKeys]);
+  const keys = [...new Set([
+    ...before.fields.map((f) => f.key),
+    ...after.fields.map((f) => f.key),
+    ...unmeasured,
+  ])].sort();
   const stripped = new Set<MetadataCategory>();
 
   const fields = keys.map((key): MetadataFieldComparison => {
@@ -187,7 +275,14 @@ export function compareMetadata(
     const av = a?.value ?? null;
 
     let status: MetadataFieldStatus;
-    if (bv === null && av === null) status = 'not_available';
+    /*
+     * `D-076`, luat dau tien: CHUA DO thi la `unknown`, khong phai `not_available`.
+     *
+     * `not_available` nghia la "da tim va khong co". Dung no cho mot truong chua he duoc tim la
+     * bien mot khoang trong trong phep do thanh mot ket luan — dung loi `D-044`.
+     */
+    if (unmeasured.has(key)) status = 'unknown';
+    else if (bv === null && av === null) status = 'not_available';
     else if (bv !== null && av === null) {
       status = strippedCategories.includes(category) ? 'removed_by_policy' : 'removed';
       if (status === 'removed_by_policy') stripped.add(category);
@@ -195,25 +290,36 @@ export function compareMetadata(
     else status = bv === av ? 'preserved' : 'changed';
 
     counts[status] += 1;
-    return { key, category, before: bv, after: av, status };
+    return {
+      key, category, before: bv, after: av, status,
+      changeReason: status === 'changed' ? changeReasonFor(key) : null,
+    };
   });
 
+  /*
+   * Verdict tinh tren PHAN DA DO. `counts.unknown` o day chinh la so truong chua do duoc, va no
+   * KHONG duoc keo verdict ve `unknown` — neu keo, moi phep doi chieu se cho cung mot ket qua.
+   * Do phu duoc noi rieng ngay duoi.
+   */
   const verdict: MetadataVerdict =
-    counts.unknown > 0 ? 'unknown'
-      : counts.changed > 0 || counts.removed > 0 || counts.added > 0 ? 'changed'
-        : counts.removed_by_policy > 0 ? 'partially_preserved'
-          : 'preserved';
+    counts.changed > 0 || counts.removed > 0 || counts.added > 0 ? 'changed'
+      : counts.removed_by_policy > 0 ? 'partially_preserved'
+        : 'preserved';
 
   return {
     verdict,
     fields,
     counts,
     strippedCategories: [...stripped].sort(),
+    unmeasuredCount: counts.unknown,
     /*
-     * `verified` chi khi da doc duoc CA HAI phia VA khong con `unknown` nao. Co du lieu trong bang
-     * khong phai la bang chung — do la mot trong nhung cach de nhat de tu phong cap evidence.
+     * `verified` CHI khi da doc duoc ca hai phia VA khong con truong nao chua do.
+     *
+     * Con truong chua do => `partially_verified`: phan da do la dung, nhung bao cao khong phu het.
+     * Goi do la `verified` se la cach de nhat de tu phong cap bang chung — mot bao cao dung ve
+     * nam truong no nhin thay va im lang ve muoi truong no khong nhin thay.
      */
-    evidenceStatus: verdict === 'unknown' ? 'unknown' : 'verified',
+    evidenceStatus: counts.unknown > 0 ? 'partially_verified' : 'verified',
   };
 }
 

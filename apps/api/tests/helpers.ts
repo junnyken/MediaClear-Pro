@@ -139,7 +139,7 @@ export async function createJob(
   token: string,
   workspaceId: string,
   assetId: string,
-  options: { operations?: string[]; idempotencyKey?: string } = {},
+  options: { operations?: string[]; idempotencyKey?: string; branding?: unknown } = {},
 ) {
   const res = await app.inject({
     method: 'POST',
@@ -155,6 +155,8 @@ export async function createJob(
       operations: options.operations ?? ['blur'],
       regions: [{ x: 0.1, y: 0.1, width: 0.2, height: 0.2, startSeconds: null, endSeconds: null }],
       presetId: null,
+      // `D-077`: mac dinh KHONG co lop phu — dung mac dinh cua chinh he thong.
+      branding: options.branding ?? null,
       idempotencyKey: options.idempotencyKey ?? `idem-${Math.random().toString(36).slice(2)}`,
     },
   });

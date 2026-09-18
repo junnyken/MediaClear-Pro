@@ -224,6 +224,7 @@ export const API_ROUTES = [
   { method: 'GET', path: '/v1/brand-kits/:brandKitId', status: 'implemented', mcp: 'P5-MCP-53' },
   { method: 'POST', path: '/v1/brand-kits/:brandKitId/versions', status: 'implemented', mcp: 'P5-MCP-53' },
   { method: 'POST', path: '/v1/brand-kits/:brandKitId/state', status: 'implemented', mcp: 'P5-MCP-53' },
+  { method: 'PUT', path: '/v1/brand-kits/:brandKitId/logo', status: 'implemented', mcp: 'P5-MCP-53' },
 ] as const;
 
 export type ApiRoute = (typeof API_ROUTES)[number];

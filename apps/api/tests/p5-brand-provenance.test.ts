@@ -179,7 +179,11 @@ describe('P5-MCP-50 + P5-MCP-52 — dong thoi gian va bien nhan', () => {
     expect(receipt!.metadataVerdict, 'bien nhan khong mang ket luan nao ve thong tin kem theo').not.toBeNull();
     expect(receipt!.disclosureState).not.toBeNull();
     expect(receipt!.disclosureLimitationKey, 'ket luan khong kem gioi han').not.toBeNull();
-    expect(receipt!.schemaVersion).toBe(2);
+    expect(receipt!.schemaVersion).toBe(3);
+    // Khong ai chon => lop phu KHONG duoc dan, va ca ba o deu phai noi dung dieu do.
+    expect(receipt!.brandOverlayApplied, 'he thong tu dan lop phu').toBe(false);
+    expect(receipt!.disclosureOverlayApplied).toBe(false);
+    expect(receipt!.brandLogoAssetId).toBeNull();
     // Khong ai chon bo nhan dien => ban xuat KHONG duoc mang lop phu.
     expect(receipt!.brandKitId, 'he thong tu ap dung bo nhan dien').toBeNull();
     expect(receipt!.brandKitVersion).toBeNull();

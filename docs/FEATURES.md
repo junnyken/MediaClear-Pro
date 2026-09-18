@@ -145,3 +145,23 @@ nâng cao ngoài 4 role · Gỡ dấu vết nguồn gốc · Tự động thu th
 
 > **Lớp phủ thương hiệu là tuỳ bạn chọn.** Bản xuất chỉ mang lớp phủ khi bạn bật. Hệ thống không tự
 > thêm, và biên nhận ghi rõ bộ nhận diện nào cùng **phiên bản** nào đã được áp dụng.
+
+### Cập nhật `D-076` + `D-077` (2026-09-18)
+
+> **Thông tin gốc của bạn được giữ nguyên — đã chốt.** Hệ thống **không gỡ** vị trí chụp hay thiết
+> bị chụp khỏi bản xuất. Nếu bạn cần một bản xuất **không** mang những thông tin đó, đó sẽ là một
+> thao tác riêng bạn tự chọn, và nó sẽ được ghi lại riêng. Hiện chưa có.
+
+> **Báo cáo nói rõ nó chưa đo được gì.** Hệ thống chỉ đọc được một số mục nhất định trong tệp ảnh.
+> Những mục nó không đọc được sẽ hiện là *"chưa xác định"* — không bị báo nhầm thành *"không có"*
+> và cũng không bị lặng lẽ bỏ qua.
+
+> **Lớp phủ thương hiệu là tuỳ bạn chọn — nay dán được thật.** Bạn tải logo lên, chọn phiên bản, bật
+> logo và/hoặc dòng công bố về việc dùng AI. Bản xuất chỉ mang lớp phủ khi bạn bật. Biên nhận ghi rõ
+> bộ nào, **phiên bản nào**, và tệp logo nào đã được dán.
+>
+> Hiện mới áp dụng cho **ảnh**. Video chưa có lớp phủ.
+
+> **Nếu không hiển thị được chữ, hệ thống không dán dòng công bố.** Một dải trống trông như một dấu
+> có chủ định nhưng không nói gì — nên hệ thống thà không dán còn hơn dán một thứ rỗng rồi ghi vào
+> biên nhận là đã công bố.

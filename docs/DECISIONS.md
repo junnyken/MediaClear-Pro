@@ -2073,3 +2073,110 @@ v3** · không route DELETE · không đánh số lại ID lịch sử · **khô
 tiện ích trình duyệt**.
 
 - **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-076 — Chính sách thông tin kèm theo tệp: GIỮ NGUYÊN (đóng `Q-P5-02`)
+
+### Quyết định
+
+```
+Chính sách mặc định: GIỮ NGUYÊN thông tin gốc.
+KHÔNG tự động gỡ vị trí / thiết bị / GPS.
+Xoá thông tin nhạy cảm là một THAO TÁC RIÊNG do người dùng yêu cầu, được ghi riêng.
+Trường chưa đo được là `unknown` — không phải "không có", không phải "đã giữ".
+```
+
+`Q-P5-02` mở ra vì `D-075` khai một danh sách gỡ mà đường xử lý **không** thi hành. Đo thật:
+`preserveOriginalMetadata` là `true` **cố định** theo **guardrail 6/7**, và `exif.Make = 'MatBao'`
+đi nguyên vẹn từ tệp vào sang bản xuất. Nay mã nói đúng điều nó làm.
+
+`METADATA_POLICIES = ['preserve']` — **không có** giá trị `redact`. Thêm một giá trị mà đường xử lý
+chưa thi hành chính là cách `Q-P5-02` đã sinh ra.
+
+### Luật thứ nhất: chưa đo là `unknown`
+
+Đây là chỗ dễ nói dối nhất trong cả Phase 5. Bộ đọc EXIF chỉ phủ **danh sách đóng 5 thẻ**
+(`Q-P5-04`). Nếu những thẻ ngoài danh sách đơn giản là **vắng mặt** khỏi ảnh chụp, phép đối chiếu sẽ
+không bao giờ nhắc tới chúng — và báo cáo *"đã giữ nguyên"* sẽ đúng về những thẻ đã đo rồi **im
+lặng** về phần còn lại.
+
+`MetadataSnapshot.unmeasuredKeys` liệt kê chúng **tường minh**, và `compareMetadata` lấy **hợp của
+ba nguồn** làm tập khoá. Sự im lặng biến thành một câu trả lời: `unknown`.
+
+### Luật thứ hai: tách KẾT LUẬN khỏi ĐỘ PHỦ
+
+Lần cài đặt đầu kéo `unknown` vào verdict — và **mọi** phép đối chiếu lập tức thành `unknown`, vì
+bộ đọc luôn có thể kể ra thẻ nó không đọc. Một kết luận luôn giống nhau thì không còn là kết luận.
+
+- `verdict` tính trên **phần đã đo**.
+- `unmeasuredCount` nói **độ phủ**.
+- `evidenceStatus`: `verified` **chỉ khi** không còn trường chưa đo; còn lại là `partially_verified`.
+
+Gọi một báo cáo phủ 5/15 trường là `verified` chính là cách dễ nhất để tự phong cấp bằng chứng.
+
+### Luật thứ ba: đổi phải nói được VÌ SAO
+
+`MetadataFieldComparison.changeReason` — `container_conversion` (đổi định dạng) ·
+`pipeline_render` (vẽ lại điểm ảnh) · `unattributed`. Một trường đổi mà báo cáo không nói được vì
+sao thì đó chỉ là một cảnh báo trống.
+
+- **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-077 — Dán lớp phủ nhận diện và công bố AI vào bản xuất (đóng phần ảnh của `Q-P5-03`)
+
+### KHÔNG nhầm với thao tác `brand_overlay` đã có
+
+`brand_overlay` trong `operations` là **mặt nạ xám đặc** tô kín một vùng (`Q-15`) — nó **xoá** thông
+tin. `D-077` **thêm** thông tin lên trên. Hai việc ngược nhau; dùng lại một tên cho cả hai sẽ làm
+biên nhận nói sai về việc đã làm gì với tệp của người dùng.
+
+Nên lựa chọn lớp phủ là một trường **riêng** (`ProcessingJobRequest.branding`), không phải một
+`operation`.
+
+### Bốn điều bắt buộc
+
+1. **Không bao giờ tự dán.** `branding` mặc định `null`. Không đường nào trong mã tự điền giá trị.
+   Giao diện chỉ gửi trường này khi người dùng bật một trong hai ô.
+2. **Ghim PHIÊN BẢN người dùng đã chọn**, không lấy "phiên bản đang hiệu lực". Một lần sửa bộ nhận
+   diện giữa lúc người dùng bấm sẽ làm bản xuất mang nội dung khác với cái họ vừa xem trước.
+3. **Dán NGAY SAU render, NGAY TRƯỚC khi ghi.** Dán sau khi ghi sẽ làm checksum trong `outputs` mô
+   tả một tệp khác với tệp trong kho, và bất biến `I-2` sẽ đỏ oan.
+4. **Ghi cái ĐO ĐƯỢC, không ghi lời khai.** `brandOverlayApplied` lấy từ kết quả thật của bước dán;
+   logo hỏng thì nó là `false` và `brandLogoAssetId` là `null`.
+
+`brandOverlayApplied` là một cột **riêng**, không suy từ `brandKitId !== null`: người dùng có thể
+chọn một bộ nhận diện rồi **tắt** lớp phủ.
+
+### Lỗi đo được: dải công bố TRỐNG RUỘT
+
+Sau một lần khởi động lại, workspace mất **sạch font** (`fc-list` trả về 0). Thư viện vẽ SVG vẫn trả
+về một ảnh **hợp lệ** — chỉ là không có chữ. Bản xuất sẽ mang một dải tối màu trống ruột: trông như
+một dấu có chủ định nhưng không nói gì, và biên nhận khai rằng **đã công bố**.
+
+**Một công bố trống còn tệ hơn không công bố.**
+
+`renderDisclosureBand` nay tự chạy một **đối chứng âm lúc chạy**: vẽ dải với câu chữ thật, vẽ lại
+với chuỗi rỗng, rồi so byte. Giống nhau ⇒ chữ không lên được pixel nào ⇒ **không dán gì** và
+`disclosureApplied` là `false`.
+
+Không kiểm "có font không" — phép kiểm đó trả lời một câu khác. Font có thể có mặt mà vẫn không vẽ
+được chữ Việt có dấu; điều duy nhất đáng tin là đối chiếu **pixel**.
+
+### Tải tệp logo
+
+Đo trên **byte thật** (`content-type` của client chỉ để đối chiếu) · qua tầng trừu tượng kho ·
+**không ghi đè** (mỗi lần tải là một khoá kho mới) · gán logo = **tạo phiên bản mới**.
+
+`BrandLogoView.sharedStorage` đi qua biên giới API **có chủ đích**: `false` nghĩa là tệp nằm trên
+kho **cục bộ** của container, **không phải** kho dùng chung, và **không được gọi là** đã lưu trữ ở
+mức production (`Q-23`).
+
+### Chưa làm
+
+Lớp phủ cho **video** chưa có — xem `Q-P5-03`. Không giả lập: biên nhận của một lượt video ghi
+`brandOverlayApplied: false`, và đó là sự thật.
+
+- **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro

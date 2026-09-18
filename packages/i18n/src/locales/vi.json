@@ -535,5 +535,17 @@
   "provenance.detail.hasAudio": "Có âm thanh",
   "media_type.image": "Ảnh",
   "media_type.video": "Tệp phim",
-  "screen.brand.state": "Trạng thái"
+  "screen.brand.state": "Trạng thái",
+  "audit_event.brand_logo_uploaded": "Đã tải tệp logo lên",
+  "screen.brand.none": "Không dùng bộ nhận diện",
+  "screen.brand.logo": "Tệp logo",
+  "screen.brand.no_logo": "Phiên bản này chưa có logo",
+  "screen.brand.has_logo": "Đã có logo",
+  "screen.brand.apply_logo": "Dán logo lên bản xuất",
+  "screen.brand.apply_disclosure": "Dán dòng công bố về việc dùng AI lên bản xuất",
+  "screen.brand.preview_none": "Bản xuất sẽ KHÔNG có lớp phủ nào.",
+  "screen.brand.preview_summary": "Bản xuất sẽ dùng phiên bản {version} · logo: {logo} · dòng công bố: {disclosure}.",
+  "common.yes": "có",
+  "common.no": "không",
+  "screen.brand.upload_logo": "Tải tệp logo lên"
 }

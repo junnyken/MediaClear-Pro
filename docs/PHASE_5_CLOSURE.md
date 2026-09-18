@@ -3,10 +3,17 @@
 - **Quyết định**: `D-075` · **Ngày**: 2026-09-18
 
 ```
-Phase 5 technical gate: READY_FOR_PHASE_6_EXCEPT_PROVIDER_AND_ONLINE
+Phase 5 technical implementation: COMPLETE (anh) / OPEN (lop phu video)
+MCP-50: VERIFIED
+MCP-51: VERIFIED_WITH_FIELD_LIMITATIONS   (Q-P5-04: 5 the EXIF, nay duoc KE TEN)
+MCP-52: VERIFIED
+MCP-53: VERIFIED cho ANH · lop phu VIDEO chua lam (Q-P5-03)
+MCP-54: VERIFIED cho ANH · lop phu VIDEO chua lam (Q-P5-03)
 Provider:               BLOCKED_BY_Q-P4-01
 Online verification:    BLOCKED_BY_Q23
+Gate:                   READY_FOR_PHASE_6_EXCEPT_PROVIDER_AND_ONLINE
 Go-live:                NOT_READY_FOR_GO_LIVE
+Phase 6:                NOT_STARTED
 ```
 
 > Không phải `READY_FOR_PHASE_6` trần: dịch vụ xử lý thật còn `blocked` và xác minh online còn
@@ -64,7 +71,52 @@ Mã được sửa để **không khai một chính sách nó không thi hành**
 `METADATA_CATEGORIES_STRIPPED_BY_DEFAULT = []`. Mọi trường biến mất đều được gọi đúng tên là
 `removed`. Khả năng phân loại vẫn còn — khi owner quyết, đổi đúng một hằng số. Xem `Q-P5-02`.
 
-## 6. Không đụng tới
+## 6. Completion patch `D-076` + `D-077` (2026-09-18)
+
+### `Q-P5-02` — chốt: GIỮ NGUYÊN (`D-076`)
+
+Chính sách mặc định là **giữ nguyên** thông tin gốc, đúng guardrail 6/7. Không tự động gỡ vị trí /
+thiết bị / GPS. `METADATA_POLICIES` cố tình **không có** giá trị `redact`.
+
+Ba luật đi kèm, mỗi luật chặn một cách nói dối cụ thể:
+
+| Luật | Chặn điều gì |
+|---|---|
+| Trường **chưa đo** là `unknown`, liệt kê tường minh (`unmeasuredKeys`) | báo cáo đúng về 5 thẻ đã đo rồi **im lặng** về phần còn lại |
+| Tách **kết luận** (`verdict`) khỏi **độ phủ** (`unmeasuredCount` → `partially_verified`) | gọi một báo cáo phủ 5/15 trường là `verified` |
+| Trường đổi phải mang **lý do** (`changeReason`) | một cảnh báo trống mà người dùng không làm gì được |
+
+Lần cài đặt đầu kéo `unknown` vào verdict — và **mọi** phép đối chiếu lập tức thành `unknown`. Một
+kết luận luôn giống nhau thì không còn là kết luận.
+
+### `Q-P5-03` — lớp phủ cho ẢNH đã xong (`D-077`)
+
+`branding` là một trường **riêng**, không phải một `operation`: thao tác `brand_overlay` sẵn có là
+**mặt nạ xám đặc** (`Q-15`) — nó **xoá** thông tin, còn `D-077` **thêm** thông tin. Ngược nhau.
+
+Đo thật: không chọn ⇒ byte **y hệt** bản render · chọn ⇒ byte đổi, `I-2` vẫn đúng, tệp gốc nguyên
+vẹn · bộ của workspace khác ⇒ **không dán gì** · phiên bản không tồn tại ⇒ **không dán gì**.
+
+### Lỗi đo được: dải công bố TRỐNG RUỘT
+
+Sau một lần khởi động lại, workspace mất **sạch font** (`fc-list` = 0). Thư viện vẽ SVG vẫn trả về
+ảnh **hợp lệ** — chỉ là không có chữ. Bản xuất sẽ mang một dải tối màu trống ruột, và biên nhận
+khai **đã công bố**. Một công bố trống còn tệ hơn không công bố.
+
+`renderDisclosureBand` nay tự chạy một **đối chứng âm lúc chạy** (vẽ có chữ ↔ vẽ chuỗi rỗng, so
+byte). Giống nhau ⇒ không dán gì, `disclosureApplied: false`.
+
+### Trạng thái MCP sau patch
+
+| MCP | Trước | Sau |
+|---|---|---|
+| `P5-MCP-51` | `verified` | **`verified`** + luật chưa-đo-là-unknown |
+| `P5-MCP-53` | `partially_verified` | **`verified` cho ảnh** — tải logo + dán + biên nhận |
+| `P5-MCP-54` | `partially_verified` | **`verified` cho ảnh** — dán dải công bố, có phép chắn dải trống |
+
+**Video vẫn chưa có lớp phủ** (`Q-P5-03` còn mở). Không giả lập.
+
+## 7. Không đụng tới
 
 Provider thật vẫn **`blocked`** (`Q-P4-01`) · `FRAME_CONFIDENCE_THRESHOLD_IS_MEASURED` vẫn `false` ·
 `CORRECTION_NEIGHBOUR_RADIUS_IS_MEASURED` vẫn `false` · `MEDIACLEAR_CLEANUP_ENABLED` vẫn **tắt** ·

@@ -19,6 +19,7 @@ import type { PersistencePort } from './port.js';
 import type {
   BrandKitRecord,
   BrandKitVersionRecord,
+  BrandLogoAssetRecord,
   JobMetadataSnapshotRecord,
   JobFrameCorrectionNeighbour,
   JobFrameCorrectionRecord,
@@ -504,8 +505,8 @@ export class PostgresPersistence implements PersistencePort {
            id, workspace_id, project_id, asset_id, source_file_id, media_type, state,
            operations, regions, preserve_original_metadata, preserve_ai_provenance, preset_id,
            output_asset_id, reason_code, block_reason_kind, idempotency_key, attempt_count,
-           created_at, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+           created_at, updated_at, branding
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb)`,
         jobValues(job),
       );
       return job;
@@ -805,10 +806,11 @@ export class PostgresPersistence implements PersistencePort {
               failure_reason, review_reason,
               metadata_verdict, metadata_evidence, metadata_stripped_categories,
               disclosure_state, disclosure_limitation_key,
-              brand_kit_id, brand_kit_version, schema_version)
+              brand_kit_id, brand_kit_version, schema_version,
+              brand_logo_asset_id, brand_overlay_applied, disclosure_overlay_applied)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
                    $13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22,
-                   $23,$24,$25,$26,$27,$28,$29,$30)`,
+                   $23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33)`,
           [
             receipt.id, receipt.workspaceId, receipt.jobId, receipt.sourceAssetId, receipt.outputAssetId,
             JSON.stringify(receipt.operations), JSON.stringify(receipt.providerRunIds),
@@ -821,7 +823,8 @@ export class PostgresPersistence implements PersistencePort {
             receipt.failureReason, receipt.reviewReason,
             receipt.metadataVerdict, receipt.metadataEvidence, receipt.metadataStrippedCategories,
             receipt.disclosureState, receipt.disclosureLimitationKey,
-            receipt.brandKitId, receipt.brandKitVersion, receipt.schemaVersion
+            receipt.brandKitId, receipt.brandKitVersion, receipt.schemaVersion,
+            receipt.brandLogoAssetId, receipt.brandOverlayApplied, receipt.disclosureOverlayApplied,
           ],
         );
       } catch (error) {
@@ -1045,9 +1048,10 @@ export class PostgresPersistence implements PersistencePort {
        */
       await this.q(
         `INSERT INTO job_metadata_snapshots
-           (id, job_id, workspace_id, phase, readable, fields, detector_id, recorded_at)
-         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)`,
-        [r.id, r.jobId, r.workspaceId, r.phase, r.readable, JSON.stringify(r.fields), r.detectorId, r.recordedAt],
+           (id, job_id, workspace_id, phase, readable, fields, unmeasured_keys, detector_id, recorded_at)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9)`,
+        [r.id, r.jobId, r.workspaceId, r.phase, r.readable, JSON.stringify(r.fields),
+         r.unmeasuredKeys, r.detectorId, r.recordedAt],
       );
       return r;
     },
@@ -1062,6 +1066,7 @@ export class PostgresPersistence implements PersistencePort {
         phase: row.phase as 'before' | 'after',
         readable: row.readable as boolean,
         fields: (row.fields as JobMetadataSnapshotRecord['fields']) ?? [],
+        unmeasuredKeys: (row.unmeasured_keys as string[]) ?? [],
         detectorId: row.detector_id as string,
         recordedAt: isoRequired(row.recorded_at as Date | string),
       }));
@@ -1148,6 +1153,31 @@ export class PostgresPersistence implements PersistencePort {
     },
   };
 
+  /** `D-077`. Khong mot cau lenh nao o day la `UPDATE` hay `DELETE`. */
+  readonly brandLogos = {
+    create: async (r: BrandLogoAssetRecord): Promise<BrandLogoAssetRecord> => {
+      await this.q(
+        `INSERT INTO brand_logo_assets
+           (id, workspace_id, brand_kit_id, storage_key, mime_type, byte_size,
+            width_px, height_px, checksum_sha256, created_at, created_by_user_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [r.id, r.workspaceId, r.brandKitId, r.storageKey, r.mimeType, r.byteSize,
+         r.widthPx, r.heightPx, r.checksumSha256, r.createdAt, r.createdByUserId]);
+      return r;
+    },
+    findById: async (workspaceId: string, id: string): Promise<BrandLogoAssetRecord | null> => {
+      const rows = await this.q<Record<string, unknown>>(
+        'SELECT * FROM brand_logo_assets WHERE id = $1 AND workspace_id = $2', [id, workspaceId]);
+      return rows[0] ? toBrandLogo(rows[0]) : null;
+    },
+    listByBrandKit: async (workspaceId: string, brandKitId: string): Promise<BrandLogoAssetRecord[]> => {
+      const rows = await this.q<Record<string, unknown>>(
+        `SELECT * FROM brand_logo_assets WHERE workspace_id = $1 AND brand_kit_id = $2
+          ORDER BY created_at DESC`, [workspaceId, brandKitId]);
+      return rows.map(toBrandLogo);
+    },
+  };
+
   readonly audit = {
     append: async (event: AuditEvent): Promise<AuditEvent> => {
       await this.q(
@@ -1220,6 +1250,9 @@ type ReceiptRow = {
   disclosure_state: string | null; disclosure_limitation_key: string | null;
   brand_kit_id: string | null; brand_kit_version: number | null;
   schema_version: number | null;
+  brand_logo_asset_id: string | null;
+  brand_overlay_applied: boolean | null;
+  disclosure_overlay_applied: boolean | null;
 };
 
 type SessionRow = {
@@ -1259,6 +1292,7 @@ type AttestationRow = {
 type JobRow = {
   id: string; workspace_id: string; project_id: string; asset_id: string; source_file_id: string;
   media_type: string; state: string; operations: string[]; regions: unknown;
+  branding: unknown;
   preserve_original_metadata: boolean;
   preserve_ai_provenance: boolean; preset_id: string | null; output_asset_id: string | null;
   reason_code: string | null; block_reason_kind: string | null; idempotency_key: string;
@@ -1375,6 +1409,10 @@ function toReceipt(r: ReceiptRow): ProcessingReceipt {
       ? null : Number(r.brand_kit_version),
     // Dong ghi truoc Phase 5 khong co cot nay o gia tri nao khac `1` — va do la su that ve chung.
     schemaVersion: Number(r.schema_version ?? 1),
+    brandLogoAssetId: r.brand_logo_asset_id ?? null,
+    // Dong ghi truoc `D-077` khong co cot nay => `false`, va do la su that ve chung.
+    brandOverlayApplied: r.brand_overlay_applied ?? false,
+    disclosureOverlayApplied: r.disclosure_overlay_applied ?? false,
   };
 }
 
@@ -1477,6 +1515,7 @@ function jobValues(job: ProcessingJob): unknown[] {
     job.request.preserveOriginalMetadata, job.request.preserveAiProvenance,
     job.request.presetId, job.outputAssetId, job.reasonCode, job.blockReasonKind,
     job.idempotencyKey, job.attemptCount, job.createdAt, job.updatedAt,
+    job.request.branding === null ? null : JSON.stringify(job.request.branding),
   ];
 }
 
@@ -1491,6 +1530,8 @@ function toJob(r: JobRow): ProcessingJob {
       preserveOriginalMetadata: r.preserve_original_metadata as true,
       preserveAiProvenance: r.preserve_ai_provenance as true,
       presetId: r.preset_id,
+      // `NULL` = nguoi dung khong chon lop phu nao. Day la mac dinh va la cho an toan.
+      branding: (r.branding as ProcessingJob['request']['branding']) ?? null,
     },
     outputAssetId: r.output_asset_id, reasonCode: r.reason_code,
     blockReasonKind: r.block_reason_kind as ProcessingJob['blockReasonKind'],
@@ -1554,6 +1595,22 @@ function brandVersionParams(v: BrandKitVersionRecord): unknown[] {
     v.brandKitId, v.workspaceId, v.version, v.name, v.colors, v.logoAssetId,
     v.overlayPosition, v.overlayOpacity, v.overlayIncludeDisclosure, v.createdAt, v.createdByUserId,
   ];
+}
+
+function toBrandLogo(row: Record<string, unknown>): BrandLogoAssetRecord {
+  return {
+    id: row.id as string,
+    workspaceId: row.workspace_id as string,
+    brandKitId: row.brand_kit_id as string,
+    storageKey: row.storage_key as string,
+    mimeType: row.mime_type as string,
+    byteSize: Number(row.byte_size),
+    widthPx: Number(row.width_px),
+    heightPx: Number(row.height_px),
+    checksumSha256: row.checksum_sha256 as string,
+    createdAt: isoRequired(row.created_at as Date | string),
+    createdByUserId: (row.created_by_user_id as string | null) ?? null,
+  };
 }
 
 function toBrandKit(row: Record<string, unknown>): BrandKitRecord {

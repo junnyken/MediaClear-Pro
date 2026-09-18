@@ -25,6 +25,26 @@ import { run, withTempDir } from './ffmpeg.js';
 export const METADATA_SNAPSHOT_DETECTOR_ID = 'mediaclear-metadata-fields-v1';
 
 /**
+ * `D-076` — nhung the he thong BIET la co the ton tai nhung KHONG doc duoc.
+ *
+ * Liet ke tuong minh thay vi de chung vang mat: mot the vang mat khoi anh chup se khong bao gio
+ * duoc phep doi chieu nhac toi, va bao cao "da giu nguyen" se dung ve nhung the da do roi IM LANG
+ * ve phan con lai. Liet ke o day bien su im lang do thanh mot cau tra loi: `unknown`.
+ *
+ * Danh sach nay la MOT PHAN cua `Q-P5-04` — no khong lam bo doc manh hon, no lam bo doc TRUNG THUC hon.
+ */
+export const UNMEASURED_IMAGE_KEYS: readonly string[] = [
+  'exif.GPSLatitude', 'exif.GPSLongitude', 'exif.DateTimeOriginal',
+  'exif.LensModel', 'exif.ExposureTime', 'exif.FNumber', 'exif.ISO',
+  'xmp.raw', 'iptc.raw', 'icc.profileName',
+];
+
+export const UNMEASURED_VIDEO_KEYS: readonly string[] = [
+  'tag.creation_time', 'tag.copyright', 'tag.album', 'tag.genre',
+  'stream.rotate', 'stream.language',
+];
+
+/**
  * Tag EXIF duoc doc. DANH SACH DONG co chu dinh.
  *
  * Doc het moi tag nghe co ve tot hon, nhung se keo theo mot bo phan tich EXIF day du — va quan
@@ -134,7 +154,10 @@ async function imageSnapshot(bytes: Uint8Array): Promise<MetadataSnapshot> {
          * luan. Danh dau ca anh chup la khong doc duoc, neu khong bo doi chieu se bao "da giu"
          * cho nhung truong no chua bao gio nhin thay.
          */
-        return { readable: false, fields, detectorId: METADATA_SNAPSHOT_DETECTOR_ID };
+        return {
+          readable: false, fields, detectorId: METADATA_SNAPSHOT_DETECTOR_ID,
+          unmeasuredKeys: [...UNMEASURED_IMAGE_KEYS],
+        };
       }
       for (const key of READABLE_EXIF_KEYS) {
         const found = parsed.find((f) => f.key === key);
@@ -149,9 +172,15 @@ async function imageSnapshot(bytes: Uint8Array): Promise<MetadataSnapshot> {
       }
     }
 
-    return { readable: true, fields, detectorId: METADATA_SNAPSHOT_DETECTOR_ID };
+    return {
+      readable: true, fields, detectorId: METADATA_SNAPSHOT_DETECTOR_ID,
+      unmeasuredKeys: [...UNMEASURED_IMAGE_KEYS],
+    };
   } catch {
-    return { readable: false, fields: [], detectorId: METADATA_SNAPSHOT_DETECTOR_ID };
+    return {
+      readable: false, fields: [], detectorId: METADATA_SNAPSHOT_DETECTOR_ID,
+      unmeasuredKeys: [...UNMEASURED_IMAGE_KEYS],
+    };
   }
 }
 
@@ -197,13 +226,21 @@ async function videoSnapshot(bytes: Uint8Array): Promise<MetadataSnapshot> {
       );
       parsed = JSON.parse(stdout) as typeof parsed;
     } catch {
-      return { readable: false, fields: [], detectorId: METADATA_SNAPSHOT_DETECTOR_ID };
+      return {
+        readable: false, fields: [], detectorId: METADATA_SNAPSHOT_DETECTOR_ID,
+        unmeasuredKeys: [...UNMEASURED_VIDEO_KEYS],
+      };
     }
 
     const streams = parsed.streams ?? [];
     const video = streams.find((s) => s.codec_type === 'video');
     const audio = streams.find((s) => s.codec_type === 'audio');
-    if (!video) return { readable: false, fields: [], detectorId: METADATA_SNAPSHOT_DETECTOR_ID };
+    if (!video) {
+      return {
+        readable: false, fields: [], detectorId: METADATA_SNAPSHOT_DETECTOR_ID,
+        unmeasuredKeys: [...UNMEASURED_VIDEO_KEYS],
+      };
+    }
 
     const fields: MetadataField[] = [
       { key: 'video.width', category: 'technical', value: video.width ?? null },
@@ -226,7 +263,10 @@ async function videoSnapshot(bytes: Uint8Array): Promise<MetadataSnapshot> {
       fields.push({ key: `tag.${tag}`, category, value: tags[tag] ?? null });
     }
 
-    return { readable: true, fields, detectorId: METADATA_SNAPSHOT_DETECTOR_ID };
+    return {
+      readable: true, fields, detectorId: METADATA_SNAPSHOT_DETECTOR_ID,
+      unmeasuredKeys: [...UNMEASURED_VIDEO_KEYS],
+    };
   });
 }
 
