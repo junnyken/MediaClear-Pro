@@ -130,9 +130,53 @@ export async function apiFetch<T>(
 }
 
 /** Day byte that len upload URL do may chu ky. */
+/**
+ * `D-079` — dua mot duong MAY CHU TRA VE ve dung goc ma trinh duyet dang noi chuyen.
+ *
+ * May chu dung `uploadUrl` TUYET DOI tu `MEDIACLEAR_PUBLIC_BASE_URL` (vd `http://127.0.0.1:3301`).
+ * Dia chi do dung o BEN TRONG may chu nhung sai o TRINH DUYET cua nguoi dung — `127.0.0.1` khi do
+ * la may CUA HO. Ket qua: moi thu khac chay binh thuong, rieng luc tai tep thi bao "Khong ket noi
+ * duoc may chu". Cung lop loi voi `apiBaseUrl()`, nhung o mot duong khac nen lan sua truoc khong
+ * cham toi.
+ */
+export function serverUrlForClient(url: string): string {
+  const base = apiBaseUrl();
+
+  /*
+   * CHI dung `new URL(url)` mot doi so — khong lay `window.location.href` lam goc.
+   *
+   * Ban dau ham nay dung `window.location.href` lam goc de con phan tich duoc duong tuong doi. Do
+   * la mot phu thuoc am: o noi nao `window.location` khong co (bo kiem chay o node, hay mot khung
+   * hinh bi han che), lenh do nem loi, roi vao `catch` va ham TRA VE DUNG CAI URL HONG — tuc la
+   * lop bao ve nay tu tat chinh no ma khong ke gi. Loi do lo ra vi bo kiem do 'http://127.0.0.1:
+   * 3301/...' nguyen ven o dau ra.
+   *
+   * Khong can goc that: duong TUONG DOI thi da cung goc san roi, chi can ghep them `base`.
+   */
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(url);
+  } catch {
+    parsed = null;
+  }
+
+  if (parsed === null) {
+    // Duong tuong doi. Chi ghep them `base` khi API nam o mot goc khac.
+    return url.startsWith('/v1/') ? `${base}${url}` : url;
+  }
+
+  /*
+   * CHI viet lai khi duong do tro toi CHINH API (`/v1/...`). Mot duong da ky cua kho doi tuong
+   * ngoai (S3/R2) nam o mot dich vu KHAC va trinh duyet goi thang duoc — viet lai no se lam hong
+   * that.
+   */
+  if (!parsed.pathname.startsWith('/v1/')) return url;
+  return `${base}${parsed.pathname}${parsed.search}`;
+}
+
 export async function apiUpload(uploadUrl: string, file: File): Promise<ApiResult<{ assetId: string }>> {
   try {
-    const response = await fetch(uploadUrl, {
+    const response = await fetch(serverUrlForClient(uploadUrl), {
       method: 'PUT',
       headers: { 'content-type': file.type || 'application/octet-stream' },
       body: file,

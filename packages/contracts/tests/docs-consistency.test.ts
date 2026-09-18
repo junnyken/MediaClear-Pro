@@ -110,6 +110,15 @@ describe('docs consistency', () => {
         const sentences = joined.split(/(?<=[.!?:])\s+|\s\|\s/);
         for (const sentence of sentences) {
           if (!TRIGGER.test(sentence)) continue;
+          /*
+           * LUU Y khi phep kiem nay do vi mot dong tai lieu MOI: dau `:` duoc tinh la het cau, nen
+           * mot cau dang "... watermark vo hinh: he thong khong phat hien" bi cat lam doi va ve
+           * dau — von chi la NHAN CHU DE — khong con ve phu dinh di kem.
+           *
+           * Cach sua dung la VIET LAI cau tai lieu (dung dau gach ngang thay dau hai cham) chu
+           * KHONG phai bo `:` khoi bo tach cau. Bo no di se lam mot cau kieu "Khong co gi phai lo:
+           * he thong go duoc SynthID." lot luoi, vi tu "khong" o ve dau se bao ke cho ve sau.
+           */
           if (!NEGATION.test(sentence)) offenders.push(`${file}: ${sentence.trim()}`);
         }
       }

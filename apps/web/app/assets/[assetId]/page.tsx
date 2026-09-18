@@ -3,7 +3,7 @@
 import { ASSET_VIEW_SCHEMA, RETENTION_VIEW_SCHEMA, SIGNED_URL_SCHEMA } from '@mediaclear/contracts';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { apiFetchChecked, translate } from '../../_lib/api';
+import { apiFetchChecked, translate, serverUrlForClient } from '../../_lib/api';
 import { friendlyType } from '../../_lib/media-format';
 import { useResource } from '../../_lib/use-resource';
 import { Button, Card, DefinitionRow, ErrorNotice, Loading, PageTitle, ValueOrUnknown, LinkButton } from '../../_components/Ui';
@@ -18,7 +18,7 @@ export default function AssetDetailPage() {
 
   async function download() {
     const result = await apiFetchChecked(`/v1/assets/${assetId}/download-url`, SIGNED_URL_SCHEMA);
-    if (result.ok && typeof window !== 'undefined') window.open(result.data.url, '_blank');
+    if (result.ok && typeof window !== 'undefined') window.open(serverUrlForClient(result.data.url), '_blank');
   }
 
   if (resource.status === 'loading') return <Loading />;

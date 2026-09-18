@@ -2215,7 +2215,7 @@ không mang theo chunk `caBX`. Nhưng hệ quả thì có thật, và người d
 
 ### Guardrail 4 **không** bị đụng tới
 
-Guardrail 4 nói về **dấu ẩn** (SynthID, watermark vô hình): hệ thống không phát hiện, không gỡ,
+Guardrail 4 nói về **dấu ẩn** (SynthID, watermark vô hình) — hệ thống không phát hiện, không gỡ,
 không cam kết kiểm soát. Điều đó **vẫn đúng** — bản khai C2PA nằm **công khai trong container**,
 không phải dấu ẩn trong điểm ảnh. Hệ thống không hề đụng tới lớp ẩn.
 
@@ -2246,5 +2246,78 @@ nhìn thấy chứ không tự trôi qua, vì câu chữ cảnh báo cho ngườ
 Đường xử lý **chưa** cố giữ bản khai C2PA. Giữ được nó là việc đáng làm (`preserveAiProvenance` là
 `true` cố định theo guardrail 7), nhưng cần một thư viện đọc/ghi C2PA thật — cùng phụ thuộc mà
 `Q-12` đang chờ. Ghi thành `Q-P5-05`.
+
+- **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-079 — Mọi đường do máy chủ trả về phải được kéo về đúng gốc mà trình duyệt đang nói chuyện
+
+### Người dùng thấy gì
+
+Chọn một tệp để tải lên, giao diện báo **"Không kết nối được máy chủ"**. Đăng nhập được, danh sách
+dự án hiện ra bình thường — chỉ riêng lúc tải tệp thì hỏng.
+
+### Đo được gì
+
+`POST /v1/projects/:id/assets/upload-intent` trả về:
+
+```
+uploadUrl = http://127.0.0.1:3301/v1/storage/upload/eyJidWNrZXQiOiJtZWRpYWNsZWFy...
+```
+
+Địa chỉ này **đúng ở bên trong máy chủ** và **sai ở trình duyệt người dùng**, vì `127.0.0.1` khi đó
+là máy **của họ** — nơi không có gì chạy ở cổng 3301.
+
+### Vì sao lần sửa trước không chạm tới
+
+`D-079` là **lớp lỗi thứ hai** của cùng một gốc. Lần trước đã sửa `apiBaseUrl()` nên mọi lời gọi
+API đều đi đúng. Nhưng đường tải lên **không đi qua `apiBaseUrl()`**: nó là một địa chỉ **tuyệt đối
+do máy chủ tự đặt ra** (`MEDIACLEAR_PUBLIC_BASE_URL`). Sửa một đường không có nghĩa là đã sửa cả lớp.
+
+### Bài học đắt nhất: đi tìm cả lớp trước khi vá một chỗ
+
+Sau khi tìm ra lỗi ở đường tải lên, việc đúng là quét xem **còn chỗ nào khác** nhận URL từ máy chủ.
+Quét ra thêm **ba chỗ**, trong đó có nút **"Tải tệp kết quả"** — tức là người dùng sẽ gặp lại đúng
+lỗi này ở **bước cuối cùng**, sau khi đã chờ xử lý xong. Vá từng chỗ một sẽ đẩy lỗi ra xa hơn chứ
+không làm nó biến mất.
+
+| Chỗ | Người dùng đang làm gì |
+|---|---|
+| `apiUpload` | tải tệp nguồn lên |
+| `jobs/[jobId]` | bấm **Tải tệp kết quả** |
+| `assets/[assetId]` | tải bản gốc về |
+| `assets/[assetId]/video` | phát thử video |
+
+### Cách sửa
+
+`serverUrlForClient(url)` — giữ lại `pathname` + `search`, ghép vào `apiBaseUrl()`.
+
+**Ranh giới phải giữ:** chỉ viết lại khi đường đó trỏ tới **chính API** (`/v1/...`). Khi hệ thống
+dùng kho đối tượng thật (S3/R2), máy chủ sẽ trả một đường đã ký trỏ tới **một dịch vụ khác** mà
+trình duyệt gọi thẳng được — viết lại đường đó sẽ làm hỏng thật.
+
+### Một lỗi thứ hai lộ ra khi viết phép kiểm
+
+Bản đầu của hàm dùng `window.location.href` làm gốc phân tích. Ở nơi `window.location` không có,
+lệnh đó **ném lỗi**, rơi vào `catch`, và hàm **trả về đúng cái URL hỏng** — lớp bảo vệ tự tắt chính
+nó mà không kể gì. Ba phép kiểm đỏ ngay vì chúng đo **chuỗi trả ra**, không đo "hàm có chạy không".
+Đã bỏ hẳn phụ thuộc đó: đường tương đối thì vốn đã cùng gốc.
+
+### Phép chắn
+
+`apps/web/tests/server-url-for-client.test.ts` quét **toàn bộ** `apps/web/app` tìm chỗ đọc
+`data.url` mà không qua `serverUrlForClient`, và **tự kiểm chính phép quét** (đếm số chỗ chạm tới
+phải ≥ 3) để một lần đổi tên trường không làm phép quét mất tác dụng trong im lặng.
+
+Đối chứng âm đã chạy: bỏ `serverUrlForClient` ở nút **Tải tệp kết quả** ⇒ phép kiểm đỏ, gọi đúng
+`jobs/[jobId]/page.tsx:131`.
+
+### Chạy thật (chỉ qua cổng 3302, không đụng 3301)
+
+| Đường | Kết quả đo |
+|---|---|
+| `PUT /v1/storage/upload/...` | `HTTP 200` · 14405 byte · `detectedMimeType: image/png` |
+| `GET /v1/storage/download/...` | `HTTP 200` · 1584 byte · `image/png` · magic `\x89PNG` đúng |
 
 - **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro

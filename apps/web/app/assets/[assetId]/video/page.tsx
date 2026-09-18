@@ -19,7 +19,7 @@ import {
   type Region,
   type VideoOperationMode,
 } from '@mediaclear/contracts';
-import { apiFetchChecked, translate, type ApiErrorShape } from '../../../_lib/api';
+import { apiFetchChecked, translate, type ApiErrorShape, serverUrlForClient } from '../../../_lib/api';
 import { useResource } from '../../../_lib/use-resource';
 import { Button, Card, DefinitionRow, ErrorNotice, Field, Loading, PageTitle } from '../../../_components/Ui';
 
@@ -68,7 +68,7 @@ export default function VideoCleanupPage() {
       setError(result.error);
       return;
     }
-    setPlayUrl(result.data.url);
+    setPlayUrl(serverUrlForClient(result.data.url));
   }
 
   async function createProxy() {

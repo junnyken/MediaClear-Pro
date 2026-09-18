@@ -4,7 +4,7 @@ import { JOB_OUTPUT_SCHEMA, JOB_PREVIEW_SCHEMA, JOB_RECEIPT_SCHEMA, JOB_VIEW_SCH
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { DEFAULT_LOCALE, formatBytes } from '@mediaclear/i18n';
-import { apiFetch, apiFetchChecked, translate, type ApiErrorShape } from '../../_lib/api';
+import { apiFetch, apiFetchChecked, translate, type ApiErrorShape, serverUrlForClient } from '../../_lib/api';
 import { useResource } from '../../_lib/use-resource';
 import {
   Button,
@@ -128,7 +128,7 @@ export default function JobStatusPage() {
       setDownloadError(result.error);
       return;
     }
-    window.location.href = result.data.url;
+    window.location.href = serverUrlForClient(result.data.url);
   }
 
   if (resource.status === 'loading') return <Loading />;
