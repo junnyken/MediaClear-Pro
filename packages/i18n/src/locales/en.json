@@ -547,5 +547,8 @@
   "screen.brand.preview_summary": "The export will use version {version} · logo: {logo} · disclosure line: {disclosure}.",
   "common.yes": "yes",
   "common.no": "no",
-  "screen.brand.upload_logo": "Upload a logo file"
+  "screen.brand.upload_logo": "Upload a logo file",
+  "screen.job_status.receipt_ai_marker_before": "AI-generated marker — before processing",
+  "screen.job_status.receipt_ai_marker_after": "AI-generated marker — after processing",
+  "screen.job_status.ai_marker_lost": "Your original file carried a marker saying it was AI-generated, but the result no longer has it. This is a side effect of re-saving the file, not a feature. If you need that marker kept, do not use the result in place of the original."
 }

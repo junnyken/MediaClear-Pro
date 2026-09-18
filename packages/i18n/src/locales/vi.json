@@ -547,5 +547,8 @@
   "screen.brand.preview_summary": "Bản xuất sẽ dùng phiên bản {version} · logo: {logo} · dòng công bố: {disclosure}.",
   "common.yes": "có",
   "common.no": "không",
-  "screen.brand.upload_logo": "Tải tệp logo lên"
+  "screen.brand.upload_logo": "Tải tệp logo lên",
+  "screen.job_status.receipt_ai_marker_before": "Dấu cho biết tệp do AI tạo — trước khi xử lý",
+  "screen.job_status.receipt_ai_marker_after": "Dấu cho biết tệp do AI tạo — sau khi xử lý",
+  "screen.job_status.ai_marker_lost": "Tệp gốc của bạn có kèm dấu cho biết nó do AI tạo ra, nhưng bản kết quả không còn dấu đó. Đây là hệ quả của việc ghi lại tệp, không phải một tính năng. Nếu bạn cần giữ dấu này, đừng dùng bản kết quả để thay thế tệp gốc."
 }

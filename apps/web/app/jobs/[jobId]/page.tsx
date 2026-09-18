@@ -391,6 +391,31 @@ export default function JobStatusPage() {
               ? translate(`presence.${receipt.data.provenanceAfter.originalMetadataPresence}`)
               : translate('common.unknown_value')}
           </DefinitionRow>
+          {/*
+            `D-078` — DAU HIEU "tep do AI tao ra" TRUOC va SAU.
+            Bien nhan da GHI viec nay tu Phase 2, nhung man hinh chi hien metadata goc — nguoi dung
+            khong co cach nao thay rang dau hieu do da BIEN MAT qua luot xu ly.
+            Do duoc: dau C2PA `present` di vao, `absent` di ra, o CA BA thao tac anh. Giau con so
+            do di trong khi van ghi no vao bien nhan la de mot su that quan trong nam ngoai tam mat.
+          */}
+          <DefinitionRow label={translate('screen.job_status.receipt_ai_marker_before')}>
+            {translate(`presence.${receipt.data.provenanceBefore.aiProvenancePresence}`)}
+          </DefinitionRow>
+          <DefinitionRow label={translate('screen.job_status.receipt_ai_marker_after')}>
+            {receipt.data.provenanceAfter
+              ? translate(`presence.${receipt.data.provenanceAfter.aiProvenancePresence}`)
+              : translate('common.unknown_value')}
+          </DefinitionRow>
+          {/*
+            Canh bao khi dau hieu BIEN MAT. Mot dong so lieu doi tu "Co" sang "Khong co" de bi luot
+            qua; cau nay noi thang hau qua, va no PHAI o ngay canh hai dong tren.
+          */}
+          {receipt.data.provenanceBefore.aiProvenancePresence === 'present'
+            && receipt.data.provenanceAfter?.aiProvenancePresence === 'absent' ? (
+              <p role="alert" style={{ color: 'var(--mcp-warning)' }}>
+                {translate('screen.job_status.ai_marker_lost')}
+              </p>
+            ) : null}
           {receipt.data.provenanceBefore.limitationNote ? (
             <DefinitionRow label={translate('screen.job_status.receipt_limitation')}>
               {/* Truong nay chua KHOA i18n, khong phai cau chu. In thang se ra chuoi khong dau. */}

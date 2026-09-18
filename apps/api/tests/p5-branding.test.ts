@@ -404,3 +404,47 @@ describe('D-077 — bo dan lop phu, o muc byte', () => {
     expect(a.checksumSha256, 'cau chu khac nhau ma anh giong het => chu khong duoc ve').not.toBe(b.checksumSha256);
   });
 });
+
+/**
+ * `D-078` — dau hieu "tep do AI tao ra" BIEN MAT qua duong xu ly anh.
+ *
+ * CAU HOI NGUOI DUNG DAT RA: "anh tu ChatGPT, cong cu nay co xoa duoc xac nhan do AI tao khong?"
+ *
+ * Cau tra loi DO DUOC: khong phai mot tinh nang, nhung tren thuc te dau hieu BIEN MAT — `sharp`
+ * ghi lai tep PNG va khong mang theo chunk `caBX` (noi ban khai C2PA nam).
+ *
+ * Bo test nay ghim HAI dieu:
+ *  1. He thong khong duoc IM LANG ve viec do — bien nhan phai ghi `partial`, khong phai `preserved`.
+ *  2. Neu ve sau ai do lam duong xu ly GIU duoc dau hieu, phep kiem se do va bat phai doc lai —
+ *     do la mot thay doi TOT, nhung no phai duoc nhin thay chu khong tu troi qua.
+ */
+describe('D-078 — dau hieu AI qua duong xu ly anh', () => {
+  it('dau C2PA `present` di vao, `absent` di ra — o CA BA thao tac anh', async () => {
+    const { DeterministicImageProvider } = await import('../src/providers/deterministic-image.js');
+    const { detectC2pa } = await import('../src/media/c2pa-probe.js');
+    const vao = fixture('image-c2pa-present.png');
+
+    expect(detectC2pa(vao).presence, 'moc thu sai: tep vao phai CO dau').toBe('present');
+
+    const provider = new DeterministicImageProvider();
+    const vung = [{ x: 0.2, y: 0.2, width: 0.3, height: 0.3, startSeconds: null, endSeconds: null }];
+    for (const thaoTac of ['blur', 'crop', 'brand_overlay'] as const) {
+      const ra = await provider.process(vao, thaoTac, vung);
+      expect(
+        detectC2pa(ra.bytes).presence,
+        `thao tac "${thaoTac}": neu dau hieu GIU duoc thi day la thay doi TOT — doc lai D-078 va cau chu cho nguoi dung`,
+      ).toBe('absent');
+    }
+  });
+
+  it('BIEN NHAN phai goi dung ten viec do: `partial`, KHONG phai `preserved`', async () => {
+    const { evaluatePreservation } = await import('@mediaclear/contracts');
+    const ra = evaluatePreservation(
+      { originalMetadataPresence: 'present', aiProvenancePresence: 'present', detectorId: 'x', detectorLimitationNote: null },
+      { originalMetadataPresence: 'present', aiProvenancePresence: 'absent', detectorId: 'x', detectorLimitationNote: null },
+      true,
+    );
+    expect(ra.result, 'mat dau hieu AI ma bien nhan van khai da giu nguyen').toBe('partial');
+    expect(ra.evidenceStatus).toBe('partially_verified');
+  });
+});

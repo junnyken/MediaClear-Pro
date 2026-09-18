@@ -2180,3 +2180,71 @@ Lớp phủ cho **video** chưa có — xem `Q-P5-03`. Không giả lập: biên
 `brandOverlayApplied: false`, và đó là sự thật.
 
 - **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro
+
+---
+
+## D-078 — Dấu "tệp do AI tạo ra" biến mất qua đường xử lý, và màn hình phải nói ra
+
+### Câu hỏi người dùng đặt ra
+
+*"Nếu tôi dùng ảnh từ ChatGPT tạo ra, công cụ này có xoá được xác nhận ảnh đó tạo từ AI không?"*
+
+Câu hỏi đúng chỗ, và câu trả lời phải đến từ **phép đo**, không từ lời hứa trong tài liệu.
+
+### Đo được
+
+Dựng một PNG có chunk `caBX` (nơi bản khai C2PA nằm), cho chạy qua đúng đường xử lý:
+
+```
+tep vao           : presence = present   (png:caBX)
+sau  blur         : presence = absent
+sau  crop         : presence = absent
+sau  brand_overlay: presence = absent
+```
+
+Chạy trọn vẹn qua hệ thống thật (PostgreSQL + worker), bản ghi nguồn gốc:
+
+```
+truoc: ai_provenance_presence = present
+sau  : ai_provenance_presence = absent
+preservation_result = partial · evidence_status = partially_verified
+```
+
+**Vậy: trên thực tế dấu C2PA BIẾN MẤT.** Không phải một tính năng — `sharp` ghi lại tệp PNG và
+không mang theo chunk `caBX`. Nhưng hệ quả thì có thật, và người dùng có quyền biết.
+
+### Guardrail 4 **không** bị đụng tới
+
+Guardrail 4 nói về **dấu ẩn** (SynthID, watermark vô hình): hệ thống không phát hiện, không gỡ,
+không cam kết kiểm soát. Điều đó **vẫn đúng** — bản khai C2PA nằm **công khai trong container**,
+không phải dấu ẩn trong điểm ảnh. Hệ thống không hề đụng tới lớp ẩn.
+
+### Chỗ sai thật: màn hình GIẤU điều mà biên nhận ĐÃ GHI
+
+`evaluatePreservation` đã trả `partial` / `partially_verified` từ Phase 2 — **luật thì trung thực**.
+Nhưng màn hình chỉ hiện `originalMetadataPresence` trước/sau, **không hiện** `aiProvenancePresence`.
+
+Người dùng không có cách nào thấy rằng dấu đó đã biến mất. Một sự thật quan trọng bị ghi vào hồ sơ
+rồi để nằm ngoài tầm mắt — về mặt thực tế thì không khác gì không ghi.
+
+### Đã sửa
+
+- Màn hình biên nhận hiện **dấu AI trước/sau**, cạnh metadata gốc.
+- Khi `present → absent`, hiện một cảnh báo `role="alert"` nói thẳng: *"Tệp gốc của bạn có kèm dấu
+  cho biết nó do AI tạo ra, nhưng bản kết quả không còn dấu đó. Đây là hệ quả của việc ghi lại tệp,
+  **không phải một tính năng**. Nếu bạn cần giữ dấu này, đừng dùng bản kết quả để thay thế tệp gốc."*
+- Fixture `image-c2pa-present.png` + 2 phép chắn.
+
+### Phép chắn thứ hai có chủ đích
+
+Phép kiểm khẳng định dấu hiệu **biến mất**. Nếu về sau ai đó làm đường xử lý **giữ** được dấu, phép
+kiểm sẽ **đỏ** và bắt phải đọc lại quyết định này — đó là một thay đổi **tốt**, nhưng nó phải được
+nhìn thấy chứ không tự trôi qua, vì câu chữ cảnh báo cho người dùng sẽ phải đổi theo.
+
+### Việc còn mở
+
+Đường xử lý **chưa** cố giữ bản khai C2PA. Giữ được nó là việc đáng làm (`preserveAiProvenance` là
+`true` cố định theo guardrail 7), nhưng cần một thư viện đọc/ghi C2PA thật — cùng phụ thuộc mà
+`Q-12` đang chờ. Ghi thành `Q-P5-05`.
+
+- **Status**: `confirmed` · **Date**: 2026-09-18 · **Owner**: Owner MediaClear Pro
