@@ -2780,3 +2780,56 @@ muốn canh tốc độ triển khai, đó phải là một phép kiểm **riên
 ### Lượt chạy thật
 
 Migration `0013` áp dụng trên PostgreSQL thật (13 dòng `schema_migrations`). Ba bảng/cột mới có mặt.
+
+---
+
+## Cổng chặn môi trường + sửa địa chỉ API khi mở từ máy khác · 2026-09-18
+
+### Chặn kiểu hỏng "bỏ qua im lặng"
+
+`apps/api/tests/p0-environment.test.ts`:
+
+- Một phép kiểm **luôn chạy, luôn xanh** — in ra môi trường có gì / thiếu gì. Một lượt chạy thiếu
+  công cụ không còn trông giống hệt một lượt chạy đầy đủ.
+- Một phép kiểm chỉ chạy khi `MEDIACLEAR_REQUIRE_FULL_ENV=1` — thiếu bất cứ thứ gì là **đỏ**.
+
+Phép đo font **không đếm font**: nó vẽ một dải chữ rồi vẽ lại với chuỗi rỗng và **so byte** — đúng
+phép đo mà `D-077` dùng trong mã sản phẩm. Font có thể có mặt mà vẫn không vẽ được chữ Việt có dấu.
+
+Đã thử ba trường hợp: bật cờ + thiếu → **đỏ** · bật cờ + đủ → xanh · tắt cờ + thiếu → xanh (người
+dev không bị chặn).
+
+`scripts/dev-setup.sh` kiểm/cài lại ffmpeg · font · libnss3 · PostgreSQL, rồi **tự kiểm lại bằng
+chính cổng chặn** ở trên.
+
+**Bẫy tự gây trong chính script đó**: `set -o pipefail` + `grep -q` làm `grep` thoát sớm,
+`ldconfig` nhận SIGPIPE, và mã lỗi của cả ống thành lỗi. Bản đầu báo *"libnss3 THIẾU"* trong khi nó
+đang có. Đổi sang `grep -c` gán vào biến.
+
+### Lỗi người dùng báo: "Không kết nối được máy chủ"
+
+Người dùng mở giao diện từ máy của họ (workspace chuyển tiếp cổng 3302). Trang hiện ra bình thường
+rồi báo *"Không kết nối được máy chủ"* — trong khi máy chủ đang chạy và `curl` từ bên trong workspace
+gọi được.
+
+**Nguyên nhân**: giao diện nhúng `__MCP_API_BASE__ = 'http://127.0.0.1:3301'` — đúng ở **bên trong**
+workspace nhưng sai ở **trình duyệt** của người dùng, vì `127.0.0.1` khi đó là máy **của họ**.
+
+**Lỗi thứ hai lộ ra khi sửa**: để chuỗi **rỗng** không có tác dụng, vì chuỗi rỗng đã mang nghĩa
+*"chưa đặt biến"* nên hàm rơi về `http://localhost:**3001**` — một cổng **không ai dùng** trong repo
+này (API chạy ở 3301). Một giá trị mang **hai ý nghĩa** là đủ để một trang chết mà không ai đọc ra
+vì sao.
+
+**Sửa**: cờ **riêng** `MEDIACLEAR_API_SAME_ORIGIN=1` + rewrite trong `next.config.mjs` chuyển tiếp
+`/v1/*` và `/healthz`. Nhờ vậy chỉ cần chuyển tiếp **một** cổng ra ngoài workspace.
+
+`rewrites()` được tính lúc **build**, không phải lúc chạy — phải đặt `MEDIACLEAR_API_PROXY_TARGET`
+khi build, không chỉ khi start.
+
+**Phép chắn** (`apps/web/tests/api-base-url.test.ts`, 4 phép kiểm) — quan trọng nhất là *"chuỗi rỗng
+mà KHÔNG có cờ thì rơi về đường lùi, không im lặng coi là cùng gốc"*. Đối chứng âm: gỡ nhánh cờ ra ⇒
+**2 đỏ**.
+
+Bẫy trong chính phép chắn: `apiBaseUrl()` chỉ đọc cờ khi đang ở trình duyệt, nên test chạy ở node
+phải dựng `window` giả — nếu không, cả 4 phép kiểm sẽ chạy nhầm vào đường lùi và **đều xanh** mà
+không chạm tới logic đang được canh.

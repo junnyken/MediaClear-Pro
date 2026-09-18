@@ -26,11 +26,27 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiErrorS
  */
 declare global {
   var __MCP_API_BASE__: string | undefined;
+  /** `true` = goi API qua cung mot goc voi giao dien. Xem `apiBaseUrl()`. */
+  var __MCP_SAME_ORIGIN__: boolean | undefined;
 }
 
 export function apiBaseUrl(): string {
-  if (typeof window !== 'undefined' && typeof window.__MCP_API_BASE__ === 'string' && window.__MCP_API_BASE__.length > 0) {
-    return window.__MCP_API_BASE__;
+  if (typeof window !== 'undefined') {
+    /*
+     * CUNG GOC: goi `/v1/...` tren chinh dia chi cua giao dien, va may chu Next chuyen tiep sang
+     * API (xem `next.config.mjs`).
+     *
+     * Can thiet khi may chu chay trong container/workspace tu xa: `http://127.0.0.1:3301` dung o
+     * BEN TRONG nhung sai o TRINH DUYET — `127.0.0.1` khi do la may CUA NGUOI DUNG. Trang van hien
+     * ra binh thuong roi bao "Khong ket noi duoc may chu", va nguoi doc de tuong may chu da chet.
+     *
+     * Phai kiem co NAY TRUOC: chuoi rong o `__MCP_API_BASE__` mang nghia "chua dat bien", khong
+     * mang nghia "cung goc".
+     */
+    if (window.__MCP_SAME_ORIGIN__ === true) return '';
+    if (typeof window.__MCP_API_BASE__ === 'string' && window.__MCP_API_BASE__.length > 0) {
+      return window.__MCP_API_BASE__;
+    }
   }
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001';
 }

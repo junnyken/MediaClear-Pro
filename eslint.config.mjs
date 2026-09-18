@@ -3,6 +3,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   { ignores: ['**/dist/**', '**/.next/**', '**/node_modules/**', '**/*.d.ts'] },
+  /*
+   * Tep cau hinh `.mjs` chay bang Node, khong phai trong trinh duyet — `process` la bien toan cuc
+   * hop le o do. Khai bao ro thay vi tat luat `no-undef`: tat luat se lam mat phep chan cho MOI
+   * tep, ke ca ma chay trong trinh duyet noi `process` that su khong ton tai.
+   */
+  {
+    files: ['**/*.config.mjs', '**/*.config.js'],
+    languageOptions: { globals: { process: 'readonly' } },
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

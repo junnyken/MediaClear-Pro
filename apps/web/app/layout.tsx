@@ -28,7 +28,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__MCP_API_BASE__=${JSON.stringify(process.env.MEDIACLEAR_API_BASE_URL ?? '')};`,
+            __html:
+              `window.__MCP_API_BASE__=${JSON.stringify(process.env.MEDIACLEAR_API_BASE_URL ?? '')};` +
+              /*
+               * `MEDIACLEAR_API_SAME_ORIGIN=1` — goi API qua CUNG MOT GOC voi giao dien.
+               *
+               * Can mot co RIENG, khong the dung chuoi rong lam tin hieu: chuoi rong da mang nghia
+               * "chua dat bien" o `apiBaseUrl()`. Nhap hai y nghia vao mot gia tri la cach da lam
+               * man hinh bao "Khong ket noi duoc may chu" trong khi may chu dang chay binh thuong.
+               */
+              `window.__MCP_SAME_ORIGIN__=${process.env.MEDIACLEAR_API_SAME_ORIGIN === '1'};`,
           }}
         />
         <Shell>{children}</Shell>
